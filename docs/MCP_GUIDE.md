@@ -225,7 +225,6 @@ The easiest way to configure any tool is with `nlm setup`:
 
 ```bash
 nlm setup add claude-code       # Claude Code
-nlm setup add claude-desktop    # Claude Desktop
 nlm setup add gemini            # Gemini CLI
 nlm setup add cursor            # Cursor
 nlm setup add windsurf          # Windsurf

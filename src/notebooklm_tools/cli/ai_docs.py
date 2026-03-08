@@ -700,7 +700,6 @@ Checks: installation, authentication, browser profile, AI tool configs. Shows su
 ```bash
 nlm setup list                          # Show all clients and their MCP status
 nlm setup add claude-code               # Add to Claude Code (via claude mcp add)
-nlm setup add claude-desktop            # Add to Claude Desktop config file
 nlm setup add gemini                    # Add to Gemini CLI config
 nlm setup add cursor                    # Add to Cursor config
 nlm setup add windsurf                  # Add to Windsurf config
@@ -713,7 +712,7 @@ nlm setup remove <client>               # Remove MCP from client
 nlm setup remove all                    # Remove MCP from ALL configured tools (with confirmation)
 ```
 
-**Supported Clients:** claude-code, claude-desktop, gemini, cursor, windsurf, cline, antigravity, codex
+**Supported Clients:** claude-code, gemini, cursor, windsurf, cline, antigravity, codex
 
 **For other tools:** `nlm setup add json` launches an interactive wizard — choose uvx or regular mode, full path or command name, and existing or new config. The JSON is printed with syntax highlighting and can be copied to clipboard (macOS).
 

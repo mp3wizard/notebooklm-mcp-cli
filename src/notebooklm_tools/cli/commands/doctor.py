@@ -207,13 +207,11 @@ def _check_clients(verbose: bool) -> bool:
     # Import setup module for config detection
     from notebooklm_tools.cli.commands.setup import (
         CLIENT_REGISTRY,
-        _claude_desktop_config_path,
         _gemini_config_path,
         _cursor_config_path,
         _windsurf_config_path,
         _read_json_config,
         _is_configured,
-        _check_claude_desktop_extension,
     )
 
     import subprocess
@@ -245,24 +243,6 @@ def _check_clients(verbose: bool) -> bool:
                     console.print(f"  {info['name']}: [dim]not installed[/dim]")
                 continue
 
-        elif client_id == "claude-desktop":
-            path = _claude_desktop_config_path()
-            config = _read_json_config(path)
-            if _is_configured(config):
-                status = True
-            else:
-                # Check for .mcpb extension installation
-                ext_installed, ext_enabled, ext_version = _check_claude_desktop_extension()
-                if ext_installed:
-                    ver_label = f" v{ext_version}" if ext_version else ""
-                    if ext_enabled:
-                        console.print(f"  {info['name']}: [green]configured[/green] [dim](extension{ver_label})[/dim]")
-                    else:
-                        console.print(f"  {info['name']}: [yellow]configured but disabled[/yellow] [dim](extension{ver_label})[/dim]")
-                    configured_count += 1
-                    continue
-                else:
-                    status = False
 
         elif client_id == "gemini":
             path = _gemini_config_path()

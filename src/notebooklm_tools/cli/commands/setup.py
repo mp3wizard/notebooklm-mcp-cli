@@ -71,64 +71,9 @@ def _add_mcp_server(config: dict, key: str = "notebooklm-mcp", extra: Optional[d
     return config
 
 
-def _claude_desktop_app_support_dir() -> Path:
-    """Get the Claude Desktop Application Support directory (platform-specific)."""
-    system = platform.system()
-    if system == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "Claude"
-    elif system == "Windows":
-        appdata = Path(os.environ.get("APPDATA", ""))
-        return appdata / "Claude"
-    else:  # Linux
-        return Path.home() / ".config" / "claude"
-
-
-def _check_claude_desktop_extension() -> tuple[bool, bool, Optional[str]]:
-    """Check if notebooklm-mcp is installed as a Claude Desktop Extension (.mcpb).
-
-    Returns:
-        (installed, enabled, version):
-            installed: True if the extension is registered in extensions-installations.json
-            enabled: True if the extension is enabled in its settings file
-            version: The installed extension version string, or None
-    """
-    app_dir = _claude_desktop_app_support_dir()
-    installations_path = app_dir / "extensions-installations.json"
-
-    installations = _read_json_config(installations_path)
-    extensions = installations.get("extensions", {})
-
-    # Search for any extension whose manifest name contains 'notebooklm'
-    for ext_id, ext_data in extensions.items():
-        manifest = ext_data.get("manifest", {})
-        name = manifest.get("name", "")
-        if "notebooklm" in name.lower():
-            version = manifest.get("version")
-
-            # Check if the extension is enabled
-            settings_path = app_dir / "Claude Extensions Settings" / f"{ext_id}.json"
-            settings = _read_json_config(settings_path)
-            enabled = settings.get("isEnabled", False)
-
-            return True, enabled, version
-
-    return False, False, None
-
-
 # =============================================================================
 # Client-specific config paths
 # =============================================================================
-
-def _claude_desktop_config_path() -> Path:
-    """Get Claude Desktop config path (platform-specific)."""
-    system = platform.system()
-    if system == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
-    elif system == "Windows":
-        appdata = Path(os.environ.get("APPDATA", ""))
-        return appdata / "Claude" / "claude_desktop_config.json"
-    else:  # Linux
-        return Path.home() / ".config" / "claude" / "claude_desktop_config.json"
 
 
 def _gemini_config_path() -> Path:
@@ -189,11 +134,6 @@ CLIENT_REGISTRY = {
     "claude-code": {
         "name": "Claude Code",
         "description": "Anthropic CLI (claude command)",
-        "has_auto_setup": True,
-    },
-    "claude-desktop": {
-        "name": "Claude Desktop",
-        "description": "Claude desktop application",
         "has_auto_setup": True,
     },
     "gemini": {
@@ -271,20 +211,6 @@ def _setup_claude_code() -> bool:
         return False
 
 
-def _setup_claude_desktop() -> bool:
-    """Add MCP to Claude Desktop config file."""
-    config_path = _claude_desktop_config_path()
-    config = _read_json_config(config_path)
-
-    if _is_configured(config):
-        console.print(f"[green]✓[/green] Already configured in Claude Desktop")
-        return True
-
-    _add_mcp_server(config)
-    _write_json_config(config_path, config)
-    console.print(f"[green]✓[/green] Added to Claude Desktop")
-    console.print(f"  [dim]{config_path}[/dim]")
-    return True
 
 
 def _setup_gemini() -> bool:
@@ -431,7 +357,7 @@ def _detect_tool(client_id: str) -> bool:
     """
     checks = {
         "claude-code": lambda: shutil.which("claude") is not None,
-        "claude-desktop": lambda: _claude_desktop_config_path().parent.exists(),
+
         "gemini": lambda: (
             shutil.which("gemini") is not None
             or _gemini_config_path().parent.exists()
@@ -474,9 +400,7 @@ def _is_already_configured(client_id: str) -> bool:
                 )
                 return "notebooklm" in result.stdout.lower()
             return False
-        elif client_id == "claude-desktop":
-            config = _read_json_config(_claude_desktop_config_path())
-            return _is_configured(config)
+
         elif client_id == "gemini":
             config = _read_json_config(_gemini_config_path())
             return _is_configured(config, "notebooklm")
@@ -603,7 +527,6 @@ def _setup_all() -> None:
     console.print()
     setup_fns = {
         "claude-code": _setup_claude_code,
-        "claude-desktop": _setup_claude_desktop,
         "gemini": _setup_gemini,
         "cursor": _setup_cursor,
         "windsurf": _setup_windsurf,
@@ -733,7 +656,6 @@ def setup_add(
 
     Examples:
         nlm setup add claude-code
-        nlm setup add claude-desktop
         nlm setup add gemini
         nlm setup add cursor
         nlm setup add windsurf
@@ -766,7 +688,6 @@ def setup_add(
 
     setup_fn = {
         "claude-code": _setup_claude_code,
-        "claude-desktop": _setup_claude_desktop,
         "gemini": _setup_gemini,
         "cursor": _setup_cursor,
         "windsurf": _setup_windsurf,
@@ -792,7 +713,6 @@ def setup_remove(
     Remove NotebookLM MCP server from an AI tool.
 
     Examples:
-        nlm setup remove claude-desktop
         nlm setup remove gemini
         nlm setup remove all
     """
@@ -857,7 +777,7 @@ def _remove_single(client: str) -> bool:
 
     # JSON config-based clients
     config_paths = {
-        "claude-desktop": _claude_desktop_config_path(),
+
         "gemini": _gemini_config_path(),
         "cursor": _cursor_config_path(),
         "windsurf": _windsurf_config_path(),
@@ -970,25 +890,6 @@ def setup_list() -> None:
                 config_path = "claude mcp list"
             else:
                 config_path = "not installed"
-
-        elif client_id == "claude-desktop":
-            path = _claude_desktop_config_path()
-            config = _read_json_config(path)
-            if _is_configured(config):
-                status = "[green]✓[/green]"
-                config_path = str(path).replace(str(Path.home()), "~")
-            else:
-                # Check for .mcpb extension installation
-                ext_installed, ext_enabled, ext_version = _check_claude_desktop_extension()
-                if ext_installed:
-                    ver_label = f" v{ext_version}" if ext_version else ""
-                    if ext_enabled:
-                        status = f"[green]✓[/green] [dim](extension{ver_label})[/dim]"
-                    else:
-                        status = f"[yellow]✓[/yellow] [dim](extension{ver_label}, disabled)[/dim]"
-                    config_path = "Settings > Extensions"
-                else:
-                    config_path = str(path).replace(str(Path.home()), "~")
 
         elif client_id == "gemini":
             path = _gemini_config_path()
