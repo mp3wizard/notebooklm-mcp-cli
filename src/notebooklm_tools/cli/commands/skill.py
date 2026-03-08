@@ -33,10 +33,10 @@ TOOL_CONFIGS = {
         "description": "Cursor AI editor",
     },
     "codex": {
-        "user": Path.home() / ".codex/AGENTS.md",
-        "project": Path("AGENTS.md"),
-        "format": "agents.md",
-        "description": "Codex AI assistant (appends section)",
+        "user": Path.home() / ".agents/skills/nlm-skill",
+        "project": Path(".agents/skills/nlm-skill"),
+        "format": "skill.md",
+        "description": "OpenAI Codex CLI",
     },
     "opencode": {
         "user": Path.home() / ".config/opencode/skills/nlm-skill",
@@ -347,7 +347,9 @@ Or for project-level installation, copy to:
 - Antigravity: `.agent/skills/`
 
 ### Codex
-Append the contents of `AGENTS_SECTION.md` to your `~/.codex/AGENTS.md` or `AGENTS.md` file.
+```bash
+cp -r nlm-skill ~/.agents/skills/
+```
 
 ## Automated Installation
 
@@ -356,7 +358,7 @@ Instead of manual copying, you can use:
 nlm skill install <tool>
 ```
 
-Where `<tool>` is: claude-code, opencode, gemini-cli, antigravity, or codex.
+Where `<tool>` is: claude-code, cursor, codex, opencode, gemini-cli, antigravity, cline, openclaw.
 """
 
     (install_path / "README.md").write_text(readme_content)

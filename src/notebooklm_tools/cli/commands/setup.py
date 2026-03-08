@@ -13,6 +13,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from typing import Optional
 
@@ -175,6 +176,11 @@ def _antigravity_config_path() -> Path:
     return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
 
 
+def _codex_config_path() -> Path:
+    """Get Codex CLI config directory path."""
+    return Path.home() / ".codex"
+
+
 # =============================================================================
 # Client definitions
 # =============================================================================
@@ -218,14 +224,14 @@ CLIENT_REGISTRY = {
     "codex": {
         "name": "Codex CLI",
         "description": "OpenAI Codex CLI",
-        "has_auto_setup": False,
+        "has_auto_setup": True,
     },
 }
 
 
 def _complete_client(ctx, param, incomplete: str) -> list[str]:
     """Shell completion for client names."""
-    all_clients = list(CLIENT_REGISTRY.keys()) + ["json"]
+    all_clients = list(CLIENT_REGISTRY.keys()) + ["json", "all"]
     return [name for name in all_clients if name.startswith(incomplete)]
 
 
@@ -361,6 +367,264 @@ def _setup_antigravity() -> bool:
     return True
 
 
+def _setup_codex() -> bool:
+    """Add MCP to Codex CLI via `codex mcp add` (preferred) or config.toml fallback."""
+    codex_cmd = shutil.which("codex")
+    if codex_cmd:
+        try:
+            result = subprocess.run(
+                [codex_cmd, "mcp", "add", "notebooklm-mcp", "--", MCP_SERVER_CMD],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                console.print(f"[green]✓[/green] Added to Codex CLI")
+                return True
+            elif "already exists" in result.stderr.lower():
+                console.print(f"[green]✓[/green] Already configured in Codex CLI")
+                return True
+            else:
+                console.print(f"[yellow]Warning:[/yellow] codex mcp add returned: {result.stderr.strip()}")
+                return False
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+            console.print(f"[yellow]Warning:[/yellow] Could not run codex command: {e}")
+            return False
+    else:
+        # Fallback: write config.toml directly
+        config_path = _codex_config_path() / "config.toml"
+
+        if config_path.exists():
+            try:
+                content = config_path.read_text()
+                config = tomllib.loads(content)
+                mcp_servers = config.get("mcp_servers", {})
+                if "notebooklm" in mcp_servers or "notebooklm-mcp" in mcp_servers:
+                    console.print(f"[green]✓[/green] Already configured in Codex CLI")
+                    return True
+            except Exception:
+                content = config_path.read_text() if config_path.exists() else ""
+        else:
+            content = ""
+
+        section = '''
+# NotebookLM MCP server
+[mcp_servers.notebooklm]
+command = "notebooklm-mcp"
+args = []
+enabled = true
+'''
+        new_content = content.rstrip() + "\n" + section if content.strip() else section.lstrip()
+
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(new_content)
+        console.print(f"[green]✓[/green] Added to Codex CLI (config.toml)")
+        console.print(f"  [dim]{config_path}[/dim]")
+        return True
+
+
+def _detect_tool(client_id: str) -> bool:
+    """Check if an AI tool is installed/present on the system.
+
+    Uses binary checks and config directory presence to determine
+    if a tool is available.
+    """
+    checks = {
+        "claude-code": lambda: shutil.which("claude") is not None,
+        "claude-desktop": lambda: _claude_desktop_config_path().parent.exists(),
+        "gemini": lambda: (
+            shutil.which("gemini") is not None
+            or _gemini_config_path().parent.exists()
+        ),
+        "cursor": lambda: (
+            Path.home() / ".cursor"
+        ).exists(),
+        "windsurf": lambda: (
+            _windsurf_config_path().parent.exists()
+        ),
+        "cline": lambda: (
+            Path.home() / ".cline"
+        ).exists(),
+        "antigravity": lambda: (
+            _antigravity_config_path().parent.exists()
+        ),
+        "codex": lambda: (
+            shutil.which("codex") is not None
+            or _codex_config_path().exists()
+        ),
+    }
+    check_fn = checks.get(client_id)
+    if not check_fn:
+        return False
+    try:
+        return check_fn()
+    except Exception:
+        return False
+
+
+def _is_already_configured(client_id: str) -> bool:
+    """Check if MCP is already configured for a client."""
+    try:
+        if client_id == "claude-code":
+            claude_cmd = shutil.which("claude")
+            if claude_cmd:
+                result = subprocess.run(
+                    [claude_cmd, "mcp", "list"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                return "notebooklm" in result.stdout.lower()
+            return False
+        elif client_id == "claude-desktop":
+            config = _read_json_config(_claude_desktop_config_path())
+            return _is_configured(config)
+        elif client_id == "gemini":
+            config = _read_json_config(_gemini_config_path())
+            return _is_configured(config, "notebooklm")
+        elif client_id == "cursor":
+            config = _read_json_config(_cursor_config_path())
+            return _is_configured(config)
+        elif client_id == "windsurf":
+            config = _read_json_config(_windsurf_config_path())
+            return _is_configured(config)
+        elif client_id == "cline":
+            config = _read_json_config(_cline_config_path())
+            return _is_configured(config)
+        elif client_id == "antigravity":
+            config = _read_json_config(_antigravity_config_path())
+            return _is_configured(config, "notebooklm")
+        elif client_id == "codex":
+            codex_cmd = shutil.which("codex")
+            if codex_cmd:
+                result = subprocess.run(
+                    [codex_cmd, "mcp", "list"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                return "notebooklm" in result.stdout.lower()
+            else:
+                # Check config.toml directly
+                toml_path = _codex_config_path() / "config.toml"
+                if toml_path.exists():
+                    config = tomllib.loads(toml_path.read_text())
+                    mcp = config.get("mcp_servers", {})
+                    return "notebooklm" in mcp or "notebooklm-mcp" in mcp
+            return False
+    except Exception:
+        pass
+    return False
+
+
+def _setup_all() -> None:
+    """Interactive multi-tool setup. Scans system for AI tools and lets user choose."""
+    console.print("\n[bold]Scanning for AI tools...[/bold]\n")
+
+    # Scan ALL tools (auto-setup and manual)
+    detected = []  # (client_id, info, is_configured, has_auto)
+    not_found = []
+
+    for client_id, info in CLIENT_REGISTRY.items():
+        is_present = _detect_tool(client_id)
+        if is_present:
+            has_auto = info["has_auto_setup"]
+            already = _is_already_configured(client_id) if has_auto else False
+            detected.append((client_id, info, already, has_auto))
+        else:
+            not_found.append((client_id, info))
+
+    # Display results table
+    table = Table(title="Detected AI Tools")
+    table.add_column("#", justify="right", style="cyan", width=3)
+    table.add_column("Tool", style="bold")
+    table.add_column("Status", justify="center")
+
+    configurable = []  # indices of tools that can be auto-configured
+    for i, (client_id, info, already, has_auto) in enumerate(detected):
+        num = str(i + 1)
+        if not has_auto:
+            table.add_row(num, info["name"], "[dim]use nlm skill install[/dim]")
+        elif already:
+            table.add_row(num, info["name"], "[green]✓ configured[/green]")
+        else:
+            table.add_row(num, info["name"], "[yellow]detected[/yellow]")
+            configurable.append(i)
+
+    console.print(table)
+
+    if not_found:
+        names = ", ".join(info["name"] for _, info in not_found)
+        console.print(f"\n[dim]Not found: {names}[/dim]")
+
+    if not configurable:
+        if detected:
+            console.print("\n[green]All detected tools are already configured! ✓[/green]")
+        else:
+            console.print("\n[yellow]No supported AI tools detected on your system.[/yellow]")
+            console.print("[dim]Use 'nlm setup add <client>' to configure a specific tool.[/dim]")
+        return
+
+    # Interactive selection
+    unconfigured_names = [
+        f"{detected[i][1]['name']} ({detected[i][0]})"
+        for i in configurable
+    ]
+    console.print(f"\n[bold]Unconfigured tools:[/bold] {', '.join(unconfigured_names)}")
+    console.print()
+
+    choice = Prompt.ask(
+        "Configure which tools? [cyan]all/yes[/cyan] / comma-separated numbers / [cyan]none[/cyan]",
+        default="all",
+    ).strip().lower()
+
+    if choice == "none" or choice == "n":
+        console.print("Cancelled.")
+        return
+
+    # Determine which tools to configure
+    if choice == "all" or choice == "a" or choice == "yes" or choice == "y":
+        selected_indices = configurable
+    else:
+        try:
+            nums = [int(n.strip()) for n in choice.split(",")]
+            selected_indices = []
+            for n in nums:
+                idx = n - 1
+                if idx in configurable:
+                    selected_indices.append(idx)
+                else:
+                    console.print(f"[yellow]Skipping #{n} — already configured or invalid[/yellow]")
+        except ValueError:
+            console.print("[red]Invalid input. Use 'all', 'none', or comma-separated numbers.[/red]")
+            return
+
+    if not selected_indices:
+        console.print("[dim]Nothing to configure.[/dim]")
+        return
+
+    # Execute setup for selected tools
+    console.print()
+    setup_fns = {
+        "claude-code": _setup_claude_code,
+        "claude-desktop": _setup_claude_desktop,
+        "gemini": _setup_gemini,
+        "cursor": _setup_cursor,
+        "windsurf": _setup_windsurf,
+        "cline": _setup_cline,
+        "antigravity": _setup_antigravity,
+        "codex": _setup_codex,
+    }
+
+    success_count = 0
+    for idx in selected_indices:
+        client_id, info, _, _has_auto = detected[idx]
+        fn = setup_fns.get(client_id)
+        if fn:
+            if fn():
+                success_count += 1
+
+    console.print(f"\n[green]✓ Configured {success_count} tool(s)[/green]")
+    if success_count > 0:
+        console.print("[dim]Restart the configured tools to activate the MCP server.[/dim]")
+
+
 def _prompt_numbered(prompt_text: str, options: list[tuple[str, str]], default: int = 1) -> str:
     """Show a numbered prompt and return the chosen option value.
 
@@ -457,7 +721,7 @@ def _setup_json() -> None:
 def setup_add(
     client: str = typer.Argument(
         ...,
-        help="AI tool to configure (claude-code, claude-desktop, gemini, cursor, windsurf)",
+        help="AI tool to configure, or 'all' to scan & configure interactively",
         shell_complete=_complete_client,
     ),
 ) -> None:
@@ -476,13 +740,18 @@ def setup_add(
         nlm setup add cline
         nlm setup add antigravity
         nlm setup add json
+        nlm setup add all         # Interactive — detect and configure all
     """
     if client == "json":
         _setup_json()
         return
 
+    if client == "all":
+        _setup_all()
+        return
+
     if client not in CLIENT_REGISTRY:
-        valid = ", ".join(list(CLIENT_REGISTRY.keys()) + ["json"])
+        valid = ", ".join(list(CLIENT_REGISTRY.keys()) + ["json", "all"])
         console.print(f"[red]Error:[/red] Unknown client '{client}'")
         console.print(f"Available clients: {valid}")
         raise typer.Exit(1)
@@ -503,6 +772,7 @@ def setup_add(
         "windsurf": _setup_windsurf,
         "cline": _setup_cline,
         "antigravity": _setup_antigravity,
+        "codex": _setup_codex,
     }
 
     success = setup_fn[client]()
@@ -514,7 +784,7 @@ def setup_add(
 def setup_remove(
     client: str = typer.Argument(
         ...,
-        help="AI tool to remove MCP from",
+        help="AI tool to remove MCP from, or 'all' to remove from every configured tool",
         shell_complete=_complete_client,
     ),
 ) -> None:
@@ -524,28 +794,66 @@ def setup_remove(
     Examples:
         nlm setup remove claude-desktop
         nlm setup remove gemini
+        nlm setup remove all
     """
+    if client == "all":
+        _remove_all()
+        return
+
     if client not in CLIENT_REGISTRY:
-        valid = ", ".join(CLIENT_REGISTRY.keys())
+        valid = ", ".join(list(CLIENT_REGISTRY.keys()) + ["all"])
         console.print(f"[red]Error:[/red] Unknown client '{client}'")
         console.print(f"Available clients: {valid}")
         raise typer.Exit(1)
 
-    # Client-specific removal
+    _remove_single(client)
+
+
+def _remove_single(client: str) -> bool:
+    """Remove MCP from a single client. Returns True if removed."""
+    # Client-specific removal via CLI (preferred)
     if client == "claude-code":
         claude_cmd = shutil.which("claude")
         if claude_cmd:
-            result = subprocess.run(
-                [claude_cmd, "mcp", "remove", "-s", "user", "notebooklm-mcp"],
-                capture_output=True, text=True, timeout=10,
-            )
-            if result.returncode == 0:
-                console.print(f"[green]✓[/green] Removed from Claude Code")
-            else:
-                console.print(f"[yellow]Note:[/yellow] {result.stderr.strip()}")
+            try:
+                result = subprocess.run(
+                    [claude_cmd, "mcp", "remove", "-s", "user", "notebooklm-mcp"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if result.returncode == 0:
+                    console.print(f"[green]✓[/green] Removed from Claude Code")
+                    return True
+                else:
+                    console.print(f"[yellow]Note:[/yellow] {result.stderr.strip()}")
+                    return False
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+                console.print(f"[yellow]Warning:[/yellow] Could not run claude command: {e}")
+                return False
         else:
             console.print("[yellow]Warning:[/yellow] 'claude' command not found")
-        return
+            return False
+
+    # CLI-based removal for Codex
+    if client == "codex":
+        codex_cmd = shutil.which("codex")
+        if codex_cmd:
+            try:
+                result = subprocess.run(
+                    [codex_cmd, "mcp", "remove", "notebooklm-mcp"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if result.returncode == 0:
+                    console.print(f"[green]✓[/green] Removed from Codex CLI")
+                    return True
+                else:
+                    console.print(f"[yellow]Note:[/yellow] {result.stderr.strip()}")
+                    return False
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+                console.print(f"[yellow]Warning:[/yellow] Could not run codex command: {e}")
+                return False
+        else:
+            console.print("[yellow]Warning:[/yellow] 'codex' command not found")
+            return False
 
     # JSON config-based clients
     config_paths = {
@@ -560,7 +868,7 @@ def setup_remove(
     config_path = config_paths.get(client)
     if not config_path or not config_path.exists():
         console.print(f"[dim]No config file found for {client}.[/dim]")
-        return
+        return False
 
     config = _read_json_config(config_path)
     servers = config.get("mcpServers", {})
@@ -574,8 +882,61 @@ def setup_remove(
     if removed:
         _write_json_config(config_path, config)
         console.print(f"[green]✓[/green] Removed from {CLIENT_REGISTRY[client]['name']}")
+        return True
     else:
         console.print(f"[dim]NotebookLM MCP was not configured in {CLIENT_REGISTRY[client]['name']}.[/dim]")
+        return False
+
+
+def _remove_all() -> None:
+    """Remove MCP from all configured tools with explicit confirmation."""
+    console.print("\n[bold]Scanning for configured tools...[/bold]\n")
+
+    # Find all configured tools
+    configured = []
+    for client_id, info in CLIENT_REGISTRY.items():
+        if not info["has_auto_setup"]:
+            continue
+        if _is_already_configured(client_id):
+            configured.append((client_id, info))
+
+    if not configured:
+        console.print("[dim]No tools have NotebookLM MCP configured.[/dim]")
+        return
+
+    # Show what will be removed
+    table = Table(title="Configured Tools")
+    table.add_column("#", justify="right", style="cyan", width=3)
+    table.add_column("Tool", style="bold")
+
+    for i, (client_id, info) in enumerate(configured):
+        table.add_row(str(i + 1), info["name"])
+
+    console.print(table)
+
+    # Strong warning and confirmation
+    console.print()
+    console.print("[bold red]⚠  WARNING:[/bold red] This will remove the NotebookLM MCP server")
+    console.print(f"from [bold]{len(configured)}[/bold] tool(s) listed above.")
+    console.print()
+
+    if not Confirm.ask(
+        "[bold]Are you sure you want to remove MCP from ALL configured tools?[/bold]",
+        default=False,
+    ):
+        console.print("Cancelled.")
+        return
+
+    # Execute removal
+    console.print()
+    removed_count = 0
+    for client_id, info in configured:
+        if _remove_single(client_id):
+            removed_count += 1
+
+    console.print(f"\n[green]✓ Removed from {removed_count} tool(s)[/green]")
+    if removed_count > 0:
+        console.print("[dim]Restart the affected tools to apply changes.[/dim]")
 
 
 @app.command("list")
@@ -665,7 +1026,20 @@ def setup_list() -> None:
             config_path = str(path).replace(str(Path.home()), "~")
 
         elif client_id == "codex":
-            config_path = "uses nlm skill install codex"
+            codex_cmd = shutil.which("codex")
+            if codex_cmd:
+                try:
+                    result = subprocess.run(
+                        [codex_cmd, "mcp", "list"],
+                        capture_output=True, text=True, timeout=5,
+                    )
+                    if "notebooklm" in result.stdout.lower():
+                        status = "[green]✓[/green]"
+                except (subprocess.TimeoutExpired, OSError):
+                    status = "[dim]?[/dim]"
+                config_path = "codex mcp list"
+            else:
+                config_path = "not installed"
 
         table.add_row(info["name"], info["description"], status, config_path)
 

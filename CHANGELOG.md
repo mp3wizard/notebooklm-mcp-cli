@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.4.2] - 2026-03-08
+
+### Added
+- **Expanded file format support (PR #82)** — File uploads now accept additional formats. Thanks to **@JumpLao** for this contribution!
+  - Audio: `.m4a`, `.wav`, `.aac`, `.ogg`, `.opus` (previously only `.mp3`)
+  - Images: `.gif`, `.webp` (previously only `.jpg`, `.jpeg`, `.png`)
+  - Note: `.flac`, `.webm`, `.mov`, `.avi`, `.mkv` were removed from the original PR as Google's upload server does not accept them
+- **Cited text passages in query output (PR #81)** — `notebook_query` responses now include a `references` array with the actual quoted passage text for each citation. Previously, only the source ID and citation number were returned; the passage text was already in the API response but was being discarded. Thanks to **@cbruyndoncx** for this contribution!
+  - Each reference includes `source_id`, `citation_number`, and `cited_text`
+  - Backward-compatible: existing `sources_used` and `citations` fields unchanged
+  - Flows through MCP and CLI automatically
+- **`nlm setup add all` — Interactive multi-tool setup** — Scans the system for installed AI tools, shows detection status, and lets you interactively choose which ones to configure with NotebookLM MCP
+  - Detects: Claude Code, Claude Desktop, Gemini CLI, Cursor, Windsurf, Cline, Antigravity, Codex
+  - Shows which tools are already configured vs. newly detected
+  - Select `all`, specific numbers, or `none`
+- **`nlm setup remove all`** — Remove NotebookLM MCP from all configured tools at once, with explicit confirmation and safety warnings. Uses CLI-first removal (e.g., `claude mcp remove`) where available.
+
+### Changed
+- **Codex skill path updated** — `nlm skill install codex` now installs to `~/.agents/skills/nlm-skill/SKILL.md` per [official Codex docs](https://developers.openai.com/codex/skills/), replacing the old `~/.codex/AGENTS.md` path. Users with the old installation should run `nlm skill install codex` to reinstall at the correct location.
+
 ## [0.4.1] - 2026-03-07
 
 ### Added
