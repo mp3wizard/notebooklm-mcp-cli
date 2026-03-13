@@ -72,7 +72,12 @@ def cross_query(
             else:
                 sources = ""
                 if r["sources_used"]:
-                    source_names = [s.get("title", s.get("id", "?")) for s in r["sources_used"]]
+                    source_names = []
+                    for s in r["sources_used"]:
+                        if isinstance(s, dict):
+                            source_names.append(s.get("title", s.get("id", "?")))
+                        else:
+                            source_names.append(str(s))
                     sources = f"\n\n[dim]Sources: {', '.join(source_names)}[/dim]"
                 console.print(Panel(
                     f"{r['answer']}{sources}",
