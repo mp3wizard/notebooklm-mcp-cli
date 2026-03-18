@@ -478,17 +478,17 @@ def get_studio_status(
     try:
         mind_maps = client.list_mind_maps(notebook_id)
         for mm in mind_maps:
-            artifacts.append(
-                {
-                    "artifact_id": mm.get("mind_map_id"),
-                    "type": "mind_map",
-                    "title": mm.get("title", "Mind Map"),
-                    "status": "completed",
-                    "created_at": mm.get("created_at"),
-                }
-            )
-    except Exception:
-        pass  # Mind maps are optional
+            artifacts.append({
+                "artifact_id": mm.get("mind_map_id"),
+                "type": "mind_map",
+                "title": mm.get("title", "Mind Map"),
+                "status": "completed",
+                "created_at": mm.get("created_at"),
+            })
+    except Exception as _e:
+        # SEC-007: mind maps are optional but log the failure for debuggability
+        import logging as _logging
+        _logging.getLogger(__name__).debug("Could not fetch mind maps for studio status: %s", _e)
 
     completed = [a for a in artifacts if a.get("status") == "completed"]
     in_progress = [a for a in artifacts if a.get("status") == "in_progress"]

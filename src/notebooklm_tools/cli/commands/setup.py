@@ -492,8 +492,10 @@ def _is_already_configured(client_id: str) -> bool:
             config = _read_json_config(_opencode_config_path())
             mcp = config.get("mcp", {})
             return "notebooklm" in mcp or "notebooklm-mcp" in mcp
-    except Exception:
-        pass
+    except Exception as _e:
+        # SEC-007: log detection failure so misconfigured client checks are visible
+        import logging as _logging
+        _logging.getLogger(__name__).debug("Could not detect MCP configuration for %r: %s", client_id, _e)
     return False
 
 

@@ -1,6 +1,11 @@
 """Sharing service — shared business logic for notebook sharing and collaboration."""
 
-from typing import TypedDict
+import re
+from typing import TypedDict, Literal, Optional
+
+# SEC-008: Basic email format validation — reject obviously invalid addresses
+# before they reach the API.
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 from ..core.client import NotebookLMClient
 from ..core.data_types import Collaborator, ShareStatus
@@ -158,6 +163,13 @@ def invite_collaborator(
         ValidationError: If role is invalid
         ServiceError: If invitation fails
     """
+    # SEC-008: Validate email format before sending to API
+    if not _EMAIL_RE.match(email):
+        raise ValidationError(
+            f"Invalid email address: {email!r}",
+            user_message=f"Please provide a valid email address (got '{email}')",
+        )
+
     clean_role = role.lower()
     if clean_role not in ("viewer", "editor"):
         raise ValidationError(

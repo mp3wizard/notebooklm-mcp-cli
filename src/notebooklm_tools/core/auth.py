@@ -134,9 +134,13 @@ def save_tokens_to_cache(tokens: AuthTokens, silent: bool = False) -> None:
         tokens: AuthTokens to save
         silent: If True, don't print confirmation message (for auto-updates)
     """
+    import stat
     cache_path = get_cache_path()
+    # SEC-002: Restrict the parent directory and file to owner-only access
+    cache_path.parent.chmod(stat.S_IRWXU)  # 0o700
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(tokens.to_dict(), f, indent=2)
+    cache_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
     if not silent:
         logger.info(f"Auth tokens cached to {cache_path}")
 

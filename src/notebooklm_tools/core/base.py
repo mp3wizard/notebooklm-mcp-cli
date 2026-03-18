@@ -11,8 +11,8 @@ Internal API. See CLAUDE.md for full documentation.
 import json
 import logging
 import os
-import random
 import re
+import secrets
 import urllib.parse
 from typing import Any
 
@@ -56,6 +56,11 @@ class BaseClient:
     BATCHEXECUTE_URL = f"{BASE_URL}/_/LabsTailwindUi/data/batchexecute"
     UPLOAD_URL = "https://notebooklm.google.com/upload/_/"
     _BL_FALLBACK = "boq_labs-tailwind-frontend_20260108.06_p0"
+
+    # SEC-010: Chrome version string used in User-Agent and sec-ch-ua headers for
+    # CSRF token extraction. Update this constant when Chrome releases a new major
+    # version to keep the spoofed UA plausible for Google's bot-detection checks.
+    _CHROME_UA_VERSION = "143"
 
     # =========================================================================
     # Known RPC IDs
@@ -269,7 +274,8 @@ class BaseClient:
         self._conversation_cache: dict[str, list[ConversationTurn]] = {}
 
         # Request counter for _reqid parameter (required for query endpoint)
-        self._reqid_counter = random.randint(100000, 999999)
+        # SEC-006: Use secrets module instead of random for unpredictable counter seed
+        self._reqid_counter = secrets.randbelow(900000) + 100000
 
         # Only refresh CSRF token if not provided - tokens actually last hours/days, not minutes
         # The retry logic in _call_rpc() handles expired tokens gracefully
@@ -552,6 +558,8 @@ class BaseClient:
                 logger.debug(f"  {key}: {value}")
 
             # Decode and display request body
+            # SEC-005: _decode_request_body() replaces the at= CSRF token value
+            # with the literal string "(csrf_token)" before logging.
             logger.debug("-" * 70)
             logger.debug("Request Params:")
             decoded_body = _decode_request_body(body)
@@ -698,12 +706,15 @@ class BaseClient:
             csrf_token = extract_csrf_from_page_source(html)
             if not csrf_token:
                 # Save HTML for debugging
+                import stat
                 from notebooklm_tools.utils.config import get_storage_dir
 
                 debug_dir = get_storage_dir()
                 debug_dir.mkdir(parents=True, exist_ok=True)
                 debug_path = debug_dir / "debug_page.html"
                 debug_path.write_text(html, encoding="utf-8")
+                # SEC-001: Restrict permissions — file may contain CSRF/session tokens
+                debug_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
                 raise ValueError(
                     f"Could not extract CSRF token from page. "
                     f"Page saved to {debug_path} for debugging. "

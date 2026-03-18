@@ -168,6 +168,18 @@ Examples:
 
     args = parser.parse_args()
 
+    # SEC-004: Warn when binding to a non-loopback address — the MCP endpoint
+    # has no built-in authentication and will be network-accessible.
+    if args.transport in ("http", "sse") and args.host not in ("127.0.0.1", "::1", "localhost"):
+        import warnings
+        warnings.warn(
+            f"MCP server binding to {args.host!r} — the endpoint will be "
+            "network-accessible without authentication. "
+            "Use NOTEBOOKLM_MCP_HOST=127.0.0.1 for local-only access, "
+            "or place an authenticated reverse proxy in front of this service.",
+            stacklevel=1,
+        )
+
     # Configure debug logging
     if args.debug:
         logging.basicConfig(

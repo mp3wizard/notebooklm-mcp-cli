@@ -456,9 +456,10 @@ class StudioMixin(BaseClient):
             result = self._call_rpc(self.RPC_DELETE_STUDIO, params)
             if result is not None:
                 return True
-        except Exception:
-            # Continue to fallback if standard delete fails
-            pass
+        except Exception as _e:
+            # SEC-007: log instead of silently swallowing — continue to fallback
+            import logging as _logging
+            _logging.getLogger(__name__).debug("Standard studio delete failed, trying fallback: %s", _e)
 
         # 2. Fallback: Try Mind Map deletion if we have a notebook ID
         # Mind maps require a different RPC (AH0mwd) and payload structure

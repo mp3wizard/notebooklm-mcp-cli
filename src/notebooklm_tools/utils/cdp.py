@@ -447,7 +447,7 @@ def launch_chrome_process(
         "--no-default-browser-check",
         "--disable-extensions",
         f"--user-data-dir={profile_dir}",
-        "--remote-allow-origins=*",
+        f"--remote-allow-origins=http://localhost:{port}",  # SEC-003: restrict to localhost only
     ]
 
     if headless:
@@ -510,8 +510,9 @@ def terminate_chrome(process: subprocess.Popen | None = None, port: int | None =
         else:
             # No fast path, use slow path
             process.terminate()
-    except Exception:
-        pass  # Ignore connection drops or failures during close
+    except Exception as _e:
+        # SEC-007: log instead of silently swallowing — connection drops during close are expected
+        _logger.debug("Suppressed error during Chrome close (expected on connection drop): %s", _e)
 
     _cached_ws = _cached_ws_url = None
 
@@ -523,9 +524,12 @@ def terminate_chrome(process: subprocess.Popen | None = None, port: int | None =
         try:
             process.terminate()
             process.wait(timeout=5)
-        except Exception:
-            with contextlib.suppress(Exception):
+        except Exception as _e2:
+            try:
                 process.kill()
+            except Exception as _e3:
+                # SEC-007: log termination failure so it is visible in debug output
+                _logger.debug("Could not kill Chrome process: %s", _e3)
 
     # Clean up port map
     effective_port = port or _chrome_port
@@ -911,8 +915,9 @@ def extract_cookies_from_page(
                 current_url = get_current_url(ws_url)
                 if is_logged_in(current_url):
                     break
-            except Exception:
-                pass
+            except Exception as _e:
+                # SEC-007: transient CDP poll failure during login wait — log and continue
+                _logger.debug("Transient error polling login status: %s", _e)
 
         if not is_logged_in(current_url):
             raise AuthenticationError(
@@ -999,8 +1004,9 @@ def cleanup_chrome_profile_cache(profile_name: str = "default") -> int:
                 size = sum(f.stat().st_size for f in cache_path.rglob("*") if f.is_file())
                 shutil.rmtree(cache_path, ignore_errors=True)
                 bytes_freed += size
-            except Exception:
-                pass
+            except Exception as _e:
+                # SEC-007: log cache-cleanup failure instead of silently ignoring
+                _logger.debug("Could not clean Chrome cache dir %s: %s", cache_path, _e)
 
     return bytes_freed
 

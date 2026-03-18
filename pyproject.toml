@@ -32,7 +32,7 @@ dependencies = [
     "rich>=13.0.0",
     "websocket-client>=1.6.0",  # CDP login
     "platformdirs>=4.0.0",
-    "fastmcp>=0.1.0",
+    "fastmcp>=0.1.0,<2.0.0",  # SEC-009: cap major version to prevent untested breaking upgrades
     "pyyaml>=6.0",
 ]
 

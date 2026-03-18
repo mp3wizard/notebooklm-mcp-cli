@@ -42,8 +42,10 @@ def refresh_auth() -> dict[str, Any]:
                     "status": "success",
                     "message": "Auth tokens refreshed via headless Chrome.",
                 }
-        except Exception:
-            pass
+        except Exception as _e:
+            # SEC-007: log headless auth failure so it is visible in debug output
+            import logging as _logging
+            _logging.getLogger(__name__).debug("Headless Chrome auth failed during refresh_auth: %s", _e)
 
         return {
             "status": "error",
