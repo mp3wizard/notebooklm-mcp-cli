@@ -1,0 +1,38 @@
+name: Lint, Format, and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    name: Lint, format check, and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run ruff linting
+        run: ruff check . --output-format=github
+        continue-on-error: true
+
+      - name: Run ruff format check
+        run: ruff format --check .
+        continue-on-error: true
+
+      - name: Run tests with pytest
+        run: pytest -v --tb=short
+        continue-on-error: false
