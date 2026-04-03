@@ -10,6 +10,21 @@
 
 > 🎉 **January 2026 — Major Update!** This project has been completely refactored to unify **NotebookLM-MCP** and **NotebookLM-CLI** into a single, powerful package. One install gives you both the CLI (`nlm`) and MCP server (`notebooklm-mcp`). See the [CLI Guide](docs/CLI_GUIDE.md) and [MCP Guide](docs/MCP_GUIDE.md) for full documentation.
 
+## What's New (mp3wizard fork)
+
+### Security fixes (April 2026)
+- **fastmcp upgraded 2.14.2 → 3.2.0** — fixes CVE-2026-32871 (CRITICAL: SSRF & Path Traversal) and CVE-2026-27124 (HIGH: OAuth confused deputy)
+- **requests upgraded 2.32.5 → 2.33.1** — fixes CVE-2026-25645 (MEDIUM: predictable temp file)
+- **FastMCP 1.0 compatibility + security hardening** (SEC-001–SEC-008): auth.json restricted to owner-only permissions (0o600/0o700), vulnerable transitive dependencies removed
+
+### Upstream sync (v0.5.11–v0.5.15)
+- Enterprise/Workspace configurable base URL support
+- Auth recovery fixes + CDP proxy bypass fix
+- Python 3.13 compatibility fix
+- `research_status` polling loop (`poll_interval`, `max_wait`)
+- Async query polling fix (Issue #125)
+- PEP 735 dev dependency group migration
+
 **Programmatic access to Google NotebookLM** — via command-line interface (CLI) or Model Context Protocol (MCP) server.
 
 > **Note:** Tested with Pro/free tier accounts. May work with NotebookLM Enterprise accounts but has not been tested.
