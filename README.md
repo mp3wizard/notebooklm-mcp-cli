@@ -12,6 +12,10 @@
 
 ## What's New (mp3wizard fork)
 
+### Claude Code Skill (April 2026)
+- **`notebooklm-cli.skill`** added — install this skill in Claude Code for AI-assisted `nlm` CLI workflows (auth, notebooks, sources, studio generation, research, batch operations, and more)
+- Skill covers all 10 artifact types with format/style options, 4 common end-to-end workflows, and error recovery guidance
+
 ### Security fixes (April 2026)
 - **fastmcp upgraded 2.14.2 → 3.2.0** — fixes CVE-2026-32871 (CRITICAL: SSRF & Path Traversal) and CVE-2026-27124 (HIGH: OAuth confused deputy)
 - **requests upgraded 2.32.5 → 2.33.1** — fixes CVE-2026-25645 (MEDIUM: predictable temp file)
