@@ -18,6 +18,8 @@ from typing import Any
 
 import httpx
 
+from notebooklm_tools.utils.config import get_base_url
+
 from . import constants
 from .data_types import ConversationTurn
 from .errors import ClientAuthenticationError as AuthenticationError
@@ -52,6 +54,21 @@ class BaseClient:
     from this base class.
     """
 
+    @classmethod
+    def _get_base_url(cls) -> str:
+        return get_base_url()
+
+    @classmethod
+    def _get_batchexecute_url(cls) -> str:
+        return f"{cls._get_base_url()}/_/LabsTailwindUi/data/batchexecute"
+
+    @classmethod
+    def _get_upload_url(cls) -> str:
+        return f"{cls._get_base_url()}/upload/_/"
+
+    # Keep class-level attributes for backward compatibility with code that
+    # reads them directly (e.g. tests). These are the defaults; runtime code
+    # should use the _get_*() methods which respect NOTEBOOKLM_BASE_URL.
     BASE_URL = "https://notebooklm.google.com"
     BATCHEXECUTE_URL = f"{BASE_URL}/_/LabsTailwindUi/data/batchexecute"
     UPLOAD_URL = "https://notebooklm.google.com/upload/_/"
@@ -355,8 +372,8 @@ class BaseClient:
                 cookies=cookies,
                 headers={
                     "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-                    "Origin": self.BASE_URL,
-                    "Referer": f"{self.BASE_URL}/",
+                    "Origin": self._get_base_url(),
+                    "Referer": f"{self._get_base_url()}/",
                     "X-Same-Domain": "1",
                     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
                 },
@@ -377,8 +394,8 @@ class BaseClient:
             cookies=cookies,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-                "Origin": self.BASE_URL,
-                "Referer": f"{self.BASE_URL}/",
+                "Origin": self._get_base_url(),
+                "Referer": f"{self._get_base_url()}/",
                 "X-Same-Domain": "1",
             },
             timeout=30.0,
@@ -423,7 +440,7 @@ class BaseClient:
             params["f.sid"] = self._session_id
 
         query = urllib.parse.urlencode(params)
-        return f"{self.BATCHEXECUTE_URL}?{query}"
+        return f"{self._get_batchexecute_url()}?{query}"
 
     def _parse_response(self, response_text: str) -> Any:
         """Parse the batchexecute response."""
@@ -686,7 +703,7 @@ class BaseClient:
         with httpx.Client(
             cookies=cookies, headers=headers, follow_redirects=True, timeout=15.0
         ) as client:
-            response = client.get(f"{self.BASE_URL}/")
+            response = client.get(f"{self._get_base_url()}/")
 
             # Check if redirected to login (cookies expired)
             if "accounts.google.com" in str(response.url):
@@ -775,20 +792,22 @@ class BaseClient:
 
         Returns True if new valid tokens were obtained, False otherwise.
         """
-        from .auth import get_cache_path, load_cached_tokens
+        from .auth import load_cached_tokens
 
-        # Check if auth.json has tokens - always try them since current tokens failed
-        cache_path = get_cache_path()
-        if cache_path.exists():
-            cached = load_cached_tokens()
-            if cached and cached.cookies:
-                # Always reload from disk when auth fails - current tokens are known-bad
-                # The cached tokens may be fresher (user ran nlm login)
-                # or the same, but worth retrying with a fresh CSRF token extraction
-                self.cookies = cached.cookies
-                self.csrf_token = ""  # Force re-extraction of CSRF token
-                self._session_id = ""  # Force re-extraction of session ID
-                return True
+        # Layer 2: Reload cookies from disk (profile or legacy auth.json).
+        # load_cached_tokens() checks the default profile first, then falls
+        # back to the legacy auth.json file.  We no longer gate on
+        # auth.json existence so that users who only have profile-based
+        # credentials (from `nlm login`) are not skipped.
+        cached = load_cached_tokens()
+        if cached and cached.cookies:
+            # Always reload from disk when auth fails - current tokens are known-bad
+            # The cached tokens may be fresher (user ran nlm login)
+            # or the same, but worth retrying with a fresh CSRF token extraction
+            self.cookies = cached.cookies
+            self.csrf_token = ""  # Force re-extraction of CSRF token
+            self._session_id = ""  # Force re-extraction of session ID
+            return True
 
         # Try headless auth if Chrome profile exists
         try:

@@ -4,7 +4,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from notebooklm_tools.services.chat import configure_chat, delete_chat_history, query
+from notebooklm_tools.services.chat import (
+    configure_chat,
+    delete_chat_history,
+    query,
+    query_start,
+    query_status,
+)
 from notebooklm_tools.services.errors import ServiceError, ValidationError
 
 
@@ -168,3 +174,145 @@ class TestDeleteChatHistory:
 
         with pytest.raises(ServiceError, match="Failed to delete"):
             delete_chat_history(mock_client, "nb-123")
+
+
+class TestQueryStart:
+    """Test async query_start service function."""
+
+    def test_returns_immediately_with_query_id(self, mock_client):
+        # Make the mock query block for 2 seconds to prove we return immediately
+        import time as _time
+
+        def slow_query(**kwargs):
+            _time.sleep(2)
+            return {"answer": "done"}
+
+        mock_client.query.side_effect = slow_query
+
+        start = _time.monotonic()
+        result = query_start(mock_client, "nb-123", "question")
+        elapsed = _time.monotonic() - start
+
+        assert elapsed < 1.0, "query_start should return immediately"
+        assert "query_id" in result
+        assert result["status"] == "in_progress"
+        assert len(result["query_id"]) == 12
+
+    def test_empty_query_raises_validation_error(self, mock_client):
+        with pytest.raises(ValidationError, match="Query text is required"):
+            query_start(mock_client, "nb-123", "")
+
+    def test_whitespace_query_raises_validation_error(self, mock_client):
+        with pytest.raises(ValidationError, match="Query text is required"):
+            query_start(mock_client, "nb-123", "   ")
+
+    def test_multiple_starts_get_unique_ids(self, mock_client):
+        mock_client.query.return_value = {"answer": "ok"}
+        r1 = query_start(mock_client, "nb-123", "q1")
+        r2 = query_start(mock_client, "nb-123", "q2")
+        assert r1["query_id"] != r2["query_id"]
+
+    def test_ttl_cleanup_evicts_expired(self, mock_client):
+        """Verify stale entries get cleaned up on the next query_start call."""
+        import time as _time
+
+        from notebooklm_tools.services.chat import (
+            _pending_lock,
+            _pending_queries,
+        )
+
+        mock_client.query.return_value = {"answer": "ok"}
+
+        # Manually inject an expired entry
+        with _pending_lock:
+            _pending_queries["expired-id"] = {
+                "status": "in_progress",
+                "result": None,
+                "error": None,
+                "created_at": _time.monotonic() - 9999,
+            }
+
+        # Starting a new query should trigger cleanup
+        query_start(mock_client, "nb-123", "question")
+
+        with _pending_lock:
+            assert "expired-id" not in _pending_queries
+
+
+class TestQueryStatus:
+    """Test async query_status service function."""
+
+    def test_completed_query_returns_result(self, mock_client):
+        import time as _time
+
+        mock_client.query.return_value = {
+            "answer": "The answer is 42.",
+            "conversation_id": "conv-1",
+            "sources_used": [],
+            "citations": {},
+            "references": [],
+        }
+
+        result = query_start(mock_client, "nb-123", "question")
+        query_id = result["query_id"]
+
+        # Wait for background thread to finish
+        _time.sleep(1)
+
+        status = query_status(query_id)
+        assert status["status"] == "completed"
+        assert status["result"]["answer"] == "The answer is 42."
+
+    def test_in_progress_query(self, mock_client):
+        import time as _time
+
+        def slow_query(**kwargs):
+            _time.sleep(5)
+            return {"answer": "done"}
+
+        mock_client.query.side_effect = slow_query
+
+        result = query_start(mock_client, "nb-123", "question")
+        query_id = result["query_id"]
+
+        # Check immediately - should still be in progress
+        status = query_status(query_id)
+        assert status["status"] == "in_progress"
+        assert status["result"] is None
+
+    def test_error_query_returns_error_message(self, mock_client):
+        import time as _time
+
+        mock_client.query.side_effect = RuntimeError("API exploded")
+
+        result = query_start(mock_client, "nb-123", "question")
+        query_id = result["query_id"]
+
+        # Wait for background thread to fail
+        _time.sleep(1)
+
+        status = query_status(query_id)
+        assert status["status"] == "error"
+        assert "API exploded" in status["error"]
+
+    def test_unknown_query_id_raises_validation_error(self, mock_client):
+        with pytest.raises(ValidationError, match="not found"):
+            query_status("nonexistent-id")
+
+    def test_completed_entry_cleaned_after_read(self, mock_client):
+        import time as _time
+
+        mock_client.query.return_value = {"answer": "ok"}
+
+        result = query_start(mock_client, "nb-123", "question")
+        query_id = result["query_id"]
+
+        _time.sleep(1)
+
+        # First read should return the result
+        status = query_status(query_id)
+        assert status["status"] == "completed"
+
+        # Second read should fail because the entry was cleaned up
+        with pytest.raises(ValidationError, match="not found"):
+            query_status(query_id)

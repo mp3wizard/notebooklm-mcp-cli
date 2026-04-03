@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "notebooklm-mcp-cli"
-version = "0.5.10"
+version = "0.5.15"
 description = "Unified CLI and MCP server for Google NotebookLM"
 readme = "README.md"
 license = "MIT"
@@ -42,7 +42,7 @@ dependencies = [
 
 
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",

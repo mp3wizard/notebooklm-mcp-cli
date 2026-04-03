@@ -9,10 +9,13 @@ Storage location: ~/.notebooklm-mcp-cli/ (unified for CLI and MCP)
 import contextlib
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from notebooklm_tools.utils.config import get_base_url
 
 # Use logging instead of print to avoid corrupting MCP stdio protocol
 logger = logging.getLogger(__name__)
@@ -140,7 +143,9 @@ def save_tokens_to_cache(tokens: AuthTokens, silent: bool = False) -> None:
     cache_path.parent.chmod(stat.S_IRWXU)  # 0o700
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(tokens.to_dict(), f, indent=2)
-    cache_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+    # Restrict permissions so only the owner can read/write auth tokens
+    with contextlib.suppress(OSError):
+        os.chmod(cache_path, 0o600)
     if not silent:
         logger.info(f"Auth tokens cached to {cache_path}")
 
@@ -481,8 +486,8 @@ class AuthManager:
         headers = {
             "Cookie": cookies_to_header(profile.cookies),
             "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "https://notebooklm.google.com",
-            "Referer": "https://notebooklm.google.com/",
+            "Origin": get_base_url(),
+            "Referer": f"{get_base_url()}/",
         }
         if profile.csrf_token:
             headers["X-Goog-Csrf-Token"] = profile.csrf_token

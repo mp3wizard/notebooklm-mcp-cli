@@ -61,13 +61,21 @@ def start_research(
     and 'nlm research import' to add discovered sources to your notebook.
     """
     try:
-        if not notebook_id:
-            console.print("[red]Error:[/red] --notebook-id is required for research")
+        if not notebook_id and not title:
+            console.print("[red]Error:[/red] Either --notebook-id or --title is required")
             raise typer.Exit(1)
 
-        notebook_id = get_alias_manager().resolve(notebook_id)
+        if notebook_id:
+            notebook_id = get_alias_manager().resolve(notebook_id)
 
         with get_client(profile) as client:
+            if not notebook_id and title:
+                from notebooklm_tools.services import notebooks as notebook_service
+
+                nb_result = notebook_service.create_notebook(client, title=title)
+                notebook_id = nb_result["notebook_id"]
+                console.print(f"[green]✓[/green] Created new notebook: {title}")
+
             # Check for existing research before starting new one (CLI-only UX)
             if not force:
                 existing = client.poll_research(notebook_id)
