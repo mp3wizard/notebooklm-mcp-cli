@@ -13,7 +13,6 @@ import pytest
 from notebooklm_tools.core.errors import RPCError
 from notebooklm_tools.core.sources import SourceMixin
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
