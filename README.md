@@ -12,6 +12,16 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.5.16 — April 2026)
+- **URL source dual RPC fallback (Issue #121)** — `source_add` (URL type) now automatically retries with the new `ozz5Z` endpoint if the legacy `izAoDd` endpoint returns `INVALID_ARGUMENT`. Working endpoint cached per session. Affects both single and bulk URL additions.
+- 19 new unit tests for dual RPC fallback (total: 704 tests)
+
+### Security scan (April 2026)
+- Full automated scan of v0.5.16 post-merge: Gitleaks, Bandit, Semgrep, Trivy, TruffleHog, OSV-Scanner, mcps-audit
+- **Overall risk posture: Low** — no new application-level vulnerabilities in v0.5.16
+- 2 open dependency findings: `jaraco-context` 6.0.2 (HIGH, CVSS 8.6) and `pygments` 2.19.2 (LOW)
+- Security reports moved to `security reports/` folder (dated reports)
+
 ### Claude Code Skill (April 2026)
 - **`notebooklm-cli.skill`** added — install this skill in Claude Code for AI-assisted `nlm` CLI workflows (auth, notebooks, sources, studio generation, research, batch operations, and more)
 - Skill covers all 10 artifact types with format/style options, 4 common end-to-end workflows, and error recovery guidance
