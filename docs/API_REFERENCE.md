@@ -275,7 +275,7 @@ The `f.req` structure:
 | `hPTbtc` | Get conversation IDs | `[notebook_id]` |
 | `hT54vc` | User preferences | - |
 | `ZwVcOc` | Settings | - |
-| `ozz5Z` | Subscription info | - |
+| `ozz5Z` | Add source v2 (Unified) | See source types below |
 | `Ljjv0c` | Start Fast Research | `[["query", source_type], null, 1, "notebook_id"]` |
 | `QA9ei` | Start Deep Research | `[null, [1], ["query", source_type], 5, "notebook_id"]` |
 | `e3bVqc` | Poll Research Results | `[null, null, "notebook_id"]` |

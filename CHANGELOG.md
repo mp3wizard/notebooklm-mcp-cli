@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.16] - 2026-04-04
+
+### Fixed
+- **URL Source Addition Failing with INVALID_ARGUMENT (Issue #121)** — Fixed `source_add` (URL type) failing with `RPC error code 3 (INVALID_ARGUMENT)` for some users due to Google migrating the `add_source` endpoint. Implemented a dual-RPC fallback: the system tries the legacy `izAoDd` endpoint first, and if it returns code 3, automatically retries with the new `ozz5Z` endpoint. The working endpoint is cached per session to avoid extra round-trips on subsequent calls. Both single and bulk URL additions (`url` and `urls` parameters) benefit from the fallback. Thanks to **@Neophen** for reporting!
+
+### Added
+- **19 new unit tests** for dual RPC fallback mechanism (total: 704 tests)
+
 ## [0.5.15] - 2026-04-02
 
 ### Added

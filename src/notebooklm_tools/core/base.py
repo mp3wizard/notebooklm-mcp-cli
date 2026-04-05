@@ -91,7 +91,8 @@ class BaseClient:
     RPC_DELETE_NOTEBOOK = "WWINqb"
 
     # Source operations
-    RPC_ADD_SOURCE = "izAoDd"  # Used for URL, text, and Drive sources
+    RPC_ADD_SOURCE = "izAoDd"  # Used for URL, text, and Drive sources (legacy)
+    RPC_ADD_SOURCE_V2 = "ozz5Z"  # URL source addition (new rollout, issue #121)
     RPC_ADD_SOURCE_FILE = "o4cbdc"  # Register file for resumable upload
     RPC_GET_SOURCE = "hizoJc"  # Get source details
     RPC_CHECK_FRESHNESS = "yR9Yof"  # Check if Drive source is stale
@@ -103,7 +104,6 @@ class BaseClient:
     RPC_GET_CONVERSATIONS = "hPTbtc"
     RPC_DELETE_CHAT_HISTORY = "J7Gthc"
     RPC_PREFERENCES = "hT54vc"
-    RPC_SUBSCRIPTION = "ozz5Z"
     RPC_SETTINGS = "ZwVcOc"
     RPC_GET_SUMMARY = "VfAZjd"  # Get notebook summary and suggested report topics
     RPC_GET_SOURCE_GUIDE = "tr032e"  # Get source guide (AI summary + keyword chips)
@@ -293,6 +293,12 @@ class BaseClient:
         # Request counter for _reqid parameter (required for query endpoint)
         # SEC-006: Use secrets module instead of random for unpredictable counter seed
         self._reqid_counter = secrets.randbelow(900000) + 100000
+
+        # RPC version cache for URL source addition (issue #121).
+        # Google is rolling out a new RPC (ozz5Z) to replace izAoDd for URL sources.
+        # This caches which version works for this session to avoid double HTTP calls.
+        # Values: None (unresolved), "v1" (izAoDd), "v2" (ozz5Z)
+        self._source_rpc_version: str | None = None
 
         # Only refresh CSRF token if not provided - tokens actually last hours/days, not minutes
         # The retry logic in _call_rpc() handles expired tokens gracefully

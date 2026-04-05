@@ -23,6 +23,7 @@ import httpx
 
 from . import constants
 from .base import SOURCE_ADD_TIMEOUT, BaseClient
+from .errors import RPCError
 from .exceptions import FileUploadError, FileValidationError
 from .retry import execute_with_retry
 
@@ -259,6 +260,10 @@ class SourceMixin(BaseClient):
     ) -> dict | None:
         """Add a URL (website or YouTube) as a source to a notebook.
 
+        Supports automatic fallback between legacy (izAoDd) and new (ozz5Z)
+        RPC endpoints. Google is gradually rolling out the new endpoint;
+        the first call detects which works and caches the result for the session.
+
         Args:
             notebook_id: Target notebook ID
             url: URL to add
@@ -268,16 +273,51 @@ class SourceMixin(BaseClient):
         Returns:
             Source dict with id and title, or None on failure
         """
-        # URL position differs for YouTube vs regular websites:
-        # - YouTube: position 7
-        # - Regular websites: position 2
+        source_path = f"/notebook/{notebook_id}"
+
+        try:
+            # Use cached RPC version if already resolved
+            if self._source_rpc_version == "v2":
+                result = self._add_url_source_v2(notebook_id, url, source_path)
+            elif self._source_rpc_version == "v1":
+                result = self._add_url_source_v1(notebook_id, url, source_path)
+            else:
+                # First call — try v1, fallback to v2 on INVALID_ARGUMENT
+                try:
+                    result = self._add_url_source_v1(notebook_id, url, source_path)
+                    self._source_rpc_version = "v1"
+                except RPCError as e:
+                    if e.error_code == 3:
+                        # Legacy RPC rejected — try the new endpoint
+                        result = self._add_url_source_v2(notebook_id, url, source_path)
+                        self._source_rpc_version = "v2"
+                    else:
+                        raise
+        except httpx.TimeoutException:
+            return {
+                "status": "timeout",
+                "message": f"Operation timed out after {SOURCE_ADD_TIMEOUT}s but may have succeeded.",
+            }
+
+        source_result = self._parse_source_result(result)
+
+        if source_result and wait:
+            return self.wait_for_source_ready(notebook_id, source_result["id"], wait_timeout)
+
+        return source_result
+
+    def _add_url_source_v1(
+        self, notebook_id: str, url: str, source_path: str
+    ) -> Any:
+        """Legacy izAoDd RPC for adding a URL source.
+
+        YouTube and regular URLs use different positions in the params array.
+        """
         is_youtube = "youtube.com" in url.lower() or "youtu.be" in url.lower()
 
         if is_youtube:
-            # YouTube: [null, null, null, null, null, null, null, [url], null, null, 1]
             source_data = [None, None, None, None, None, None, None, [url], None, None, 1]
         else:
-            # Regular website: [null, null, [url], null, null, null, null, null, null, null, 1]
             source_data = [None, None, [url], None, None, None, None, None, None, None, 1]
 
         params = [
@@ -286,31 +326,49 @@ class SourceMixin(BaseClient):
             [2],
             [1, None, None, None, None, None, None, None, None, None, [1]],
         ]
-        source_path = f"/notebook/{notebook_id}"
 
-        try:
-            result = self._call_rpc(
-                self.RPC_ADD_SOURCE, params, path=source_path, timeout=SOURCE_ADD_TIMEOUT
-            )
-        except httpx.TimeoutException:
-            return {
-                "status": "timeout",
-                "message": f"Operation timed out after {SOURCE_ADD_TIMEOUT}s but may have succeeded.",
-            }
+        return self._call_rpc(
+            self.RPC_ADD_SOURCE, params, path=source_path, timeout=SOURCE_ADD_TIMEOUT
+        )
 
-        source_result = None
+    def _add_url_source_v2(
+        self, notebook_id: str, url: str, source_path: str
+    ) -> Any:
+        """New ozz5Z RPC for adding a URL source (issue #121).
+
+        Google is rolling out this new endpoint which uses a simplified,
+        unified structure for all URL types (no YouTube distinction).
+        The notebook_id is only passed in the source-path query param,
+        not in the request body.
+
+        Payload structure captured from reporter's browser (issue #121):
+            [[[null, "<url>", 627], [null*9, [null, null, 1]], 1]]
+        The 627 value appears to be a source type code.
+        """
+        source_data = [
+            [None, url, 627],
+            [None, None, None, None, None, None, None, None, None, [None, None, 1]],
+            1,
+        ]
+        params = [[source_data]]
+
+        return self._call_rpc(
+            self.RPC_ADD_SOURCE_V2, params, path=source_path, timeout=SOURCE_ADD_TIMEOUT
+        )
+
+    @staticmethod
+    def _parse_source_result(result: Any) -> dict | None:
+        """Parse the source creation result from either v1 or v2 RPC response."""
         if result and isinstance(result, list) and len(result) > 0:
             source_list = result[0] if result else []
             if source_list and len(source_list) > 0:
                 source_data = source_list[0]
+                if not isinstance(source_data, list) or len(source_data) < 1:
+                    return None
                 source_id = source_data[0][0] if source_data[0] else None
                 source_title = source_data[1] if len(source_data) > 1 else "Untitled"
-                source_result = {"id": source_id, "title": source_title}
-
-        if source_result and wait:
-            return self.wait_for_source_ready(notebook_id, source_result["id"], wait_timeout)
-
-        return source_result
+                return {"id": source_id, "title": source_title}
+        return None
 
     def add_url_sources(
         self,
@@ -321,8 +379,8 @@ class SourceMixin(BaseClient):
     ) -> list[dict]:
         """Add multiple URLs as sources to a notebook in a single request.
 
-        Each URL is added as a separate source. YouTube and regular URLs
-        are handled automatically.
+        Supports automatic fallback between legacy (izAoDd) and new (ozz5Z)
+        RPC endpoints, using the same try-then-cache pattern as add_url_source.
 
         Args:
             notebook_id: Target notebook ID
@@ -333,6 +391,50 @@ class SourceMixin(BaseClient):
         Returns:
             List of source dicts with id and title, or empty list on failure
         """
+        source_path = f"/notebook/{notebook_id}"
+
+        try:
+            if self._source_rpc_version == "v2":
+                result = self._add_url_sources_v2(notebook_id, urls, source_path)
+            elif self._source_rpc_version == "v1":
+                result = self._add_url_sources_v1(notebook_id, urls, source_path)
+            else:
+                # First call — try v1, fallback to v2 on INVALID_ARGUMENT
+                try:
+                    result = self._add_url_sources_v1(notebook_id, urls, source_path)
+                    self._source_rpc_version = "v1"
+                except RPCError as e:
+                    if e.error_code == 3:
+                        result = self._add_url_sources_v2(notebook_id, urls, source_path)
+                        self._source_rpc_version = "v2"
+                    else:
+                        raise
+        except httpx.TimeoutException:
+            return [
+                {
+                    "status": "timeout",
+                    "message": f"Operation timed out after {SOURCE_ADD_TIMEOUT}s but may have succeeded.",
+                }
+            ]
+
+        source_results = self._parse_source_results(result)
+
+        if source_results and wait:
+            waited_results = []
+            for sr in source_results:
+                if sr.get("id"):
+                    waited = self.wait_for_source_ready(notebook_id, sr["id"], wait_timeout)
+                    waited_results.append(waited or sr)
+                else:
+                    waited_results.append(sr)
+            return waited_results
+
+        return source_results
+
+    def _add_url_sources_v1(
+        self, notebook_id: str, urls: list[str], source_path: str
+    ) -> Any:
+        """Legacy izAoDd RPC for adding multiple URL sources."""
         source_data_list = []
         for url in urls:
             is_youtube = "youtube.com" in url.lower() or "youtu.be" in url.lower()
@@ -348,20 +450,33 @@ class SourceMixin(BaseClient):
             [2],
             [1, None, None, None, None, None, None, None, None, None, [1]],
         ]
-        source_path = f"/notebook/{notebook_id}"
 
-        try:
-            result = self._call_rpc(
-                self.RPC_ADD_SOURCE, params, path=source_path, timeout=SOURCE_ADD_TIMEOUT
-            )
-        except httpx.TimeoutException:
-            return [
-                {
-                    "status": "timeout",
-                    "message": f"Operation timed out after {SOURCE_ADD_TIMEOUT}s but may have succeeded.",
-                }
+        return self._call_rpc(
+            self.RPC_ADD_SOURCE, params, path=source_path, timeout=SOURCE_ADD_TIMEOUT
+        )
+
+    def _add_url_sources_v2(
+        self, notebook_id: str, urls: list[str], source_path: str
+    ) -> Any:
+        """New ozz5Z RPC for adding multiple URL sources (issue #121)."""
+        source_data_list = []
+        for url in urls:
+            source_data = [
+                [None, url, 627],
+                [None, None, None, None, None, None, None, None, None, [None, None, 1]],
+                1,
             ]
+            source_data_list.append(source_data)
 
+        params = [source_data_list]
+
+        return self._call_rpc(
+            self.RPC_ADD_SOURCE_V2, params, path=source_path, timeout=SOURCE_ADD_TIMEOUT
+        )
+
+    @staticmethod
+    def _parse_source_results(result: Any) -> list[dict]:
+        """Parse multiple source creation results from either v1 or v2 RPC response."""
         source_results = []
         if result and isinstance(result, list) and len(result) > 0:
             source_list = result[0] if result else []
@@ -371,17 +486,6 @@ class SourceMixin(BaseClient):
                         source_id = source_data[0][0] if source_data[0] else None
                         source_title = source_data[1] if len(source_data) > 1 else "Untitled"
                         source_results.append({"id": source_id, "title": source_title})
-
-        if source_results and wait:
-            waited_results = []
-            for sr in source_results:
-                if sr.get("id"):
-                    waited = self.wait_for_source_ready(notebook_id, sr["id"], wait_timeout)
-                    waited_results.append(waited or sr)
-                else:
-                    waited_results.append(sr)
-            return waited_results
-
         return source_results
 
     def add_text_source(

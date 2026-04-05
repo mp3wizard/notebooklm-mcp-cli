@@ -21,7 +21,7 @@ RPC_NAMES = {
     "hPTbtc": "get_conversations",
     "J7Gthc": "delete_chat_history",
     "hT54vc": "preferences",
-    "ozz5Z": "subscription",
+    "ozz5Z": "add_source_v2",
     "ZwVcOc": "settings",
     "VfAZjd": "get_summary",
     "tr032e": "get_source_guide",
