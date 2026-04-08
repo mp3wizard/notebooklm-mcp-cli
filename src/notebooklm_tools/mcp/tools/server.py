@@ -18,7 +18,7 @@ def _get_latest_pypi_version() -> str | None:
     try:
         url = "https://pypi.org/pypi/notebooklm-mcp-cli/json"
         req = urllib.request.Request(url, headers={"User-Agent": "notebooklm-mcp-cli"})
-        with urllib.request.urlopen(req, timeout=2) as response:
+        with urllib.request.urlopen(req, timeout=2) as response:  # nosec B310 — URL is hardcoded to https://pypi.org
             data = json.loads(response.read().decode())
             return data.get("info", {}).get("version")
     except Exception:
