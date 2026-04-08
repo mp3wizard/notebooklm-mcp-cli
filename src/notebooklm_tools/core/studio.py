@@ -130,7 +130,8 @@ class StudioMixin(BaseClient):
         notebook_id: str,
         source_ids: list[str] | None = None,
         format_code: int = 1,  # VIDEO_FORMAT_EXPLAINER
-        visual_style_code: int = 1,  # VIDEO_STYLE_AUTO_SELECT
+        visual_style_code: int | None = 1,  # VIDEO_STYLE_AUTO_SELECT
+        visual_style_prompt: str = "",
         language: str = "en",
         focus_prompt: str = "",
     ) -> dict | None:
@@ -162,6 +163,8 @@ class StudioMixin(BaseClient):
         ]
         if format_code != constants.VIDEO_FORMAT_CINEMATIC:
             inner_options.append(visual_style_code)
+            if visual_style_prompt:
+                inner_options.append(visual_style_prompt)
 
         video_options = [None, None, inner_options]
 
@@ -214,8 +217,9 @@ class StudioMixin(BaseClient):
                 else "unknown",
                 "format": constants.VIDEO_FORMATS.get_name(format_code),
                 "visual_style": constants.VIDEO_STYLES.get_name(visual_style_code)
-                if format_code != constants.VIDEO_FORMAT_CINEMATIC
+                if format_code != constants.VIDEO_FORMAT_CINEMATIC and visual_style_code is not None
                 else None,
+                "visual_style_prompt": visual_style_prompt or None,
                 "language": language,
             }
 
@@ -375,10 +379,11 @@ class StudioMixin(BaseClient):
                 # Extract custom_instructions (focus prompt) if present
                 # Different artifact types store prompts at different indices:
                 # - Audio: artifact_data[6][1][0]
-                # - Video: artifact_data[8][2][2]
+                # - Video: artifact_data[8][2][2] (focus), artifact_data[8][2][6] (style prompt)
                 # - Slides: artifact_data[16][0][0]
                 # - Quiz/Flashcards: artifact_data[9][1][1]
                 custom_instructions = None
+                visual_style_prompt = None
 
                 if type_code == self.STUDIO_TYPE_AUDIO and len(artifact_data) > 6:
                     options_data = artifact_data[6]
@@ -392,9 +397,11 @@ class StudioMixin(BaseClient):
                     options_data = artifact_data[8]
                     if isinstance(options_data, list) and len(options_data) > 2:
                         inner = options_data[2]
-                        if isinstance(inner, list) and len(inner) > 2:  # noqa: SIM102
-                            if isinstance(inner[2], str) and inner[2]:
+                        if isinstance(inner, list):
+                            if len(inner) > 2 and isinstance(inner[2], str) and inner[2]:
                                 custom_instructions = inner[2]
+                            if len(inner) > 6 and isinstance(inner[6], str) and inner[6]:
+                                visual_style_prompt = inner[6]
 
                 elif type_code == self.STUDIO_TYPE_SLIDE_DECK and len(artifact_data) > 16:
                     options_data = artifact_data[16]
@@ -422,6 +429,7 @@ class StudioMixin(BaseClient):
                         "status": status,
                         "created_at": created_at,
                         "custom_instructions": custom_instructions,
+                        "visual_style_prompt": visual_style_prompt,
                         "audio_url": audio_url,
                         "video_url": video_url,
                         "infographic_url": infographic_url,

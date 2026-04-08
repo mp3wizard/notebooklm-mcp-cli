@@ -230,6 +230,7 @@ class BaseClient:
     SOURCE_TYPE_GOOGLE_DOCS = constants.SOURCE_TYPE_GOOGLE_DOCS
     SOURCE_TYPE_GOOGLE_OTHER = constants.SOURCE_TYPE_GOOGLE_OTHER
     SOURCE_TYPE_PASTED_TEXT = constants.SOURCE_TYPE_PASTED_TEXT
+    SOURCE_TYPE_AUDIO = constants.SOURCE_TYPE_AUDIO
 
     # Sharing
     SHARE_ROLE_OWNER = constants.SHARE_ROLE_OWNER
@@ -729,15 +730,16 @@ class BaseClient:
             csrf_token = extract_csrf_from_page_source(html)
             if not csrf_token:
                 # Save HTML for debugging
-                import stat
                 from notebooklm_tools.utils.config import get_storage_dir
 
                 debug_dir = get_storage_dir()
                 debug_dir.mkdir(parents=True, exist_ok=True)
                 debug_path = debug_dir / "debug_page.html"
                 debug_path.write_text(html, encoding="utf-8")
-                # SEC-001: Restrict permissions — file may contain CSRF/session tokens
-                debug_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+                import contextlib as _ctxlib
+
+                with _ctxlib.suppress(OSError):
+                    debug_path.chmod(0o600)
                 raise ValueError(
                     f"Could not extract CSRF token from page. "
                     f"Page saved to {debug_path} for debugging. "

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.17] - 2026-04-07
+
+### Security
+- **CDP Origin Restriction (PR #133)** — Chrome is now launched with `--remote-allow-origins` restricted to `localhost` and `127.0.0.1` only, preventing malicious webpages from connecting to the CDP debug port. Previously allowed all origins (`*`). Thanks to **@wccheung11011001** for the security audit!
+- **Base URL Allowlist (PR #133)** — The `NOTEBOOKLM_BASE_URL` environment variable is now validated against an allowlist of known Google domains (HTTPS only), preventing cookie exfiltration via environment injection.
+- **Download Path Traversal Protection (PR #133)** — Added `validate_output_path()` to block downloads from writing to sensitive directories (`.ssh`, `.gnupg`, `.aws`, `.kube`, `.claude`, `.config`) or overwriting sensitive files (`authorized_keys`, `id_rsa`, `.bashrc`, etc.).
+- **File Permission Hardening (PR #133)** — Auth-related files, debug output, and the port map are now created with restrictive permissions (`0o600` for files, `0o700` for the storage directory). Thanks to **@wccheung11011001**!
+- **CDP WebSocket Timeout (PR #133)** — Added a 30-second timeout to CDP WebSocket commands to prevent infinite blocking on stale or dropped connections.
+
+### Added
+- **Custom Visual Style Prompts for Video (PR #131)** — You can now pass a custom style description when creating videos with `--style custom --style-prompt "your description"` (CLI) or `video_style_prompt` (MCP). The style prompt is also returned in studio status responses. Thanks to **@agarwalvipin** for the implementation and live API verification!
+- **Audio Source Support (PR #134)** — `nlm source add --file` now correctly handles audio uploads (m4a, wav, mp3). Audio sources use type code 10, which was previously unrecognized. The `--wait` flag now handles audio's transient status 3 state (which is not a hard failure for audio, unlike other source types) and a new `--wait-timeout` flag (default 600s) gives long recordings enough time to finish transcribing. Thanks to **@stanleykao72** for the thorough investigation and fix!
+- **CONTRIBUTING.md** — Added a contributor guide covering architecture rules, the Chrome DevTools API capture workflow, testing requirements (both CLI and MCP), security guidelines, error handling patterns, and PR expectations.
+
+### Fixed
+- **`build_label` Data Loss (PR #133)** — `Profile.to_dict()` was silently dropping the `build_label` field, causing it to be lost across restarts and re-fetched from scratch. Now properly persisted. Thanks to **@wccheung11011001**!
+- **Ruff Lint and Format Violations** — Fixed `B904` exception chaining in CDP timeout handler, and resolved format violations in `sources.py`, `config.py`, `test_url_source_fallback.py`, and `test_studio.py`.
+
 ## [0.5.16] - 2026-04-04
 
 ### Fixed

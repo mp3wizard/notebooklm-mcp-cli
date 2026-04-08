@@ -130,6 +130,7 @@ def _save_port_map(data: dict[str, dict]) -> None:
     map_file = _get_port_map_file()
     try:  # noqa: SIM105
         map_file.write_text(json.dumps(data, indent=2))
+        map_file.chmod(0o600)
     except OSError:
         pass  # Best-effort
 
@@ -656,11 +657,18 @@ def execute_cdp_command(
     command = {"id": 1, "method": method, "params": params or {}}
     ws.send(json.dumps(command))
 
-    # Wait for response with matching ID
-    while True:
-        response = json.loads(ws.recv())
-        if response.get("id") == 1:
-            return response.get("result", {})
+    # Wait for response with matching ID (timeout after 30s to avoid infinite block)
+    ws.settimeout(30)
+    try:
+        while True:
+            response = json.loads(ws.recv())
+            if response.get("id") == 1:
+                return response.get("result", {})
+    except websocket.WebSocketTimeoutException as err:
+        _cached_ws = _cached_ws_url = None
+        raise TimeoutError(
+            f"CDP command '{method}' timed out after 30s waiting for response"
+        ) from err
 
 
 def get_page_cookies(ws_url: str) -> list[dict]:
