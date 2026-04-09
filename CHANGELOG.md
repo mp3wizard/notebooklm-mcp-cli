@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.19] - 2026-04-09
+
+### Added
+- **Auto-Import for Research** — Added `--auto-import` / `--wait-and-import` flags to `nlm research start` to automatically wait for research to finish and immediately import.
+
+### Fixed
+- **Deep Research Task ID Mismatch (Issue #140)** — Fixed a bug where deep research task IDs were being mutated by the backend and causing import failures. The CLI now polls the correct mutated task ID before issuing the import command.
+- **Empty Notebook Error Mapping** — When attempting to query a notebook with 0 sources, the backend previously threw an unhelpful `API error (code 5): unknown`. This now returns a clean validation error indicating the notebook is empty and needs sources added.
+- **gRPC Error Code Mapping** — Generic undocumented gRPC error codes from Google's batchexecute API (like 5, 7, 16) are now mapped to their standard names (`NOT_FOUND`, `PERMISSION_DENIED`, etc.) instead of logging as `unknown`.
+
 ## [0.5.18] - 2026-04-09
 
 ### Added

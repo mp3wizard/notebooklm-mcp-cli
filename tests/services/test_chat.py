@@ -1,7 +1,6 @@
 """Tests for services.chat module."""
 
-from unittest.mock import MagicMock
-
+from unittest.mock import MagicMock, patch
 import pytest
 
 from notebooklm_tools.services.chat import (
@@ -40,6 +39,13 @@ class TestQuery:
     def test_empty_query_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="Query text is required"):
             query(mock_client, "nb-123", "")
+
+    @patch("notebooklm_tools.services.chat.notebook_service")
+    def test_empty_notebook_raises_validation_error(self, mock_notebook_service, mock_client):
+        """Querying an empty notebook should raise a ValidationError."""
+        mock_notebook_service.get_notebook.return_value = {"source_count": 0}
+        with pytest.raises(ValidationError, match="Cannot query an empty notebook"):
+            query(mock_client, "nb-123", "question")
 
     def test_whitespace_query_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="Query text is required"):
@@ -201,6 +207,13 @@ class TestQueryStart:
     def test_empty_query_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="Query text is required"):
             query_start(mock_client, "nb-123", "")
+
+    @patch("notebooklm_tools.services.chat.notebook_service")
+    def test_empty_notebook_raises_validation_error(self, mock_notebook_service, mock_client):
+        """Querying an empty notebook via async query_start should raise ValidationError."""
+        mock_notebook_service.get_notebook.return_value = {"source_count": 0}
+        with pytest.raises(ValidationError, match="Cannot query an empty notebook"):
+            query_start(mock_client, "nb-123", "question")
 
     def test_whitespace_query_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="Query text is required"):

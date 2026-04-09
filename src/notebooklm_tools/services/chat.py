@@ -9,6 +9,7 @@ from typing import Any, TypedDict
 from ..core.client import NotebookLMClient
 from ..core.conversation import QueryRejectedError
 from .errors import ServiceError, ValidationError
+from . import notebooks as notebook_service
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,21 @@ def query(
             "Query text is required.",
             user_message="Please provide a question to ask.",
         )
+
+    # Validate notebook has sources
+    if not source_ids:
+        # We only check if we target the whole notebook
+        try:
+            nb = notebook_service.get_notebook(client, notebook_id)
+            if nb["source_count"] == 0:
+                raise ValidationError(
+                    "Cannot query an empty notebook.",
+                    user_message="This notebook has no sources to query. Add a source first using 'nlm source add' or 'nlm research start'.",
+                )
+        except ValidationError:
+            raise
+        except Exception:
+            pass  # Suppress failure to fetch notebook details; let query try anyway
 
     try:
         result = client.query(
@@ -316,6 +332,20 @@ def query_start(
             "Query text is required.",
             user_message="Please provide a question to ask.",
         )
+
+    # Validate notebook has sources
+    if not source_ids:
+        try:
+            nb = notebook_service.get_notebook(client, notebook_id)
+            if nb["source_count"] == 0:
+                raise ValidationError(
+                    "Cannot query an empty notebook.",
+                    user_message="This notebook has no sources to query. Add a source first using 'nlm source add' or 'nlm research start'.",
+                )
+        except ValidationError:
+            raise
+        except Exception:
+            pass
 
     query_id = uuid.uuid4().hex[:12]
 

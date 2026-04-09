@@ -303,6 +303,7 @@ nlm research start "query" --notebook-id <id>                    # Fast web (def
 nlm research start "query" --notebook-id <id> --mode deep        # Deep web (~5min)
 nlm research start "query" --notebook-id <id> --source drive     # Fast drive
 nlm research start "query" --notebook-id <id> --force            # Override pending
+nlm research start "query" --notebook-id <id> --auto-import      # Auto wait and import
 
 # Check progress
 nlm research status <notebook-id>                    # Poll until done (5min max)
