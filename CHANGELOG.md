@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.20] - 2026-04-10
+
+### Fixed
+- **`nlm create infographic` crash when `--style` not specified (Issue #142)** — The verb-first route was missing the `--style` option entirely, causing a `TypeError` on invocation. Fixed alongside 12 other missing parameters across verb-first wrappers.
+- **Multiple verb-first commands missing parameters** — The verb-first CLI route (`nlm create`, `nlm add`, `nlm describe`, `nlm query`, `nlm delete`) was missing 13 parameters that existed on the noun-first route: `--focus` on `nlm create quiz` and `nlm create flashcards`; `--wait` and `--wait-timeout` on `nlm add url`, `nlm add text`, and `nlm add drive`; `--auto-import` on `nlm research start`; `--format` on `nlm download slides`; `--json` on `nlm describe notebook`, `nlm query notebook`, and `nlm source content`; and `--confirm` on `nlm delete alias`.
+
+### Changed
+- **Widened `fastmcp` dependency to `>=2.0.0,<4.0` (Issue #141)** — The previous upper bound (`<3.0`) caused a startup crash when `fakeredis 2.35.0` was installed alongside `fastmcp 2.x`. Widening to `<4.0` resolves the incompatibility and allows users to use newer FastMCP releases without version conflicts.
+
+### Added
+- **Parameter parity test (`tests/cli/test_verbs_parity.py`)** — Automatically compares every verb-first wrapper in `cli/commands/verbs.py` against its target function to detect missing parameters. CI will now fail if a verb wrapper drifts out of sync with its noun-first counterpart.
+
+## [0.5.19] - 2026-04-09
+
+### Added
+- **Auto-Import for Research** — Added `--auto-import` / `--wait-and-import` flags to `nlm research start` to automatically wait for research to finish and immediately import.
+
+### Fixed
+- **Deep Research Task ID Mismatch (Issue #140)** — Fixed a bug where deep research task IDs were being mutated by the backend and causing import failures. The CLI now polls the correct mutated task ID before issuing the import command.
+- **Empty Notebook Error Mapping** — When attempting to query a notebook with 0 sources, the backend previously threw an unhelpful `API error (code 5): unknown`. This now returns a clean validation error indicating the notebook is empty and needs sources added.
+- **gRPC Error Code Mapping** — Generic undocumented gRPC error codes from Google's batchexecute API (like 5, 7, 16) are now mapped to their standard names (`NOT_FOUND`, `PERMISSION_DENIED`, etc.) instead of logging as `unknown`.
+
+## [0.5.18] - 2026-04-09
+
+### Added
+- **WSL2 Authentication Support (PR #138)** — New `nlm login --wsl` flag launches Windows Chrome from WSL2 for seamless authentication. Includes automatic firewall rule management, cross-boundary CDP communication, and a cleanup mechanism for temporary Chrome profiles. Full setup guide at `docs/WSL_SETUP.md`. Thanks to **@kylebrodeur** for the comprehensive implementation!
+- **WSL2 Diagnostics** — `nlm doctor` now detects WSL2 environments and reports Chrome availability, Windows interop status, and firewall configuration.
+
+### Fixed
+- **Thread-Safety for Concurrent MCP Tool Calls (PR #135)** — Added `threading.Lock` to `BaseClient` protecting mutable state (`_reqid_counter`, `_conversation_cache`, `_source_rpc_version`) from race conditions during parallel MCP tool invocations. Uses double-checked locking for singleton client initialization. Includes 7 new concurrent access tests. Thanks to **@xiangyuwang1998** for the implementation!
+- **Restored CDP WebSocket Timeout** — Re-applied the 30-second timeout on `execute_cdp_command()` that was inadvertently removed during the WSL2 merge. Prevents infinite hangs on stale/dropped WebSocket connections.
+- **Restored Port Map File Permissions** — Re-applied `chmod 0o600` on the port map file that was inadvertently removed during the WSL2 merge. Ensures the port map is only readable by the owner.
+
 ## [0.5.17] - 2026-04-07
 
 ### Security

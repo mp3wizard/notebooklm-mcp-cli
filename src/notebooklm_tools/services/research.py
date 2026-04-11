@@ -271,7 +271,7 @@ def import_research(
     try:
         result = client.import_research_sources(
             notebook_id=notebook_id,
-            task_id=task_id,
+            task_id=research_result.get("task_id", task_id),
             sources=sources_to_import,
             timeout=timeout,
         )

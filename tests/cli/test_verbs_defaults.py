@@ -57,6 +57,9 @@ class TestInfographicVerbDefaults:
     def test_detail_default_is_valid(self):
         assert "standard" in constants.INFOGRAPHIC_DETAILS.names
 
+    def test_style_default_is_valid(self):
+        assert "auto_select" in constants.INFOGRAPHIC_STYLES.names
+
 
 class TestFlashcardsVerbDefaults:
     """Verify create_flashcards_verb fallback defaults are valid."""
@@ -79,6 +82,7 @@ class TestAllVerbDefaultsConsistency:
             ("default", constants.SLIDE_DECK_LENGTHS),
             ("landscape", constants.INFOGRAPHIC_ORIENTATIONS),
             ("standard", constants.INFOGRAPHIC_DETAILS),
+            ("auto_select", constants.INFOGRAPHIC_STYLES),
             ("medium", constants.FLASHCARD_DIFFICULTIES),
         ],
     )

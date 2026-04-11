@@ -78,6 +78,8 @@ Think in full circles: **create, status, download**. A half-implemented feature 
 | 7 | `tests/services/` | Write unit tests for the service function |
 | 8 | `docs/MCP_CLI_TEST_PLAN.md` | Add test cases for manual validation |
 
+**CLI verb wrappers:** When adding a new CLI option to a command function in `cli/commands/`, you must also add it to the corresponding verb wrapper in `cli/commands/verbs.py`. The `tests/cli/test_verbs_parity.py` test enforces this — CI will fail if a verb wrapper is missing a parameter from its target function.
+
 ### 3. Test in Python Before Adding MCP/CLI Tools
 
 Always validate the core API call works before wiring up the MCP tool or CLI command. Write a quick Python test script, run it, confirm it works. Then add the wrappers. This prevents shipping broken tools.

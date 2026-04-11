@@ -11,6 +11,7 @@ Centralizes:
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING, TypedDict
 
 from notebooklm_tools.core import constants
@@ -19,6 +20,8 @@ from .errors import ServiceError, ValidationError
 
 if TYPE_CHECKING:
     from notebooklm_tools.core.client import NotebookLMClient
+
+logger = logging.getLogger(__name__)
 
 # ---------- Constants ----------
 
@@ -307,6 +310,7 @@ def create_artifact(
     except (ValidationError, ServiceError):
         raise
     except Exception as e:
+        logger.error("Studio create failed: %s: %s", type(e).__name__, e, exc_info=True)
         raise ServiceError(
             f"Failed to create {artifact_type}: {e}",
             user_message=f"Could not create {artifact_type.replace('_', ' ')}.",

@@ -33,9 +33,12 @@ def _make_client() -> SourceMixin:
     We patch __init__ entirely because BaseClient.__init__ requires
     real cookies / CSRF setup that we don't need for unit tests.
     """
+    import threading
+
     with patch.object(SourceMixin, "__init__", lambda self: None):
         client = SourceMixin()
     client._source_rpc_version = None
+    client._state_lock = threading.Lock()
     client._call_rpc = MagicMock(return_value=MOCK_SOURCE_RESPONSE)
     return client
 

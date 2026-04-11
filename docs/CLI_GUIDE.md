@@ -134,6 +134,7 @@ nlm download flashcards <notebook> <artifact-id> --format markdown --output card
 nlm research start "query" --notebook-id <id> --mode fast  # Quick search
 nlm research start "query" --notebook-id <id> --mode deep  # Extended research
 nlm research start "query" --notebook-id <id> --source drive  # Search Drive
+nlm research start "query" --notebook-id <id> --auto-import # Start, poll, and import in one step
 nlm research status <notebook> --max-wait 300              # Poll until done
 nlm research import <notebook> <task-id>                   # Import sources
 nlm research import <notebook> <task-id> --timeout 600     # Custom timeout (default: 300s)

@@ -74,7 +74,8 @@ class ConversationMixin(BaseClient):
         Returns:
             List in Chrome's expected format, or None if no history exists
         """
-        turns = self._conversation_cache.get(conversation_id, [])
+        with self._state_lock:
+            turns = list(self._conversation_cache.get(conversation_id, []))
         if not turns:
             return None
 
@@ -89,23 +90,26 @@ class ConversationMixin(BaseClient):
 
     def _cache_conversation_turn(self, conversation_id: str, query: str, answer: str) -> None:
         """Cache a conversation turn for future follow-up queries."""
-        if conversation_id not in self._conversation_cache:
-            self._conversation_cache[conversation_id] = []
+        with self._state_lock:
+            if conversation_id not in self._conversation_cache:
+                self._conversation_cache[conversation_id] = []
 
-        turn_number = len(self._conversation_cache[conversation_id]) + 1
-        turn = ConversationTurn(query=query, answer=answer, turn_number=turn_number)
-        self._conversation_cache[conversation_id].append(turn)
+            turn_number = len(self._conversation_cache[conversation_id]) + 1
+            turn = ConversationTurn(query=query, answer=answer, turn_number=turn_number)
+            self._conversation_cache[conversation_id].append(turn)
 
     def clear_conversation(self, conversation_id: str) -> bool:
         """Clear the conversation cache for a specific conversation."""
-        if conversation_id in self._conversation_cache:
-            del self._conversation_cache[conversation_id]
-            return True
-        return False
+        with self._state_lock:
+            if conversation_id in self._conversation_cache:
+                del self._conversation_cache[conversation_id]
+                return True
+            return False
 
     def get_conversation_history(self, conversation_id: str) -> list[dict] | None:
         """Get the conversation history for a specific conversation."""
-        turns = self._conversation_cache.get(conversation_id)
+        with self._state_lock:
+            turns = list(self._conversation_cache.get(conversation_id, []))
         if not turns:
             return None
 
@@ -167,7 +171,8 @@ class ConversationMixin(BaseClient):
             path=f"/notebook/{notebook_id}",
         )
         # Also clear local cache if present
-        self._conversation_cache.pop(conversation_id, None)
+        with self._state_lock:
+            self._conversation_cache.pop(conversation_id, None)
         return result is not None
 
     # =========================================================================
@@ -261,11 +266,13 @@ class ConversationMixin(BaseClient):
         # Add trailing & to match NotebookLM's format
         body = "&".join(body_parts) + "&"
 
-        self._reqid_counter += 100000  # Increment counter
+        with self._state_lock:
+            self._reqid_counter += 100000
+            reqid = self._reqid_counter
         url_params = {
             "bl": os.environ.get("NOTEBOOKLM_BL") or getattr(self, "_bl", "") or self._BL_FALLBACK,
             "hl": os.environ.get("NOTEBOOKLM_HL", "en"),
-            "_reqid": str(self._reqid_counter),
+            "_reqid": str(reqid),
             "rt": "c",
         }
         if self._session_id:
@@ -286,11 +293,12 @@ class ConversationMixin(BaseClient):
         # This is the key mechanism for chat history persistence — the server
         # returns its own conversation ID which tracks the chat across sessions.
         if server_conv_id and server_conv_id != conversation_id:
-            # Migrate local cache to the server-assigned ID
-            if conversation_id in self._conversation_cache:
-                self._conversation_cache[server_conv_id] = self._conversation_cache.pop(
-                    conversation_id
-                )
+            with self._state_lock:
+                # Migrate local cache to the server-assigned ID
+                if conversation_id in self._conversation_cache:
+                    self._conversation_cache[server_conv_id] = self._conversation_cache.pop(
+                        conversation_id
+                    )
             conversation_id = server_conv_id
 
         # Cache this turn for future follow-ups (only if we got an answer)
@@ -298,8 +306,9 @@ class ConversationMixin(BaseClient):
             self._cache_conversation_turn(conversation_id, query_text, answer_text)
 
         # Calculate turn number
-        turns = self._conversation_cache.get(conversation_id, [])
-        turn_number = len(turns)
+        with self._state_lock:
+            turns = self._conversation_cache.get(conversation_id, [])
+            turn_number = len(turns)
 
         return {
             "answer": answer_text,

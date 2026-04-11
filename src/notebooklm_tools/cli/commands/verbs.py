@@ -217,6 +217,11 @@ def create_infographic_verb(
     detail: str | None = typer.Option(
         None, "--detail", "-d", help="Detail level: concise, standard, detailed"
     ),
+    style: str | None = typer.Option(
+        None,
+        "--style",
+        help="Visual style: auto_select, sketch_note, professional, bento_grid, editorial, instructional, bricks, clay, anime, kawaii, scientific",
+    ),
     language: str | None = typer.Option(None, "--language", help="BCP-47 language code"),
     focus: str | None = typer.Option(None, "--focus", help="Optional focus topic"),
     source_ids: str | None = typer.Option(
@@ -230,6 +235,7 @@ def create_infographic_verb(
         notebook_id=notebook,
         orientation=orientation or "landscape",
         detail=detail or "standard",
+        style=style or "auto_select",
         language=language or "",
         focus=focus or "",
         source_ids=source_ids,
@@ -273,6 +279,7 @@ def create_quiz_verb(
     difficulty: int | None = typer.Option(
         None, "--difficulty", "-d", help="Difficulty 1-5 (1=easy, 5=hard)"
     ),
+    focus: str | None = typer.Option(None, "--focus", help="Optional focus topic"),
     source_ids: str | None = typer.Option(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
@@ -284,6 +291,7 @@ def create_quiz_verb(
         notebook_id=notebook,
         count=count or 2,
         difficulty=difficulty or 2,
+        focus=focus or "",
         source_ids=source_ids,
         confirm=confirm,
         profile=profile,
@@ -296,6 +304,7 @@ def create_flashcards_verb(
     difficulty: str | None = typer.Option(
         None, "--difficulty", "-d", help="Difficulty: easy, medium, hard"
     ),
+    focus: str | None = typer.Option(None, "--focus", help="Optional focus topic"),
     source_ids: str | None = typer.Option(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
@@ -306,6 +315,7 @@ def create_flashcards_verb(
     create_flashcards(
         notebook_id=notebook,
         difficulty=difficulty or "medium",
+        focus=focus or "",
         source_ids=source_ids,
         confirm=confirm,
         profile=profile,
@@ -518,9 +528,10 @@ def delete_artifact_verb(
 @delete_app.command("alias")
 def delete_alias_verb(
     name: str = typer.Argument(..., help="Alias name"),
+    confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
 ) -> None:
     """Delete an alias."""
-    delete_alias(name=name)
+    delete_alias(name=name, confirm=confirm)
 
 
 # =============================================================================
@@ -535,11 +546,21 @@ def add_url_verb(
     notebook: str = typer.Argument(..., help="Notebook ID or alias"),
     url_arg: str = typer.Argument(..., help="URL to add"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
+    wait: bool = typer.Option(False, "--wait", "-w", help="Wait for source processing to complete"),
+    wait_timeout: float = typer.Option(600.0, "--wait-timeout", help="Wait timeout in seconds"),
 ) -> None:
     """Add a URL source to notebook."""
     # Explicitly wrap the single URL string in a list so it doesn't get unpacked as characters
     add_source(
-        notebook, url=[url_arg], text=None, drive=None, youtube=None, file=None, profile=profile
+        notebook,
+        url=[url_arg],
+        text=None,
+        drive=None,
+        youtube=None,
+        file=None,
+        wait=wait,
+        wait_timeout=wait_timeout,
+        profile=profile,
     )
 
 
@@ -549,6 +570,8 @@ def add_text_verb(
     text_arg: str = typer.Argument(..., help="Text content to add"),
     title: str | None = typer.Option(None, "--title", help="Source title"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
+    wait: bool = typer.Option(False, "--wait", "-w", help="Wait for source processing to complete"),
+    wait_timeout: float = typer.Option(600.0, "--wait-timeout", help="Wait timeout in seconds"),
 ) -> None:
     """Add text source to notebook."""
     # Explicitly pass None for unused source types to avoid typer.Option resolution issues
@@ -560,6 +583,8 @@ def add_text_verb(
         youtube=None,
         file=None,
         title=title or "Pasted Text",
+        wait=wait,
+        wait_timeout=wait_timeout,
         profile=profile,
     )
 
@@ -571,6 +596,8 @@ def add_drive_verb(
     title: str | None = typer.Option(None, "--title", help="Source title"),
     doc_type: str = typer.Option("doc", "--type", help="Drive doc type: doc, slides, sheets, pdf"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
+    wait: bool = typer.Option(False, "--wait", "-w", help="Wait for source processing to complete"),
+    wait_timeout: float = typer.Option(600.0, "--wait-timeout", help="Wait timeout in seconds"),
 ) -> None:
     """Add a Google Drive source to notebook."""
     # Explicitly pass None for unused source types to avoid typer.Option resolution issues
@@ -583,6 +610,8 @@ def add_drive_verb(
         file=None,
         title=title or f"Drive Document ({document_id[:8]}...)",
         doc_type=doc_type,
+        wait=wait,
+        wait_timeout=wait_timeout,
         profile=profile,
     )
 
@@ -677,19 +706,21 @@ describe_app = typer.Typer(help="Get AI-generated descriptions and summaries")
 @describe_app.command("notebook")
 def describe_notebook_verb(
     notebook: str = typer.Argument(..., help="Notebook ID or alias"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Get AI-generated notebook summary with suggested topics."""
-    describe_notebook(notebook_id=notebook, profile=profile)
+    describe_notebook(notebook_id=notebook, json_output=json_output, profile=profile)
 
 
 @describe_app.command("source")
 def describe_source_verb(
     source: str = typer.Argument(..., help="Source ID"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Get AI-generated source summary with keywords."""
-    describe_source(source_id=source, profile=profile)
+    describe_source(source_id=source, json_output=json_output, profile=profile)
 
 
 # =============================================================================
@@ -703,6 +734,7 @@ query_app = typer.Typer(help="Chat with notebook sources")
 def query_notebook_verb(
     notebook: str = typer.Argument(..., help="Notebook ID or alias"),
     question: str = typer.Argument(..., help="Question to ask"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     conversation_id: str | None = typer.Option(
         None, "--conversation-id", "-c", help="Conversation ID for follow-up questions"
     ),
@@ -718,6 +750,7 @@ def query_notebook_verb(
     query_notebook(
         notebook_id=notebook,
         question=question,
+        json_output=json_output,
         conversation_id=conversation_id,
         source_ids=source_ids,
         profile=profile,
@@ -755,11 +788,12 @@ content_app = typer.Typer(help="Get raw content from sources")
 @content_app.command("source")
 def content_source_verb(
     source: str = typer.Argument(..., help="Source ID"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     output: str | None = typer.Option(None, "--output", "-o", help="Write content to file"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Get raw source content (no AI processing)."""
-    get_source_content(source_id=source, output=output, profile=profile)
+    get_source_content(source_id=source, json_output=json_output, output=output, profile=profile)
 
 
 # =============================================================================
@@ -803,6 +837,9 @@ def research_start_verb(
     force: bool = typer.Option(
         False, "--force", "-f", help="Start new research even if one is already pending"
     ),
+    auto_import: bool = typer.Option(
+        False, "--auto-import", help="Wait for research to complete and auto-import sources"
+    ),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Start a research task to find new sources."""
@@ -813,6 +850,7 @@ def research_start_verb(
         notebook_id=notebook_id,
         title=title,
         force=force,
+        auto_import=auto_import,
         profile=profile,
     )
 
@@ -927,10 +965,15 @@ def download_slides_verb(
     output: str | None = typer.Option(None, "--output", "-o", help="Output filename"),
     artifact_id: str | None = typer.Option(None, "--id", help="Specific artifact ID"),
     no_progress: bool = typer.Option(False, "--no-progress", help="Disable download progress bar"),
+    format: str = typer.Option("pdf", "--format", "-f", help="Format: pdf, pptx"),
 ) -> None:
     """Download slide deck."""
     download_slide_deck(
-        notebook_id=notebook, output=output, artifact_id=artifact_id, no_progress=no_progress
+        notebook_id=notebook,
+        output=output,
+        artifact_id=artifact_id,
+        no_progress=no_progress,
+        format=format,
     )
 
 

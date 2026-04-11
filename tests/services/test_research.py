@@ -280,6 +280,25 @@ class TestImportResearch:
 
         assert result["imported_count"] == 3
 
+        # Verify it passes the requested task ID if no mutated ID is returned
+        call_args = mock_client.import_research_sources.call_args
+        assert call_args.kwargs["task_id"] == "task-1"
+
+    def test_import_resolves_mutated_task_id(self, mock_client):
+        """Verify that deep research task_id mutations are handled."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "mutated-task-999",
+            "sources": [{"title": "A"}],
+        }
+        mock_client.import_research_sources.return_value = [{"title": "A"}]
+
+        import_research(mock_client, "nb-1", "task-1")
+
+        call_args = mock_client.import_research_sources.call_args
+        # Should pass the mutated task ID from poll_research, not the request task_id
+        assert call_args.kwargs["task_id"] == "mutated-task-999"
+
     def test_import_selected_indices(self, mock_client):
         mock_client.poll_research.return_value = {
             "status": "completed",

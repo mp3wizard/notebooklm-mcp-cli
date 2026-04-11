@@ -319,20 +319,26 @@ class SourceMixin(BaseClient):
 
         try:
             # Use cached RPC version if already resolved
-            if self._source_rpc_version == "v2":
+            with self._state_lock:
+                version = self._source_rpc_version
+            if version == "v2":
                 result = self._add_url_source_v2(notebook_id, url, source_path)
-            elif self._source_rpc_version == "v1":
+            elif version == "v1":
                 result = self._add_url_source_v1(notebook_id, url, source_path)
             else:
                 # First call — try v1, fallback to v2 on INVALID_ARGUMENT
                 try:
                     result = self._add_url_source_v1(notebook_id, url, source_path)
-                    self._source_rpc_version = "v1"
+                    with self._state_lock:
+                        if self._source_rpc_version is None:
+                            self._source_rpc_version = "v1"
                 except RPCError as e:
                     if e.error_code == 3:
                         # Legacy RPC rejected — try the new endpoint
                         result = self._add_url_source_v2(notebook_id, url, source_path)
-                        self._source_rpc_version = "v2"
+                        with self._state_lock:
+                            if self._source_rpc_version is None:
+                                self._source_rpc_version = "v2"
                     else:
                         raise
         except httpx.TimeoutException:
@@ -432,19 +438,25 @@ class SourceMixin(BaseClient):
         source_path = f"/notebook/{notebook_id}"
 
         try:
-            if self._source_rpc_version == "v2":
+            with self._state_lock:
+                version = self._source_rpc_version
+            if version == "v2":
                 result = self._add_url_sources_v2(notebook_id, urls, source_path)
-            elif self._source_rpc_version == "v1":
+            elif version == "v1":
                 result = self._add_url_sources_v1(notebook_id, urls, source_path)
             else:
                 # First call — try v1, fallback to v2 on INVALID_ARGUMENT
                 try:
                     result = self._add_url_sources_v1(notebook_id, urls, source_path)
-                    self._source_rpc_version = "v1"
+                    with self._state_lock:
+                        if self._source_rpc_version is None:
+                            self._source_rpc_version = "v1"
                 except RPCError as e:
                     if e.error_code == 3:
                         result = self._add_url_sources_v2(notebook_id, urls, source_path)
-                        self._source_rpc_version = "v2"
+                        with self._state_lock:
+                            if self._source_rpc_version is None:
+                                self._source_rpc_version = "v2"
                     else:
                         raise
         except httpx.TimeoutException:

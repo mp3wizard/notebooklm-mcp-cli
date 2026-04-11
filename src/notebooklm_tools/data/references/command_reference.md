@@ -355,6 +355,7 @@ nlm research start <query> [OPTIONS]
 | `--mode` | `fast` (default, ~30s) or `deep` (~5min, web only) |
 | `--source` | `web` (default) or `drive` |
 | `--force` | Override pending research |
+| `--auto-import` | Wait for completion and automatically import sources (alias: `--wait-and-import`) |
 | `--profile` | Use specific profile |
 
 ### nlm research status

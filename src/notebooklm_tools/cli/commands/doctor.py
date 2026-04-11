@@ -41,12 +41,19 @@ def doctor(
 
     console.print("[bold]NotebookLM MCP Doctor[/bold]\n")
 
+    # Check WSL first - it affects other checks
+    is_wsl = _check_wsl(verbose)
+    console.print()
+
     all_ok = True
     all_ok &= _check_installation(verbose)
     console.print()
     all_ok &= _check_authentication(verbose)
     console.print()
-    all_ok &= _check_chrome(verbose)
+    if is_wsl:
+        all_ok &= _check_wsl_chrome(verbose)
+    else:
+        all_ok &= _check_chrome(verbose)
     console.print()
     all_ok &= _check_clients(verbose)
     console.print()
@@ -147,6 +154,91 @@ def _check_authentication(verbose: bool) -> bool:
     # Show other profiles
     if verbose and len(profiles) > 1:
         console.print(f"  Other profiles: {', '.join(p for p in profiles if p != default_profile)}")
+
+    return ok
+
+
+def _check_wsl(verbose: bool) -> bool:
+    """Check if running in WSL and report WSL-specific diagnostics."""
+    from notebooklm_tools.utils.wsl import check_firewall_rule, get_windows_host_ip, is_wsl
+
+    if not is_wsl():
+        return False
+
+    console.print("[bold]WSL2 Environment[/bold]")
+    console.print("  Status: [green]detected[/green]")
+
+    windows_ip = get_windows_host_ip()
+    if windows_ip:
+        console.print(f"  Windows host IP: [green]{windows_ip}[/green]")
+    else:
+        console.print("  Windows host IP: [red]not found[/red]")
+        console.print("  [yellow]→[/yellow] Check /etc/resolv.conf")
+
+    # Check Windows Firewall
+    if check_firewall_rule():
+        console.print("  Firewall rule: [green]exists[/green]")
+    else:
+        console.print("  Firewall rule: [yellow]not found[/yellow]")
+        console.print("  [yellow]→[/yellow] Run with --wsl to auto-create, or:")
+        console.print("     [dim]nlm login --wsl[/dim]")
+
+    return True
+
+
+def _check_wsl_chrome(verbose: bool) -> bool:
+    """Check Windows Chrome accessibility from WSL."""
+    console.print("[bold]Chrome (WSL2)[/bold]")
+    ok = True
+
+    from notebooklm_tools.utils.wsl import (
+        diagnose_wsl_connectivity,
+        find_windows_chrome,
+        get_windows_host_ip,
+    )
+
+    chrome_path = find_windows_chrome()
+    if chrome_path:
+        console.print("  Windows Chrome: [green]found[/green]")
+        console.print(f"  [dim]{chrome_path}[/dim]")
+    else:
+        console.print("  Windows Chrome: [red]not found[/red]")
+        console.print("  [yellow]→[/yellow] Install Chrome on Windows side")
+        console.print("    or use [cyan]nlm login --manual[/cyan] with cookie file")
+        ok = False
+
+    # Run connectivity diagnostics
+    windows_ip = get_windows_host_ip()
+    if windows_ip and verbose:
+        console.print("\n  [dim]Running connectivity diagnostics...[/dim]")
+        diagnostics = diagnose_wsl_connectivity(windows_ip)
+        for test_name, result in diagnostics.get("tests", {}).items():
+            status = (
+                "[green]✓[/green]"
+                if "PASS" in str(result).upper() or result in ["EXISTS", "YES"]
+                else "[red]✗[/red]"
+            )
+            console.print(f"    {status} {test_name}: {result}")
+
+    # Check for saved profile (same as regular mode)
+    from notebooklm_tools.utils.config import get_storage_dir
+
+    chrome_profiles_dir = get_storage_dir() / "chrome-profiles"
+    has_profile = False
+
+    if chrome_profiles_dir.exists():
+        for profile_dir in chrome_profiles_dir.iterdir():
+            if profile_dir.is_dir() and (profile_dir / "Default").exists():
+                has_profile = True
+                console.print(f"  Saved profile: [green]{profile_dir.name}[/green]")
+
+    if has_profile:
+        console.print("  Headless auth: [green]available[/green]")
+    else:
+        console.print("  Headless auth: [yellow]not available[/yellow]")
+        console.print(
+            "  [dim]Run [cyan]nlm login --wsl[/cyan] to authenticate (saves Windows Chrome profile)[/dim]"
+        )
 
     return ok
 
