@@ -12,31 +12,40 @@
 
 ## What's New (mp3wizard fork)
 
-### Upstream sync (v0.5.16 — April 2026)
-- **URL source dual RPC fallback (Issue #121)** — `source_add` (URL type) now automatically retries with the new `ozz5Z` endpoint if the legacy `izAoDd` endpoint returns `INVALID_ARGUMENT`. Working endpoint cached per session. Affects both single and bulk URL additions.
-- 19 new unit tests for dual RPC fallback (total: 704 tests)
+### Upstream sync (v0.5.17–v0.5.20 — April 2026)
+- **WSL2 authentication support** (`nlm login --wsl`) — launches Windows Chrome from WSL2 with automatic firewall management and CDP cross-boundary communication (PR #138)
+- **Thread-safety for concurrent MCP tool calls** — `threading.Lock` in `BaseClient` protects mutable state from race conditions during parallel tool invocations (PR #135)
+- **Auto-import for research** — `nlm research start --auto-import` waits for research to finish and immediately imports results (v0.5.19)
+- **Deep Research task ID fix** (Issue #140) — resolved task ID mutation causing import failures
+- **Verb-first CLI parity** — 13 missing parameters restored across `nlm create`, `nlm add`, `nlm describe`, `nlm query`, `nlm delete` commands (Issue #141/#142)
+- **fastmcp widened to `>=3.2.0,<4.0`** — resolves startup crash with `fakeredis 2.35.0` (Issue #141)
+- **WSL2 doctor diagnostics** — `nlm doctor` now detects WSL2 environments and reports Chrome/firewall status
+- **gRPC error code mapping** — codes 5, 7, 16 now show `NOT_FOUND`, `PERMISSION_DENIED`, etc. instead of "unknown"
 
-### Security scan (April 2026)
-- Full automated scan of v0.5.16 post-merge: Gitleaks, Bandit, Semgrep, Trivy, TruffleHog, OSV-Scanner, mcps-audit
-- **Overall risk posture: Low** — no new application-level vulnerabilities in v0.5.16
-- 2 open dependency findings: `jaraco-context` 6.0.2 (HIGH, CVSS 8.6) and `pygments` 2.19.2 (LOW)
-- Security reports moved to `security reports/` folder (dated reports)
+### Security scan (April 2026 — v0.5.20)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **Overall risk posture: Low** — 0 application-level vulnerabilities, 0 secrets in git history
+- All 3 dependency vulnerabilities resolved: `jaraco-context`, `requests`, `pygments` (see below)
+- Full report: `security reports/security-scan-report-2026-04-11.md`
+
+### Security fixes (April 2026)
+- **jaraco-context upgraded 6.0.2 → 6.1.2** — fixes GHSA-58pv-8j8x-9vj2 (HIGH, CVSS 8.6)
+- **requests upgraded 2.32.5 → 2.33.1** — fixes CVE-2026-25645 / GHSA-gc5v-m9x4-r6x2 (MEDIUM: predictable temp file)
+- **pygments upgraded 2.19.2 → 2.20.0** — fixes CVE-2026-4539 / GHSA-5239-wwwm-4pmq (LOW: regex DoS in AdlLexer)
+- **fastmcp upgraded 2.14.2 → 3.2.3** — fixes CVE-2026-32871 (CRITICAL: SSRF & Path Traversal) and CVE-2026-27124 (HIGH: OAuth confused deputy)
+- **Security hardening** (SEC-001–SEC-008): auth.json restricted to owner-only permissions (0o600/0o700), CDP origin restriction to `127.0.0.1`, Base URL allowlist, download path traversal protection
 
 ### Claude Code Skill (April 2026)
 - **`notebooklm-cli.skill`** added — install this skill in Claude Code for AI-assisted `nlm` CLI workflows (auth, notebooks, sources, studio generation, research, batch operations, and more)
 - Skill covers all 10 artifact types with format/style options, 4 common end-to-end workflows, and error recovery guidance
 
-### Security fixes (April 2026)
-- **fastmcp upgraded 2.14.2 → 3.2.0** — fixes CVE-2026-32871 (CRITICAL: SSRF & Path Traversal) and CVE-2026-27124 (HIGH: OAuth confused deputy)
-- **requests upgraded 2.32.5 → 2.33.1** — fixes CVE-2026-25645 (MEDIUM: predictable temp file)
-- **FastMCP 1.0 compatibility + security hardening** (SEC-001–SEC-008): auth.json restricted to owner-only permissions (0o600/0o700), vulnerable transitive dependencies removed
-
-### Upstream sync (v0.5.11–v0.5.15)
+### Upstream sync (v0.5.11–v0.5.16)
 - Enterprise/Workspace configurable base URL support
 - Auth recovery fixes + CDP proxy bypass fix
 - Python 3.13 compatibility fix
 - `research_status` polling loop (`poll_interval`, `max_wait`)
 - Async query polling fix (Issue #125)
+- URL source dual RPC fallback (Issue #121)
 - PEP 735 dev dependency group migration
 
 **Programmatic access to Google NotebookLM** — via command-line interface (CLI) or Model Context Protocol (MCP) server.
