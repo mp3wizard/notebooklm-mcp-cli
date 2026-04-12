@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.22] - 2026-04-11
+
+### Added
+- **Studio status code parity and normalization (PR #149)** — Consolidated the extraction logic for studio artifacts into a centralized `_normalize_studio_status` routine. The `JsonFormatter` has been updated to dynamically populate returned JSON payloads with newly available artifact fields (such as `audio_url`, `video_url`, `slide_deck_url`, `flashcard_count`) without breaking the shape expected by downstream consumers. Huge thanks to **@sickn33** for this amazing contribution!
+
+### Fixed
+- **API `poll_studio_status` bypassing auth recovery** — The core `poll_studio_status` helper function was making raw HTTP calls and dodging the standard `_call_rpc` pipeline. This caused it to immediately fail on `400 Bad Request` exceptions whenever the user's `build_label` or session tokens went stale. The polling function now correctly wraps its logic in `_call_rpc`, securing free auth recovery loops, retries, and unified debug capability during studio polling.
+
+## [0.5.21] - 2026-04-11
+
+### Fixed
+- **HTTP 400 bad request causing silent auth failures (Issue #147)** — Google returns `400 Bad Request` instead of `401` or `403` when the internal CSRF token expires. Added 400 to the retryable auth status codes, which fixes auth recovery failures and prevents tracebacks (PR #148).
+- **WSL CDP failures breaking auth (Issue #138, #144)** — Native WSL connectivity has been fully added. `nlm login --wsl` securely launches and channels DevTools via `0.0.0.0` to safely bridge the WSL network boundary.
+- **Pass Build Label in login check** — The `nlm login --check` command was initiating a client without passing the configured build label, unnecessarily triggering a three-month backward fallback.
+
 ## [0.5.20] - 2026-04-10
 
 ### Fixed

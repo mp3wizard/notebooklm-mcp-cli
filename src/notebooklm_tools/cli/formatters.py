@@ -290,6 +290,19 @@ class TableFormatter(Formatter):
 class JsonFormatter(Formatter):
     """Format output as JSON."""
 
+    ARTIFACT_FULL_FIELDS = (
+        "title",
+        "url",
+        "created_at",
+        "audio_url",
+        "video_url",
+        "infographic_url",
+        "slide_deck_url",
+        "report_content",
+        "flashcard_count",
+        "duration_seconds",
+    )
+
     def format_notebooks(
         self,
         notebooks: list[Any],
@@ -354,8 +367,13 @@ class JsonFormatter(Formatter):
                     "visual_style_prompt": art.get("visual_style_prompt", None),
                 }
                 if full:
+                    # Always include title/url with defaults for backward compat
                     item["title"] = art.get("title", "")
                     item["url"] = art.get("url", "")
+                    # Add rich fields dynamically when present
+                    for field in self.ARTIFACT_FULL_FIELDS:
+                        if field not in ("title", "url") and field in art:
+                            item[field] = art.get(field)
             else:
                 item = {
                     "id": art.id,
@@ -367,8 +385,15 @@ class JsonFormatter(Formatter):
                     "visual_style_prompt": getattr(art, "visual_style_prompt", None),
                 }
                 if full:
+                    # Always include title/url with defaults for backward compat
                     item["title"] = getattr(art, "title", "")
                     item["url"] = getattr(art, "url", "")
+                    # Add rich fields dynamically when present
+                    for field in self.ARTIFACT_FULL_FIELDS:
+                        if field not in ("title", "url"):
+                            value = getattr(art, field, None)
+                            if value is not None or hasattr(art, field):
+                                item[field] = value
             data.append(item)
         print_json(data)
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Tests for StudioMixin."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from notebooklm_tools.core.base import BaseClient
@@ -73,6 +75,186 @@ class TestStudioMixinMethods:
         assert callable(mixin.get_studio_status)
         # Method docstring should indicate it's an alias
         assert "Alias" in mixin.get_studio_status.__doc__
+
+    def test_normalize_studio_status_treats_audio_status_2_with_media_as_completed(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        artifact_data = [
+            "art-1",
+            "Audio Artifact",
+            mixin.STUDIO_TYPE_AUDIO,
+            [],
+            2,
+            None,
+            [
+                None,
+                ["", 2, None, [["src-1"]], "en", True, 1],
+                "https://example.com/thumb",
+                "https://example.com/thumb-dv",
+                None,
+                [["https://example.com/audio.m4a", 1, "audio/mp4"]],
+                [],
+            ],
+        ]
+
+        assert mixin._normalize_studio_status(artifact_data) == "completed"
+
+    def test_normalize_studio_status_keeps_unverified_code_unknown(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        artifact_data = [
+            "art-2",
+            "Unknown Artifact",
+            mixin.STUDIO_TYPE_REPORT,
+            [],
+            2,
+        ]
+
+        assert mixin._normalize_studio_status(artifact_data) == "unknown"
+
+    def test_normalize_studio_status_handles_non_list_payloads(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        assert mixin._normalize_studio_status("unexpected-payload") == "unknown"
+        assert mixin._normalize_studio_status({"status": 3}) == "unknown"
+        assert mixin._normalize_studio_status(["too-short"]) == "unknown"
+
+    def test_extract_audio_media_url_prefers_media_list_over_thumbnail_slot(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        artifact_data = [
+            "art-1",
+            "Audio Artifact",
+            mixin.STUDIO_TYPE_AUDIO,
+            [],
+            2,
+            None,
+            [
+                None,
+                ["", 2, None, [["src-1"]], "en", True, 1],
+                "https://example.com/thumb",
+                "https://example.com/thumb-dv",
+                None,
+                [
+                    ["https://example.com/audio-stream.m3u8", 2],
+                    ["https://example.com/audio.m4a", 1, "audio/mp4"],
+                ],
+                [],
+            ],
+        ]
+
+        assert mixin._extract_audio_media_url(artifact_data) == "https://example.com/audio.m4a"
+
+    def test_poll_studio_status_uses_normalized_status_mapping(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+        http_client = MagicMock()
+        http_client.post.return_value = MagicMock(
+            text="unused",
+            raise_for_status=lambda: None,
+        )
+
+        mixin._get_client = MagicMock(return_value=http_client)
+        mixin._build_request_body = MagicMock(return_value="body")
+        mixin._build_url = MagicMock(return_value="url")
+        mixin._parse_response = MagicMock(return_value=["parsed"])
+        mixin._extract_rpc_result = MagicMock(
+            return_value=[
+                [
+                    [
+                        "art-1",
+                        "Audio Artifact",
+                        mixin.STUDIO_TYPE_AUDIO,
+                        [],
+                        2,
+                        None,
+                        [
+                            None,
+                            ["", 2, None, [["src-1"]], "en", True, 1],
+                            "https://example.com/thumb",
+                            "https://example.com/thumb-dv",
+                            None,
+                            [["https://example.com/audio.m4a", 1, "audio/mp4"]],
+                            [],
+                        ],
+                    ]
+                ]
+            ]
+        )
+
+        result = mixin.poll_studio_status("nb-1")
+
+        assert result[0]["status"] == "completed"
+        assert result[0]["audio_url"] == "https://example.com/audio.m4a"
+
+    def test_create_audio_overview_uses_normalized_status_mapping(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+        http_client = MagicMock()
+        http_client.post.return_value = MagicMock(
+            text="unused",
+            raise_for_status=lambda: None,
+        )
+
+        mixin._get_client = MagicMock(return_value=http_client)
+        mixin._build_request_body = MagicMock(return_value="body")
+        mixin._build_url = MagicMock(return_value="url")
+        mixin._parse_response = MagicMock(return_value=["parsed"])
+        mixin._extract_rpc_result = MagicMock(
+            return_value=[
+                [
+                    "art-1",
+                    "Audio Artifact",
+                    mixin.STUDIO_TYPE_AUDIO,
+                    [],
+                    2,
+                    None,
+                    [
+                        None,
+                        ["", 2, None, [["src-1"]], "en", True, 1],
+                        "https://example.com/thumb",
+                        "https://example.com/thumb-dv",
+                        None,
+                        [["https://example.com/audio.m4a", 1, "audio/mp4"]],
+                        [],
+                    ],
+                ]
+            ]
+        )
+
+        result = mixin.create_audio_overview("nb-1", ["src-1"])
+
+        assert result["status"] == "completed"
+
+    def test_create_audio_overview_keeps_unknown_for_unexpected_payload_shape(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+        http_client = MagicMock()
+        http_client.post.return_value = MagicMock(
+            text="unused",
+            raise_for_status=lambda: None,
+        )
+
+        mixin._get_client = MagicMock(return_value=http_client)
+        mixin._build_request_body = MagicMock(return_value="body")
+        mixin._build_url = MagicMock(return_value="url")
+        mixin._parse_response = MagicMock(return_value=["parsed"])
+        mixin._extract_rpc_result = MagicMock(return_value=["unexpected-payload"])
+
+        result = mixin.create_audio_overview("nb-1", ["src-1"])
+
+        assert result["artifact_id"] is None
+        assert result["status"] == "unknown"
+
+    def test_revise_slide_deck_uses_normalized_failed_status(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._call_rpc = MagicMock(return_value=[["art-2", None, "Revised Deck", None, 4]])
+
+        result = mixin.revise_slide_deck("art-1", [(0, "Tighten slide title")])
+
+        assert result == {
+            "artifact_id": "art-2",
+            "title": "Revised Deck",
+            "original_artifact_id": "art-1",
+            "status": "failed",
+        }
 
 
 class TestCinematicVideoConstant:
