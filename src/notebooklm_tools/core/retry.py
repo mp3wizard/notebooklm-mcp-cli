@@ -68,7 +68,8 @@ def retry_on_server_error(
                     time.sleep(delay)
             # last_exception is always set here because the loop runs at least once
             # and any non-retryable error is re-raised immediately above
-            assert last_exception is not None
+            if last_exception is None:
+                raise RuntimeError("Retry loop exited without capturing an exception")
             raise last_exception
 
         return wrapper
@@ -120,5 +121,6 @@ def execute_with_retry(
             time.sleep(delay)
     # last_exception is always set here because the loop runs at least once
     # and any non-retryable error is re-raised immediately above
-    assert last_exception is not None
+    if last_exception is None:
+        raise RuntimeError("Retry loop exited without capturing an exception")
     raise last_exception

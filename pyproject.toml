@@ -86,3 +86,8 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]
+
+[tool.bandit]
+# Exclude tests (B101 assert is the standard pytest pattern; B106/B108 are test fixture FPs)
+# and .venv (third-party code, not ours)
+exclude_dirs = ["tests", ".venv"]

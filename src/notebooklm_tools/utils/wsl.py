@@ -23,7 +23,7 @@ See: docs/SECURITY_REMEDIATION_PLAN.md (H-3) for original security context.
 import contextlib
 import logging
 import shutil
-import subprocess
+import subprocess  # nosec B404 — required for WSL2 system calls (ip, grep, Chrome, PowerShell); per-file ignores in pyproject.toml
 import time
 from pathlib import Path
 
@@ -74,7 +74,7 @@ def get_windows_host_ip() -> str | None:
 
     # Method 1: Get default gateway (most reliable for Chrome binding)
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607 — standard Linux network tool; no user input
             ["ip", "route"],
             capture_output=True,
             text=True,
@@ -91,7 +91,7 @@ def get_windows_host_ip() -> str | None:
 
     # Method 2: Fallback to resolv.conf nameserver
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607 — reads /etc/resolv.conf; file path and args are hardcoded
             ["grep", "nameserver", "/etc/resolv.conf"],
             capture_output=True,
             text=True,
@@ -126,7 +126,7 @@ def find_windows_chrome() -> str | None:
 
     # Fallback: Try to find via PATH
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607 — hardcoded lookup for chrome.exe in WSL PATH
             ["which", "chrome.exe"],
             capture_output=True,
             text=True,
@@ -162,7 +162,7 @@ def launch_windows_chrome(
     # Check if Chrome is already running - this is a HARD REQUIREMENT
     # because Chrome uses a single-instance model
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607 — pgrep with hardcoded pattern to detect existing Chrome
             ["pgrep", "-f", "chrome.exe"],
             capture_output=True,
             text=True,
@@ -170,7 +170,7 @@ def launch_windows_chrome(
         if result.returncode == 0 and result.stdout.strip():
             # Try taskkill to close Chrome
             try:
-                subprocess.run(
+                subprocess.run(  # nosec B603 B607 — taskkill is a Windows system tool; /im arg is hardcoded
                     ["taskkill", "/f", "/im", "chrome.exe"],
                     capture_output=True,
                     text=True,
@@ -178,7 +178,7 @@ def launch_windows_chrome(
                 )
                 time.sleep(2)  # Wait for Chrome to close
                 # Check again
-                result2 = subprocess.run(
+                result2 = subprocess.run(  # nosec B603 B607 — same pgrep check as above
                     ["pgrep", "-f", "chrome.exe"],
                     capture_output=True,
                     text=True,
@@ -197,8 +197,8 @@ def launch_windows_chrome(
                 logger.debug(f"Could not terminate existing Chrome: {e}")
     except RuntimeError:
         raise
-    except Exception:
-        pass  # pgrep might not be available, continue anyway
+    except Exception as e:
+        logger.debug("Could not check/kill existing Chrome (pgrep may be unavailable): %s", e)
 
     chrome_path = find_windows_chrome()
     if not chrome_path:
@@ -215,7 +215,7 @@ def launch_windows_chrome(
     import tempfile
 
     temp_dir = tempfile.mkdtemp(prefix="nlm-chrome-")
-    windows_temp = subprocess.run(
+    windows_temp = subprocess.run(  # nosec B603 B607 — wslpath converts a trusted mkdtemp path; no user input
         ["wslpath", "-w", temp_dir],
         capture_output=True,
         text=True,
@@ -255,7 +255,7 @@ def launch_windows_chrome(
     logger.info(f"Launching Windows Chrome on port {port}")
     logger.debug(f"Chrome temp profile: {temp_dir}")
     try:
-        process = subprocess.Popen(
+        process = subprocess.Popen(  # nosec B603 B607 — args built from validated Chrome path + hardcoded flags + int port
             args,
             stdout=stdout_arg,
             stderr=stderr_arg,
@@ -400,7 +400,7 @@ def check_firewall_rule(port: int = DEFAULT_WSL_CDP_PORT) -> bool:
     )
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607 — ps_path from _get_powershell_path(); cmd contains only hardcoded name + int port
             [str(ps_path), "-Command", check_cmd],
             capture_output=True,
             text=True,
@@ -443,7 +443,7 @@ def create_firewall_rule(port: int = DEFAULT_WSL_CDP_PORT) -> tuple[bool, str]:
             f"-Description 'Allow WSL2 to connect to Chrome DevTools Protocol for NotebookLM MCP'"
         )
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607 — ps_path from _get_powershell_path(); ps_cmd contains only hardcoded rule name + int port
             [str(ps_path), "-Command", ps_cmd],
             capture_output=True,
             text=True,
@@ -496,7 +496,7 @@ def remove_firewall_rule(port: int = DEFAULT_WSL_CDP_PORT) -> bool:
     ps_cmd = f"Remove-NetFirewallRule -DisplayName '{rule_name}' -ErrorAction SilentlyContinue"
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607 — ps_path from _get_powershell_path(); cmd removes rule by hardcoded name + int port
             [str(ps_path), "-Command", ps_cmd],
             capture_output=True,
             text=True,
@@ -553,7 +553,7 @@ def diagnose_wsl_connectivity(host_ip: str, port: int = DEFAULT_WSL_CDP_PORT) ->
     if ps_path:
         try:
             ps_cmd = "Get-Process chrome -ErrorAction SilentlyContinue | Select-Object -First 1"
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607 — ps_path from _get_powershell_path(); diagnostic-only hardcoded PS command
                 [str(ps_path), "-Command", ps_cmd],
                 capture_output=True,
                 text=True,
@@ -572,7 +572,7 @@ def diagnose_wsl_connectivity(host_ip: str, port: int = DEFAULT_WSL_CDP_PORT) ->
     if ps_path:
         try:
             ps_cmd = f"Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue | Select-Object LocalAddress, LocalPort, State"
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607 — ps_path from _get_powershell_path(); port is an int parameter
                 [str(ps_path), "-Command", ps_cmd],
                 capture_output=True,
                 text=True,

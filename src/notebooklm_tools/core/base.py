@@ -269,7 +269,7 @@ class BaseClient:
     def __init__(
         self,
         cookies: dict[str, str] | list[dict],
-        csrf_token: str = "",
+        csrf_token: str = "",  # nosec B107 — empty string means "auto-extract from page", not a hardcoded credential
         session_id: str = "",
         build_label: str = "",
     ):
@@ -848,7 +848,7 @@ class BaseClient:
             # or the same, but worth retrying with a fresh CSRF token extraction
             with self._state_lock:
                 self.cookies = cached.cookies
-                self.csrf_token = ""  # Force re-extraction of CSRF token
+                self.csrf_token = ""  # nosec B105 — empty string signals auto-extraction on next request, not a hardcoded secret
                 self._session_id = ""  # Force re-extraction of session ID
             return True
 

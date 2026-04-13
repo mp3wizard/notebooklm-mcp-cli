@@ -11,7 +11,7 @@ import json
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 — subprocess used only to invoke known CLI tools (claude, codex, pbcopy); no user-controlled input
 import tomllib
 from pathlib import Path
 
@@ -205,7 +205,7 @@ def _setup_claude_code() -> bool:
         return False
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 — cmd from shutil.which(), all args are hardcoded constants
             [claude_cmd, "mcp", "add", "-s", "user", "notebooklm-mcp", "--", MCP_SERVER_CMD],
             capture_output=True,
             text=True,
@@ -321,7 +321,7 @@ def _setup_codex() -> bool:
     codex_cmd = shutil.which("codex")
     if codex_cmd:
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 — cmd from shutil.which(), all args are hardcoded constants
                 [codex_cmd, "mcp", "add", "notebooklm-mcp", "--", MCP_SERVER_CMD],
                 capture_output=True,
                 text=True,
@@ -456,7 +456,7 @@ def _is_already_configured(client_id: str) -> bool:
         if client_id == "claude-code":
             claude_cmd = shutil.which("claude")
             if claude_cmd:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 — cmd from shutil.which(), args are hardcoded strings
                     [claude_cmd, "mcp", "list"],
                     capture_output=True,
                     text=True,
@@ -483,7 +483,7 @@ def _is_already_configured(client_id: str) -> bool:
         elif client_id == "codex":
             codex_cmd = shutil.which("codex")
             if codex_cmd:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 — cmd from shutil.which(), args are hardcoded strings
                     [codex_cmd, "mcp", "list"],
                     capture_output=True,
                     text=True,
@@ -707,7 +707,7 @@ def _setup_json() -> None:
 
     if platform.system() == "Darwin" and Confirm.ask("Copy to clipboard?", default=True):
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607 — pbcopy is a macOS system tool in /usr/bin; input is JSON string, not shell command
                 ["pbcopy"],
                 input=json_str.encode(),
                 check=True,
@@ -823,7 +823,7 @@ def _remove_single(client: str) -> bool:
         claude_cmd = shutil.which("claude")
         if claude_cmd:
             try:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 — cmd from shutil.which(), all args are hardcoded constants
                     [claude_cmd, "mcp", "remove", "-s", "user", "notebooklm-mcp"],
                     capture_output=True,
                     text=True,
@@ -847,7 +847,7 @@ def _remove_single(client: str) -> bool:
         codex_cmd = shutil.which("codex")
         if codex_cmd:
             try:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 — cmd from shutil.which(), all args are hardcoded constants
                     [codex_cmd, "mcp", "remove", "notebooklm-mcp"],
                     capture_output=True,
                     text=True,
@@ -1001,7 +1001,7 @@ def setup_list() -> None:
             claude_cmd = shutil.which("claude")
             if claude_cmd:
                 try:
-                    result = subprocess.run(
+                    result = subprocess.run(  # nosec B603 — cmd from shutil.which(), args are hardcoded strings
                         [claude_cmd, "mcp", "list"],
                         capture_output=True,
                         text=True,
@@ -1054,7 +1054,7 @@ def setup_list() -> None:
             codex_cmd = shutil.which("codex")
             if codex_cmd:
                 try:
-                    result = subprocess.run(
+                    result = subprocess.run(  # nosec B603 — cmd from shutil.which(), args are hardcoded strings
                         [codex_cmd, "mcp", "list"],
                         capture_output=True,
                         text=True,

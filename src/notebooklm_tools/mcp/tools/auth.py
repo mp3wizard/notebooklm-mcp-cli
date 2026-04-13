@@ -58,7 +58,7 @@ def refresh_auth() -> dict[str, Any]:
 @logged_tool()
 def save_auth_tokens(
     cookies: str,
-    csrf_token: str = "",
+    csrf_token: str = "",  # nosec B107 — deprecated optional param; empty string means "auto-extract", not a credential
     session_id: str = "",
     request_body: str = "",
     request_url: str = "",
@@ -129,13 +129,13 @@ def save_auth_tokens(
 
         # Build status message
         if csrf_token and session_id:
-            token_msg = "CSRF token and session ID extracted from network request - no page fetch needed! ⚡"
+            token_msg = "CSRF token and session ID extracted from network request - no page fetch needed! ⚡"  # nosec B105
         elif csrf_token:
-            token_msg = "CSRF token extracted from network request. Session ID will be auto-extracted on first use."
+            token_msg = "CSRF token extracted from network request. Session ID will be auto-extracted on first use."  # nosec B105
         elif session_id:
-            token_msg = "Session ID extracted from network request. CSRF token will be auto-extracted on first use."
+            token_msg = "Session ID extracted from network request. CSRF token will be auto-extracted on first use."  # nosec B105
         else:
-            token_msg = "CSRF token and session ID will be auto-extracted on first API call (~1-2s one-time delay)."
+            token_msg = "CSRF token and session ID will be auto-extracted on first API call (~1-2s one-time delay)."  # nosec B105
 
         return {
             "status": "success",

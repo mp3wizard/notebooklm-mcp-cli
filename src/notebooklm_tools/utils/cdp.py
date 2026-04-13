@@ -13,7 +13,7 @@ import json
 import platform
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 — required to launch Chrome/Chromium for CDP authentication; chrome_path validated by shutil.which()
 import time
 from pathlib import Path
 from typing import Any
@@ -523,7 +523,7 @@ def launch_chrome_process(
 
     try:
         _logger.debug("Launching browser: %s on port %d", chrome_path, port)
-        process = subprocess.Popen(
+        process = subprocess.Popen(  # nosec B603 — chrome_path from shutil.which(); args built from hardcoded flags + validated port
             args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

@@ -71,7 +71,7 @@ def main() -> None:
         sys.exit(1)
 
     # Replace this process with the MCP server
-    os.execvp(uvx, [uvx, "--from", "notebooklm-mcp-cli", "notebooklm-mcp", *sys.argv[1:]])
+    os.execvp(uvx, [uvx, "--from", "notebooklm-mcp-cli", "notebooklm-mcp", *sys.argv[1:]])  # nosec B606 — uvx from _find_uvx() (shutil.which); package name is hardcoded constant
 
 
 if __name__ == "__main__":

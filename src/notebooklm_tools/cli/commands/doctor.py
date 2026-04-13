@@ -303,7 +303,7 @@ def _check_clients(verbose: bool) -> bool:
     console.print("[bold]AI Tool Configurations[/bold]")
 
     # Import setup module for config detection
-    import subprocess
+    import subprocess  # nosec B404 — subprocess is required to query claude/codex MCP list; no user input involved
 
     from notebooklm_tools.cli.commands.setup import (
         CLIENT_REGISTRY,
@@ -328,7 +328,7 @@ def _check_clients(verbose: bool) -> bool:
             claude_cmd = shutil.which("claude")
             if claude_cmd:
                 try:
-                    result = subprocess.run(
+                    result = subprocess.run(  # nosec B603 — cmd from shutil.which(), args are hardcoded strings, no shell=True
                         [claude_cmd, "mcp", "list"],
                         capture_output=True,
                         text=True,

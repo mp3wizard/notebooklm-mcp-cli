@@ -12,6 +12,30 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.5.21–v0.5.22 — April 2026)
+- **HTTP 400 as auth failure** (Issue #147) — Google returns 400 when CSRF token expires instead of 401/403; now triggers Layer-1 auth recovery instead of raw traceback
+- **Chromium auth resilience** (PR #144) — improved stability; removed Firefox login support
+- **Source alias autodetect fix** (Issue #145) — fixed alias detection using legacy client method that no longer exists
+- **REPL source counts fix** — startup banner now shows correct source count
+- **Audio status=2 readiness** — audio with status=2 + media URLs correctly reported as "ready"
+- **Studio audio URL extraction** — uses media list for audio artifacts; falls back to legacy direct slot
+
+### Security scan (April 2026 — v0.5.22)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **Overall risk posture: Clean** — 0 vulnerabilities in Trivy after upgrade, 0 secrets in git history
+- 12 CVEs resolved across 6 packages (2 Critical, 7 High, 3 Medium/Low)
+- `diskcache` and `lupa` (unfixable CVEs) removed as transitive deps via fastmcp 3.x upgrade
+
+### Security fixes (April 2026 — v0.5.22)
+- **authlib upgraded 1.6.6 → 1.6.9** — fixes CVE-2026-27962 (CRITICAL: JWK Header Injection auth bypass), CVE-2026-28490 (HIGH: JWE padding oracle), CVE-2026-28498 (HIGH: forged OpenID Connect tokens), CVE-2026-28802 (HIGH: JWT signature verification bypass)
+- **fastmcp upgraded 2.14.2 → 3.2.3** — fixes CVE-2026-32871 (CRITICAL: SSRF/Path Traversal), CVE-2026-27124 (HIGH: OAuth confused deputy), CVE-2025-64340 (MEDIUM: Gemini CLI command injection); also removes `diskcache` (CVE-2025-69872) and `lupa` (CVE-2026-34444) transitive deps
+- **cryptography upgraded 46.0.3 → 46.0.7** — fixes CVE-2026-26007 (HIGH: SECT curve subgroup attack), CVE-2026-39892 (MEDIUM), CVE-2026-34073 (LOW: DNS constraint bypass)
+- **pyjwt upgraded 2.10.1 → 2.12.1** — fixes CVE-2026-32597 (HIGH: accepts unknown `crit` header extensions)
+- **python-multipart upgraded 0.0.21 → 0.0.26** — fixes CVE-2026-24486 (HIGH: arbitrary file write via path traversal)
+- **requests upgraded 2.32.5 → 2.33.1** — fixes CVE-2026-25645 (MEDIUM: predictable temp file)
+- **jaraco-context upgraded 6.0.2 → 6.1.2** — fixes GHSA-58pv-8j8x-9vj2 (HIGH, CVSS 8.6)
+- **pygments upgraded 2.19.2 → 2.20.0** — fixes CVE-2026-4539 (LOW: regex DoS in AdlLexer)
+
 ### Upstream sync (v0.5.17–v0.5.20 — April 2026)
 - **WSL2 authentication support** (`nlm login --wsl`) — launches Windows Chrome from WSL2 with automatic firewall management and CDP cross-boundary communication (PR #138)
 - **Thread-safety for concurrent MCP tool calls** — `threading.Lock` in `BaseClient` protects mutable state from race conditions during parallel tool invocations (PR #135)
@@ -21,19 +45,6 @@
 - **fastmcp widened to `>=3.2.0,<4.0`** — resolves startup crash with `fakeredis 2.35.0` (Issue #141)
 - **WSL2 doctor diagnostics** — `nlm doctor` now detects WSL2 environments and reports Chrome/firewall status
 - **gRPC error code mapping** — codes 5, 7, 16 now show `NOT_FOUND`, `PERMISSION_DENIED`, etc. instead of "unknown"
-
-### Security scan (April 2026 — v0.5.20)
-- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
-- **Overall risk posture: Low** — 0 application-level vulnerabilities, 0 secrets in git history
-- All 3 dependency vulnerabilities resolved: `jaraco-context`, `requests`, `pygments` (see below)
-- Full report: `security reports/security-scan-report-2026-04-11.md`
-
-### Security fixes (April 2026)
-- **jaraco-context upgraded 6.0.2 → 6.1.2** — fixes GHSA-58pv-8j8x-9vj2 (HIGH, CVSS 8.6)
-- **requests upgraded 2.32.5 → 2.33.1** — fixes CVE-2026-25645 / GHSA-gc5v-m9x4-r6x2 (MEDIUM: predictable temp file)
-- **pygments upgraded 2.19.2 → 2.20.0** — fixes CVE-2026-4539 / GHSA-5239-wwwm-4pmq (LOW: regex DoS in AdlLexer)
-- **fastmcp upgraded 2.14.2 → 3.2.3** — fixes CVE-2026-32871 (CRITICAL: SSRF & Path Traversal) and CVE-2026-27124 (HIGH: OAuth confused deputy)
-- **Security hardening** (SEC-001–SEC-008): auth.json restricted to owner-only permissions (0o600/0o700), CDP origin restriction to `127.0.0.1`, Base URL allowlist, download path traversal protection
 
 ### Claude Code Skill (April 2026)
 - **`notebooklm-cli.skill`** added — install this skill in Claude Code for AI-assisted `nlm` CLI workflows (auth, notebooks, sources, studio generation, research, batch operations, and more)

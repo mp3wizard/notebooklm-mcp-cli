@@ -85,8 +85,8 @@ def query(
                 )
         except ValidationError:
             raise
-        except Exception:
-            pass  # Suppress failure to fetch notebook details; let query try anyway
+        except Exception as e:
+            logger.debug("Could not prefetch notebook details for empty-check: %s", e)
 
     try:
         result = client.query(
@@ -344,8 +344,8 @@ def query_start(
                 )
         except ValidationError:
             raise
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Could not prefetch notebook details for empty-check (async): %s", e)
 
     query_id = uuid.uuid4().hex[:12]
 
