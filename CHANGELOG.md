@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.24] - 2026-04-13
+
+### Fixed
+- **Studio: Surface revise RPC errors with actionable hints (PR #154)** — When `slides revise` fails due to an invalid artifact ID or a rejected revision request, the error now surfaces the specific Google API error code (e.g., `INVALID_ARGUMENT`) along with a clear hint guiding the user to verify their artifact ID. Previously, these failures produced opaque, unhelpful error messages. Thank you **@sickn33** for this fix!
+- **WSL2: Auth broken on Chrome 136+ due to localhost-only CDP (PR #155)** — Chrome 136+ ignores `--remote-debugging-address=0.0.0.0`, restricting the DevTools Protocol to `127.0.0.1` only. This completely broke `nlm login --wsl` for all WSL2 users. The fix switches to a port proxy approach: Chrome launches on port 9223 (localhost) and WSL connects via port 9222 through a `netsh interface portproxy` rule. Temp Chrome profiles are now created on the Windows filesystem (`%TEMP%`) instead of WSL's `/tmp` to prevent "Profile error occurred" crashes. Updated `docs/WSL_SETUP.md` with one-time setup instructions. Thank you **@casjogreen** for this critical fix!
+
 ## [0.5.23] - 2026-04-12
 
 ### Added

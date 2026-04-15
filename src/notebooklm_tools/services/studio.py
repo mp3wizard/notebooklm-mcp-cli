@@ -16,6 +16,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from notebooklm_tools.core import constants
+from notebooklm_tools.core.errors import RPCError
 
 from .errors import ServiceError, ValidationError
 
@@ -749,6 +750,26 @@ def revise_artifact(
             artifact_id=artifact_id,
             slide_instructions=converted,
         )
+    except RPCError as e:
+        short_detail = e.detail_type.rsplit(".", 1)[-1] if e.detail_type else ""
+        formatted_error = (
+            f"Google API error code {e.error_code} ({short_detail})" if short_detail else str(e)
+        )
+        if e.error_code == 7:
+            hint = (
+                "Verify the artifact_id points to a completed slide deck in an editable "
+                "notebook you own. NotebookLM rejects revisions for view-only/shared decks."
+            )
+        else:
+            hint = (
+                "Verify the artifact_id points to a completed slide deck and retry. "
+                "If it still fails, NotebookLM is rejecting the revision request."
+            )
+        raise ServiceError(
+            f"Failed to revise slide deck: {formatted_error}",
+            user_message=f"Failed to revise slide deck — {formatted_error}.",
+            hint=hint,
+        ) from e
     except Exception as e:
         raise ServiceError(
             f"Failed to revise slide deck: {e}",

@@ -686,7 +686,7 @@ nlm skill show                              # Display skill content
 - `antigravity` - Antigravity agent framework (`~/.gemini/antigravity/skills/nlm-skill/`)
 - `cline` - Cline CLI terminal agent (`~/.cline/skills/nlm-skill/`)
 - `openclaw` - OpenClaw AI agent framework (`~/.openclaw/workspace/skills/nlm-skill/`)
-- `cc-claw` - CC-Claw AI agent framework (`~/.cc-claw/workspace/skills/nlm-skill/`)
+- `alef-agent` - Alef Agent AI agent framework (`~/.alef-agent/workspace/skills/nlm-skill/`)
 - `other` - Export all formats to `./nlm-skill-export/` for manual installation
 
 **Installation Levels:**
