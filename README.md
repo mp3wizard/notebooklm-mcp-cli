@@ -12,6 +12,18 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.5.25 — April 2026)
+- **Audio download CDN fix** (Issue #158) — prefers `-dv` download variant URL (~3 MB/s CDN) over streaming transcode URL (~30 KB/s); 47 MB file downloads in ~15s
+- **CDP WebSocket proxy bypass** (Issue #119, PR #157) — `nlm login` no longer breaks when `HTTP_PROXY`/`HTTPS_PROXY` are set (Clash, Surge, etc.); proxy env vars are cleared around localhost CDP connections
+- **Windows UTF-8 fix** (Issue #156) — MCP server no longer crashes with `UnicodeEncodeError` on Windows cp1252 consoles when NotebookLM returns Unicode characters like `→`; stdout/stderr reconfigured to UTF-8 at startup
+- **Lazy-load `NotebookLMClient`** — deferred import keeps stdio encoding bootstrap lightweight
+- **CI release gate** — new workflow validates all version strings are aligned before release
+
+### Security scan (April 2026 — v0.5.25)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **Overall risk posture: Clean** — 0 vulnerabilities in 88 packages (Trivy + OSV-Scanner), 0 secrets in git history (Gitleaks + TruffleHog), 0 SAST findings (Semgrep + Bandit)
+- See [docs/security-scan-report-2026-04-16.md](docs/security-scan-report-2026-04-16.md) for full report
+
 ### Upstream sync (v0.5.21–v0.5.22 — April 2026)
 - **HTTP 400 as auth failure** (Issue #147) — Google returns 400 when CSRF token expires instead of 401/403; now triggers Layer-1 auth recovery instead of raw traceback
 - **Chromium auth resilience** (PR #144) — improved stability; removed Firefox login support
