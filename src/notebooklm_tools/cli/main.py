@@ -284,7 +284,9 @@ def login_callback(
                 wsl_cdp_url = f"http://{windows_ip}:{wsl_port}"
 
                 console.print("[bold]WSL2 detected - launching Windows Chrome[/bold]")
-                console.print(f"[dim]Windows host: {windows_ip}:{wsl_port} (proxy) -> localhost:{chrome_port} (Chrome)[/dim]")
+                console.print(
+                    f"[dim]Windows host: {windows_ip}:{wsl_port} (proxy) -> localhost:{chrome_port} (Chrome)[/dim]"
+                )
                 console.print("[dim]Chrome binds to localhost; netsh portproxy bridges WSL[/dim]")
 
                 # Check Windows Firewall
@@ -771,6 +773,10 @@ def main(
 def cli_main():
     """Main CLI entry point with error handling."""
     import sys
+
+    from notebooklm_tools.utils.io_encoding import configure_stdio_utf8_on_windows
+
+    configure_stdio_utf8_on_windows()
 
     try:
         app()

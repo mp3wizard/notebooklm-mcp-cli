@@ -1,38 +1,59 @@
-name: Version Alignment Check
+name: Release Gate
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'pyproject.toml'
-      - 'src/notebooklm_tools/__init__.py'
-      - 'src/notebooklm_tools/data/SKILL.md'
-      - 'src/notebooklm_tools/data/AGENTS_SECTION.md'
-      - 'desktop-extension/manifest.json'
-  pull_request:
-    branches: [main]
   release:
     types: [published]
 
 jobs:
-  check-versions:
+  lint:
+    name: Ruff lint and format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Run ruff linting
+        run: uv run --dev ruff check . --output-format=github
+
+      - name: Run ruff format check
+        run: uv run --dev ruff format --check .
+
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Run tests
+        run: uv run --dev --with pytest-github-actions-annotate-failures --with pytest-asyncio pytest -v --tb=short -m "not e2e"
+
+  version-alignment:
     name: Verify version alignment
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract and compare versions
+      - name: Check all version strings match
         run: |
           set -euo pipefail
 
-          # Extract version from each file
           TOML_VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           INIT_VERSION=$(grep '^__version__' src/notebooklm_tools/__init__.py | head -1 | sed 's/__version__ = "\(.*\)"/\1/')
           SKILL_VERSION=$(grep '^version:' src/notebooklm_tools/data/SKILL.md | head -1 | sed 's/version: "\(.*\)"/\1/')
           AGENTS_VERSION=$(grep 'nlm-version:' src/notebooklm_tools/data/AGENTS_SECTION.md | head -1 | sed 's/.*nlm-version: \(.*\) -->/\1/')
           MANIFEST_VERSION=$(grep '"version"' desktop-extension/manifest.json | head -1 | sed 's/.*"version": "\(.*\)".*/\1/')
 
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+
+          echo "🏷️  Git tag:               $TAG_VERSION"
           echo "📦 pyproject.toml:        $TOML_VERSION"
           echo "🐍 __init__.py:           $INIT_VERSION"
           echo "🤖 SKILL.md:              $SKILL_VERSION"
@@ -42,32 +63,24 @@ jobs:
           FAILED=0
 
           for PAIR in \
+            "pyproject.toml:$TOML_VERSION" \
             "__init__.py:$INIT_VERSION" \
             "SKILL.md:$SKILL_VERSION" \
             "AGENTS_SECTION.md:$AGENTS_VERSION" \
             "manifest.json:$MANIFEST_VERSION"; do
             FILE="${PAIR%%:*}"
             VER="${PAIR#*:}"
-            if [ "$TOML_VERSION" != "$VER" ]; then
-              echo ""
-              echo "❌ MISMATCH: pyproject.toml ($TOML_VERSION) ≠ $FILE ($VER)"
+            if [ "$TAG_VERSION" != "$VER" ]; then
+              echo "❌ MISMATCH: tag v$TAG_VERSION ≠ $FILE ($VER)"
               FAILED=1
             fi
           done
 
           if [ "$FAILED" -eq 1 ]; then
             echo ""
-            echo "🛑 Version alignment check FAILED."
-            echo "   All files must declare the same version before releasing."
-            echo ""
-            echo "   Files to update:"
-            echo "     - pyproject.toml                              → version = \"X.Y.Z\""
-            echo "     - src/notebooklm_tools/__init__.py            → __version__ = \"X.Y.Z\""
-            echo "     - src/notebooklm_tools/data/SKILL.md          → version: \"X.Y.Z\""
-            echo "     - src/notebooklm_tools/data/AGENTS_SECTION.md → <!-- nlm-version: X.Y.Z -->"
-            echo "     - desktop-extension/manifest.json             → \"version\": \"X.Y.Z\""
+            echo "🛑 Release gate FAILED — tag does not match all version files."
             exit 1
           fi
 
           echo ""
-          echo "✅ All 5 version files aligned at $TOML_VERSION"
+          echo "✅ Tag v$TAG_VERSION matches all 5 version files"

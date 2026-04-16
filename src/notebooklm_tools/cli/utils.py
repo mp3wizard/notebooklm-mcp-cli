@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -25,6 +26,9 @@ def make_console(**kwargs) -> "Console":
     See: https://github.com/jacob-bd/notebooklm-mcp-cli/issues/105
     """
     kwargs.setdefault("safe_box", True)
+    if sys.platform == "win32":
+        # Avoid Rich legacy Windows renderer path that encodes with cp1252 (Issue #156).
+        kwargs.setdefault("legacy_windows", False)
     return Console(**kwargs)
 
 

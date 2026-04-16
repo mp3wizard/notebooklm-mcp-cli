@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.25] - 2026-04-15
+
+### Fixed
+- **Audio download fails with 302→404 (Issue #158)** — Google's audio media list contains multiple URL variants: `=m140-dv` (download variant, fast CDN via `drum.usercontent.google.com`, ~3 MB/s) and `=m140` (streaming transcode via `googlevideo.com`, ~30 KB/s). The download logic now explicitly prefers the `-dv` variant for both `download_audio` and `_extract_audio_media_url`. Audio downloads that previously failed now complete a 47MB file in ~15 seconds. Thanks to **@Victor777777** for the detailed bug report and redirect chain analysis!
+- **CDP WebSocket broken with system proxy (Issue #119, PR #157)** — When `HTTP_PROXY` / `HTTPS_PROXY` environment variables are set (e.g., Clash, Surge), `websocket-client` routed localhost CDP connections through the external proxy, crashing `nlm login`. Fixed by temporarily clearing proxy env vars around `websocket.create_connection` in `execute_cdp_command`. The existing httpx fix (#119) only covered HTTP; this completes the WebSocket side. Thanks to **@ahmelkholy** for identifying the issue and contributing PR #157!
+- **Windows: MCP server crashes with UnicodeEncodeError (Issue #156)** — On Windows consoles using cp1252 encoding, Rich's legacy renderer crashed on Unicode characters like `→` (U+2192) returned by NotebookLM, killing the MCP server process and causing client EOF disconnects. Fixed by reconfiguring `stdout`/`stderr` to UTF-8 with replacement at process startup (both CLI and MCP entry points) and setting `legacy_windows=False` on Rich Console instances. Thanks to **@argonaut-cm** for the clear traceback and proposed solutions!
+
+### Changed
+- **Lazy-load `NotebookLMClient` in package `__init__`** — `from notebooklm_tools import NotebookLMClient` now uses `__getattr__` to defer the heavy import until first access, keeping the stdio encoding bootstrap lightweight.
+
 ## [0.5.24] - 2026-04-13
 
 ### Fixed

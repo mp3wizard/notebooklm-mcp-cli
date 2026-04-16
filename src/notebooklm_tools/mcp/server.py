@@ -100,6 +100,10 @@ def main() -> None:
     - http: Streamable HTTP for network access
     - sse: Legacy SSE transport (backwards compatibility)
     """
+    from notebooklm_tools.utils.io_encoding import configure_stdio_utf8_on_windows
+
+    configure_stdio_utf8_on_windows()
+
     parser = argparse.ArgumentParser(
         description="NotebookLM MCP Server",
         formatter_class=argparse.RawDescriptionHelpFormatter,

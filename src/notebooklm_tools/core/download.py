@@ -268,14 +268,27 @@ class DownloadMixin(BaseClient):
             if not isinstance(media_list, list) or len(media_list) == 0:
                 raise ArtifactParseError("audio", details="No media URLs found in metadata")
 
-            # Look for audio/mp4 mime type
+            # Look for a downloadable audio/mp4 URL.
+            # Google's media list contains multiple entries:
+            #   =m140-dv  (priority 4, "download variant" — fast CDN via drum.usercontent.google.com)
+            #   =m140     (priority 1, streaming transcode — slow CDN via googlevideo.com)
+            # Prefer the "-dv" variant which is the intended download endpoint.
             url = None
             for item in media_list:
                 if isinstance(item, list) and len(item) > 2 and item[2] == "audio/mp4":
-                    url = item[0]
-                    break
+                    candidate = item[0]
+                    if isinstance(candidate, str) and candidate.endswith("-dv"):
+                        url = candidate
+                        break
 
-            # Fallback to first URL if no audio/mp4 found
+            # Fallback: any audio/mp4 URL
+            if not url:
+                for item in media_list:
+                    if isinstance(item, list) and len(item) > 2 and item[2] == "audio/mp4":
+                        url = item[0]
+                        break
+
+            # Last resort: first URL regardless of type
             if not url and len(media_list) > 0 and isinstance(media_list[0], list):
                 url = media_list[0][0]
 
