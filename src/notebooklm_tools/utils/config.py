@@ -373,8 +373,8 @@ def load_config() -> Config:
         except Exception as _e:
             # SEC-007: log parse failure so misconfigured files are detectable
             import logging as _logging
-            _logging.getLogger(__name__).debug("Could not load config.toml, using defaults: %s", _e)
 
+            _logging.getLogger(__name__).debug("Could not load config.toml, using defaults: %s", _e)
 
     # Apply environment overrides
     if output_format := os.environ.get("NLM_OUTPUT_FORMAT"):

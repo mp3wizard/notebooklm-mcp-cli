@@ -1,15 +1,15 @@
 """Sharing service — shared business logic for notebook sharing and collaboration."""
 
 import re
-from typing import TypedDict, Literal, Optional
-
-# SEC-008: Basic email format validation — reject obviously invalid addresses
-# before they reach the API.
-_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+from typing import TypedDict
 
 from ..core.client import NotebookLMClient
 from ..core.data_types import Collaborator, ShareStatus
 from .errors import ServiceError, ValidationError
+
+# SEC-008: Basic email format validation — reject obviously invalid addresses
+# before they reach the API.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class CollaboratorInfo(TypedDict):

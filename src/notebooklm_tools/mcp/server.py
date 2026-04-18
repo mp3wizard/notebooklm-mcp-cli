@@ -176,6 +176,7 @@ Examples:
     # has no built-in authentication and will be network-accessible.
     if args.transport in ("http", "sse") and args.host not in ("127.0.0.1", "::1", "localhost"):
         import warnings
+
         warnings.warn(
             f"MCP server binding to {args.host!r} — the endpoint will be "
             "network-accessible without authentication. "

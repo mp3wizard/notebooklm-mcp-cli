@@ -505,7 +505,10 @@ def _is_already_configured(client_id: str) -> bool:
     except Exception as _e:
         # SEC-007: log detection failure so misconfigured client checks are visible
         import logging as _logging
-        _logging.getLogger(__name__).debug("Could not detect MCP configuration for %r: %s", client_id, _e)
+
+        _logging.getLogger(__name__).debug(
+            "Could not detect MCP configuration for %r: %s", client_id, _e
+        )
     return False
 
 

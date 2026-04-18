@@ -138,6 +138,7 @@ def save_tokens_to_cache(tokens: AuthTokens, silent: bool = False) -> None:
         silent: If True, don't print confirmation message (for auto-updates)
     """
     import stat
+
     cache_path = get_cache_path()
     # SEC-002: Restrict the parent directory and file to owner-only access
     cache_path.parent.chmod(stat.S_IRWXU)  # 0o700

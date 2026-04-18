@@ -206,7 +206,10 @@ def _inject_version_to_agents_md(agents_path: Path) -> None:
     except Exception as _e:
         # SEC-007: log skill version-stamp failure so write errors are visible
         import logging as _logging
-        _logging.getLogger(__name__).debug("Could not update skill version stamp in %s: %s", agents_path, _e)
+
+        _logging.getLogger(__name__).debug(
+            "Could not update skill version stamp in %s: %s", agents_path, _e
+        )
 
 
 def install_skill_md(install_path: Path) -> None:
