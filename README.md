@@ -12,6 +12,17 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.5.26 — April 2026)
+- **MCP auth auto-reload** (Issue #161) — MCP client now reloads automatically when cached tokens on disk are newer than the in-memory client; no more manual server restarts after `nlm login`
+- **`server_info` auth status** (Issue #160) — `server_info` tool now returns `auth_status` with local token presence and age
+- **CLI Rich Windows fix** (Issue #156 follow-up, @argonaut-cm) — all CLI Rich output now routes through `make_console()`; `Formatter` default uses correct console instance on Windows
+
+### Security scan (April 2026 — v0.5.26)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **authlib upgraded 1.6.9 → 1.6.11** — fixes GHSA-jj8c-mmj3-mmgv (Medium, CVSS 5.4)
+- **Bandit suppression** — added `# nosec` annotations for type-narrowing asserts, optional mind-map exception, and WSL fixed-path subprocess calls; src/ now 0 issues at all severity levels
+- See [docs/security-scan-report-2026-04-18.md](docs/security-scan-report-2026-04-18.md) for full report
+
 ### Upstream sync (v0.5.25 — April 2026)
 - **Audio download CDN fix** (Issue #158) — prefers `-dv` download variant URL (~3 MB/s CDN) over streaming transcode URL (~30 KB/s); 47 MB file downloads in ~15s
 - **CDP WebSocket proxy bypass** (Issue #119, PR #157) — `nlm login` no longer breaks when `HTTP_PROXY`/`HTTPS_PROXY` are set (Clash, Surge, etc.); proxy env vars are cleared around localhost CDP connections

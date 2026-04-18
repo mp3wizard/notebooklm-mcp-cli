@@ -244,10 +244,10 @@ class ConversationMixin(BaseClient):
                 conversation_history = None
         else:
             # Check if we have cached history for this conversation
-            assert conversation_id is not None
+            assert conversation_id is not None  # nosec B101 — type narrowing
             conversation_history = self._build_conversation_history(conversation_id)
 
-        assert conversation_id is not None
+        assert conversation_id is not None  # nosec B101 — type narrowing
 
         # Build source IDs structure: [[[sid]]] for each source (3 brackets, not 4!)
         sources_array = [[[sid]] for sid in source_ids] if source_ids else []

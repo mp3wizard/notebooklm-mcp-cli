@@ -217,7 +217,7 @@ def launch_windows_chrome(
     import tempfile
 
     try:
-        win_temp_base = subprocess.run(
+        win_temp_base = subprocess.run(  # nosec B603 B607 — fixed Windows system path
             ["powershell.exe", "-Command", "echo $env:TEMP"],
             capture_output=True,
             text=True,
@@ -228,7 +228,7 @@ def launch_windows_chrome(
 
         windows_temp = f"{win_temp_base}\\nlm-chrome-{uuid.uuid4().hex[:8]}"
         # Convert to WSL path for cleanup tracking
-        temp_dir = subprocess.run(
+        temp_dir = subprocess.run(  # nosec B603 B607 — fixed WSL system path
             ["wslpath", "-u", windows_temp],
             capture_output=True,
             text=True,
@@ -237,7 +237,7 @@ def launch_windows_chrome(
     except Exception:
         # Fallback to WSL temp (may cause profile error but won't crash)
         temp_dir = tempfile.mkdtemp(prefix="nlm-chrome-")
-        windows_temp = subprocess.run(
+        windows_temp = subprocess.run(  # nosec B603 B607 — fixed WSL system path
             ["wslpath", "-w", temp_dir],
             capture_output=True,
             text=True,

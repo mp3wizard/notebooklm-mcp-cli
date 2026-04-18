@@ -319,7 +319,7 @@ def create_artifact(
         )
 
         artifact_id = _validate_result(result, artifact_type)
-        assert result is not None
+        assert result is not None  # nosec B101 — _validate_result raises on None
         return CreateResult(
             artifact_type=artifact_type,
             artifact_id=artifact_id,
@@ -619,8 +619,8 @@ def get_studio_status(
                     else str(mind_map_created_at),
                 }
             )
-    except Exception:
-        pass  # Mind maps are optional
+    except Exception:  # nosec B110 — mind map parsing is optional
+        pass
 
     completed = [a for a in artifacts if a.get("status") == "completed"]
     in_progress = [a for a in artifacts if a.get("status") == "in_progress"]
