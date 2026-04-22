@@ -12,6 +12,16 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.5.27 — April 2026)
+- **Source `--title` fix** (PR #162, @CryptoWombat) — adding a file source via `nlm add file --title` now honours the custom title; race condition on `wait=True` also fixed
+- **Restore skill targets** (Issue #163) — `codex` and `gemini-cli` skill targets restored; Alef Agent-specific frontmatter added
+
+### Security scan (April 2026 — v0.5.27)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, mcp-exfil-scan
+- **python-dotenv upgraded 1.2.1 → 1.2.2** — fixes CVE-2026-28684 / GHSA-mf9w-mj56-hr94 (Medium, CVSS 6.6)
+- **Overall risk posture: Clean** — 0 vulnerabilities after fix, 0 secrets in git history, 0 SAST findings
+- See [docs/security-scan-report-2026-04-22.md](docs/security-scan-report-2026-04-22.md) for full report
+
 ### Upstream sync (v0.5.26 — April 2026)
 - **MCP auth auto-reload** (Issue #161) — MCP client now reloads automatically when cached tokens on disk are newer than the in-memory client; no more manual server restarts after `nlm login`
 - **`server_info` auth status** (Issue #160) — `server_info` tool now returns `auth_status` with local token presence and age
