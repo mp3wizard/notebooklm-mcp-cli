@@ -1,10 +1,10 @@
 """Sharing service — shared business logic for notebook sharing and collaboration."""
 
 import re
-from typing import TypedDict
 
 from ..core.client import NotebookLMClient
 from ..core.data_types import Collaborator, ShareStatus
+from ._compat import TypedDict
 from .errors import ServiceError, ValidationError
 
 # SEC-008: Basic email format validation — reject obviously invalid addresses

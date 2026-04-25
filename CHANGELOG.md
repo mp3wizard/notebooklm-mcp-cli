@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.29] - 2026-04-24
+
+### Fixed
+- **Python 3.11 TypedDict compatibility (Issue #167)** — Pydantic v2 rejects `typing.TypedDict` on Python < 3.12. All 13 service files now import `TypedDict` from a centralized compat shim (`services/_compat.py`) that uses `typing_extensions` on < 3.12. Added `typing_extensions` as an explicit dependency for Python < 3.12. Thanks to **@irvinghu07** for the clear report and suggested fixes!
+- **SOCKS proxy blocks `nlm login` (Issue #167)** — The CDP helper's `httpx.Client` inherited `ALL_PROXY` from the environment, causing `ImportError: socksio not installed` on localhost CDP connections. Fixed with `trust_env=False`. Thanks to **@irvinghu07**!
+- **MCP `notebook_list` always returns "Authentication expired" (Issue #169)** — `save_tokens_to_cache()` only wrote to the legacy `auth.json`, but `load_cached_tokens()` prioritizes `profiles/default/cookies.json`. Tokens saved via the MCP `save_auth_tokens` tool were never read back. Fixed by syncing writes to both `auth.json` and the active profile. Thanks to **@nobolso** for the thorough diagnosis and file structure analysis!
+- **Python 3.14 Windows `pathlib.mkdir` regression (Issue #169)** — `Path.mkdir(parents=True, exist_ok=True)` raises `FileExistsError` (WinError 183) on Python 3.14 + Windows. Added `safe_mkdir()` wrapper applied to all `mkdir` calls across `config.py`, `auth.py`, `base.py`, and `cdp.py`. Thanks to **@nobolso**!
+
 ## [0.5.28] - 2026-04-23
 
 ### Fixed
