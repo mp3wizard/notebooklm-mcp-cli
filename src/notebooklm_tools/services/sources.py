@@ -209,7 +209,7 @@ def add_source(
                         renamed = client.rename_source(notebook_id, source_id, title)
                         if renamed:
                             result = {**result, "title": renamed.get("title", title)}
-                    except Exception:
+                    except Exception:  # nosec B110 # best-effort rename, intentionally silent
                         # Rename is best-effort: if it fails the source still
                         # exists with the filename title. Don't mask the upload
                         # success by raising here.

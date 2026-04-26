@@ -104,7 +104,7 @@ def get_client() -> NotebookLMClient:
         # NOTEBOOKLM_CSRF_TOKEN and NOTEBOOKLM_SESSION_ID env vars are deprecated
         # and no longer read. Both are auto-extracted on first API call. Passing
         # stale values from env would bypass auto-refresh and cause auth failures.
-        csrf_token = ""
+        csrf_token = ""  # nosec B105 # deprecated placeholder, not a password
         session_id = ""
         build_label = ""
 

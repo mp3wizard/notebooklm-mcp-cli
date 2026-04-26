@@ -12,6 +12,19 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.5.30 — April 2026)
+- **Stale `NOTEBOOKLM_COOKIES` auth loop fix** (Issue #170) — `refresh_auth` now returns an actionable error when `NOTEBOOKLM_COOKIES` env var is set, instead of silently returning false success; auth failure messages now mention the env var as the likely cause
+- **Deprecated env vars removed** — `NOTEBOOKLM_CSRF_TOKEN` and `NOTEBOOKLM_SESSION_ID` are no longer read; both values are auto-extracted and stale env vars would bypass auto-refresh
+- **Auth troubleshooting docs** — new section in `docs/AUTHENTICATION.md` covering the env var auth trap
+
+### Security scan (April 2026 — v0.5.30)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **0 vulnerabilities** in uv.lock (88 packages scanned by Trivy + OSV-Scanner)
+- **0 secrets** in git history (489 commits, Gitleaks + TruffleHog)
+- **0 SAST findings** (Semgrep OWASP/Python/Secrets, Bandit src/)
+- Suppressed 2 confirmed Bandit false positives with `# nosec` annotations (`B105` in `_utils.py`, `B110` in `sources.py`)
+- **Overall risk posture: Clean**
+
 ### Upstream sync (v0.5.27 — April 2026)
 - **Source `--title` fix** (PR #162, @CryptoWombat) — adding a file source via `nlm add file --title` now honours the custom title; race condition on `wait=True` also fixed
 - **Restore skill targets** (Issue #163) — `codex` and `gemini-cli` skill targets restored; Alef Agent-specific frontmatter added
