@@ -100,9 +100,12 @@ def get_client() -> NotebookLMClient:
             return _client
 
         cookie_header = os.environ.get("NOTEBOOKLM_COOKIES", "")
-        csrf_token = os.environ.get("NOTEBOOKLM_CSRF_TOKEN", "")
-        session_id = os.environ.get("NOTEBOOKLM_SESSION_ID", "")
 
+        # NOTEBOOKLM_CSRF_TOKEN and NOTEBOOKLM_SESSION_ID env vars are deprecated
+        # and no longer read. Both are auto-extracted on first API call. Passing
+        # stale values from env would bypass auto-refresh and cause auth failures.
+        csrf_token = ""
+        session_id = ""
         build_label = ""
 
         if cookie_header:
@@ -113,8 +116,8 @@ def get_client() -> NotebookLMClient:
             cached = load_cached_tokens()
             if cached:
                 cookies = cached.cookies
-                csrf_token = csrf_token or cached.csrf_token
-                session_id = session_id or cached.session_id
+                csrf_token = cached.csrf_token
+                session_id = cached.session_id
                 build_label = cached.build_label or ""
             else:
                 raise ValueError(

@@ -1,5 +1,6 @@
 """Auth tools - Authentication management."""
 
+import os
 import time
 import urllib.parse
 
@@ -23,6 +24,21 @@ def refresh_auth() -> ResultDict:
     Returns status indicating if tokens were refreshed successfully.
     """
     try:
+        # If NOTEBOOKLM_COOKIES is set in the environment (e.g. claude_desktop_config.json),
+        # it overrides all disk-based auth. Disk reload won't help — the env var wins on
+        # every client re-init. Tell the user exactly what to do instead of lying with "success".
+        if os.environ.get("NOTEBOOKLM_COOKIES"):
+            return {
+                "status": "error",
+                "error": (
+                    "NOTEBOOKLM_COOKIES is set as an environment variable in your MCP config. "
+                    "This overrides all other auth sources (auth.json, nlm login, save_auth_tokens). "
+                    "To fix: update the cookie value in your MCP config file "
+                    "(e.g. claude_desktop_config.json) and restart, "
+                    "or remove the NOTEBOOKLM_COOKIES env var and use 'nlm login' instead."
+                ),
+            }
+
         # Try reloading from disk first
         from notebooklm_tools.core.auth import load_cached_tokens
 

@@ -718,11 +718,17 @@ class BaseClient:
             return self._call_rpc(rpc_id, params, path, timeout, _retry=True, _deep_retry=True)
 
         # All recovery attempts failed
-        raise AuthenticationError(
+        msg = (
             "Authentication expired. Run 'nlm login' in your terminal to re-authenticate. "
             "MCP users: the server should auto-detect the new credentials; "
             "if not, call the refresh_auth tool."
         )
+        if os.environ.get("NOTEBOOKLM_COOKIES"):
+            msg += (
+                " NOTE: NOTEBOOKLM_COOKIES is set in your environment and overrides "
+                "all other auth sources. Update it in your MCP config file and restart."
+            )
+        raise AuthenticationError(msg)
 
     # =========================================================================
     # Authentication Management
