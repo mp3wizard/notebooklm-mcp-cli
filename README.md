@@ -12,6 +12,18 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.0 — April 2026)
+- **Source Label Management** — organize notebook sources into thematic categories with the new `label` MCP tool and `nlm label` CLI commands. Actions: `auto` (AI-generated labels), `list`, `create`, `rename`, `set_emoji`, `move_source`, `delete`. Multi-label assignment supported (≥5 sources required for auto-labeling)
+- **EOF on initialization fix** (v0.5.31, Issue #171) — `_StdoutToStderrWrapper` in `server.py` redirects stray text output to stderr so the stdio JSON-RPC channel stays clean (fixes EOF crashes on Windows/macOS)
+- **WSL firewall encoding fix** (PR #172, @andrepreira) — `check_firewall_rule()` now handles UTF-16-LE PowerShell output, eliminating the false firewall warning during `nlm login --wsl`
+
+### Security scan (April 2026 — v0.6.0)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner
+- **0 vulnerabilities** in uv.lock (88 packages scanned by Trivy + OSV-Scanner)
+- **0 secrets** in git history (495 commits, Gitleaks + TruffleHog)
+- **0 SAST findings** (Semgrep on 101 Python files, 191 rules; Bandit on `src/` + `scripts/`)
+- **Overall risk posture: Clean** — no fixes required
+
 ### Upstream sync (v0.5.30 — April 2026)
 - **Stale `NOTEBOOKLM_COOKIES` auth loop fix** (Issue #170) — `refresh_auth` now returns an actionable error when `NOTEBOOKLM_COOKIES` env var is set, instead of silently returning false success; auth failure messages now mention the env var as the likely cause
 - **Deprecated env vars removed** — `NOTEBOOKLM_CSRF_TOKEN` and `NOTEBOOKLM_SESSION_ID` are no longer read; both values are auto-extracted and stale env vars would bypass auto-refresh
