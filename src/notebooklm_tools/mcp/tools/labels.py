@@ -14,6 +14,7 @@ def label(
     name: str | None = None,
     emoji: str | None = None,
     source_id: str | None = None,
+    unlabeled_only: bool = False,
     confirm: bool = False,
 ) -> ResultDict:
     """Manage source labels in a notebook. Unified tool for all label operations.
@@ -21,13 +22,14 @@ def label(
     Labels let you organize sources into thematic categories. Requires 5+ sources
     for auto-labeling. Sources can belong to multiple labels simultaneously.
 
-    Supports: auto, list, create, rename, set_emoji, move_source, delete
+    Supports: auto, list, reorganize, create, rename, set_emoji, move_source, delete
 
     Args:
         notebook_id: Notebook UUID
         action: Operation to perform:
             - auto: AI auto-labels all sources into thematic categories
             - list: List current labels (triggers AI if none exist)
+            - reorganize: Force AI re-categorization (requires confirm=True unless unlabeled_only=True)
             - create: Create a new empty label (requires name)
             - rename: Rename a label (requires label_id, name)
             - set_emoji: Set or clear emoji on a label (requires label_id, emoji)
@@ -38,7 +40,9 @@ def label(
         name: Label display name (required for create and rename)
         emoji: Emoji character for set_emoji (e.g. "📊"), or "" to clear
         source_id: Source UUID to assign (required for move_source)
-        confirm: Must be True for delete action
+        unlabeled_only: For reorganize: if True, only label sources not yet in any label.
+            If False (default), replaces ALL existing labels from scratch (requires confirm=True).
+        confirm: Must be True for delete action and for reorganize with unlabeled_only=False
 
     Returns:
         Action-specific response with status
@@ -46,13 +50,24 @@ def label(
     Example:
         label(notebook_id="abc", action="auto")
         label(notebook_id="abc", action="list")
+        label(notebook_id="abc", action="reorganize", confirm=True)
+        label(notebook_id="abc", action="reorganize", unlabeled_only=True)
         label(notebook_id="abc", action="create", name="Research", emoji="📚")
         label(notebook_id="abc", action="rename", label_id="xyz", name="Better Name")
         label(notebook_id="abc", action="set_emoji", label_id="xyz", emoji="🎯")
         label(notebook_id="abc", action="move_source", label_id="xyz", source_id="src-id")
         label(notebook_id="abc", action="delete", label_id="xyz", confirm=True)
     """
-    valid_actions = ("auto", "list", "create", "rename", "set_emoji", "move_source", "delete")
+    valid_actions = (
+        "auto",
+        "list",
+        "reorganize",
+        "create",
+        "rename",
+        "set_emoji",
+        "move_source",
+        "delete",
+    )
 
     if action not in valid_actions:
         return {
@@ -70,6 +85,17 @@ def label(
         elif action == "list":
             result = labels_service.list_labels(client, notebook_id)
             return {"status": "success", "action": "list", **result}
+
+        elif action == "reorganize":
+            if not unlabeled_only and not confirm:
+                return error_result(
+                    "Reorganizing all sources replaces existing labels. Set confirm=True after "
+                    "user approval, or use unlabeled_only=True to only label unlabeled sources.",
+                    warning="This will NOT preserve existing labels.",
+                )
+            result = labels_service.reorganize_labels(client, notebook_id, unlabeled_only)
+            scope = "unlabeled sources" if unlabeled_only else "all sources"
+            return {"status": "success", "action": "reorganize", "scope": scope, **result}
 
         elif action == "create":
             if not name:

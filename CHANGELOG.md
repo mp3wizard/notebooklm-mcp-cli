@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-04-29
+
+### Fixed
+
+- **Login timeout after Google sign-in (#174)** — `is_logged_in()` used substring matching on the full URL, so the post-sign-in redirect URL containing `original_referer=...accounts.google.com...` in the query string was misidentified as a sign-in page. Now parses the URL hostname via `urlparse()`. Thanks to **@SKMKZP** for the clear root cause analysis and fix!
+- **Headless browser hijacking during `nlm login`** — `find_any_existing_cdp_browser()` would blindly reuse any Chrome with CDP enabled on ports 9222-9231, including headless instances from other tools (e.g. Perplexity MCP). This caused `nlm login` to silently hang for 5 minutes waiting for sign-in on an invisible browser. Now checks User-Agent for `HeadlessChrome` and skips automation browsers.
+- **Silent login wait loop** — When waiting for user sign-in, the CLI now emits status messages instead of hanging silently for up to 5 minutes with no feedback.
+
+### Changed
+
+- Extracted `_fetch_cdp_version()` helper to share `/json/version` logic between `get_debugger_url()` and `find_any_existing_cdp_browser()`.
+
+---
+
 ## [0.6.0] - 2026-04-27
 
 ### Added

@@ -92,6 +92,48 @@ def list_labels(
         handle_error(e, json_output=locals().get("json_output", False))
 
 
+@app.command("reorganize")
+def reorganize_labels(
+    notebook_id: str = typer.Argument(..., help="Notebook ID or alias"),
+    unlabeled_only: bool = typer.Option(
+        False, "--unlabeled", "-u", help="Only label sources not yet in any label"
+    ),
+    confirm: bool = typer.Option(
+        False, "--confirm", "-y", help="Skip confirmation prompt (all-sources mode)"
+    ),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
+) -> None:
+    """Force AI re-categorization of sources into new labels.
+
+    By default, replaces ALL existing labels (destructive). Use --unlabeled to
+    only label sources that are not yet in any label.
+    """
+    if not unlabeled_only and not confirm:
+        confirmed = typer.confirm(
+            "Reorganize all sources? This will NOT preserve existing labels.",
+            default=False,
+        )
+        if not confirmed:
+            console.print("[yellow]Cancelled.[/yellow]")
+            raise typer.Exit(0)
+
+    try:
+        notebook_id = get_alias_manager().resolve(notebook_id)
+        with get_client(profile) as client:
+            result = labels_service.reorganize_labels(client, notebook_id, unlabeled_only)
+
+        if json_output:
+            print_json({"status": "success", **result})
+        else:
+            scope = "unlabeled sources" if unlabeled_only else "all sources"
+            console.print(f"[green]✓[/green] Reorganized {scope}.")
+            _print_labels_table(result["labels"], notebook_id)
+
+    except (ServiceError, NLMError) as e:
+        handle_error(e, json_output=locals().get("json_output", False))
+
+
 @app.command("create")
 def create_label(
     notebook_id: str = typer.Argument(..., help="Notebook ID or alias"),

@@ -46,6 +46,16 @@ class LabelsMixin(BaseClient):
         result = self._call_rpc(self.RPC_LABEL_MANAGE, params, f"/notebook/{notebook_id}")
         return self._parse_label_response(result)
 
+    def reorganize_labels(self, notebook_id: str, unlabeled_only: bool = False) -> list[dict]:
+        """Force AI re-categorization of sources into new labels.
+
+        API mode [0] = unlabeled sources only; [1] = force-replace all labels.
+        """
+        mode = [0] if unlabeled_only else [1]
+        params = [[2], notebook_id, None, None, mode]
+        result = self._call_rpc(self.RPC_LABEL_MANAGE, params, f"/notebook/{notebook_id}")
+        return self._parse_label_response(result)
+
     def list_labels(self, notebook_id: str) -> list[dict]:
         """List current labels. Triggers AI auto-labeling if none exist."""
         return self.auto_label(notebook_id)

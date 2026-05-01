@@ -45,6 +45,13 @@ def _make_list_result(notebook_id: str, labels: list[dict]) -> LabelListResult:
     }
 
 
+def _require_notebook_id(notebook_id: str) -> None:
+    if not notebook_id or not notebook_id.strip():
+        raise ValidationError(
+            "notebook_id is required.", user_message="Notebook ID cannot be empty."
+        )
+
+
 def auto_label(client: NotebookLMClient, notebook_id: str) -> LabelListResult:
     """Auto-label all sources using AI-generated thematic categories.
 
@@ -61,10 +68,7 @@ def auto_label(client: NotebookLMClient, notebook_id: str) -> LabelListResult:
     Raises:
         ServiceError: If the API call fails
     """
-    if not notebook_id or not notebook_id.strip():
-        raise ValidationError(
-            "notebook_id is required.", user_message="Notebook ID cannot be empty."
-        )
+    _require_notebook_id(notebook_id)
     try:
         labels = client.auto_label(notebook_id)
     except Exception as e:
@@ -75,6 +79,34 @@ def auto_label(client: NotebookLMClient, notebook_id: str) -> LabelListResult:
 def list_labels(client: NotebookLMClient, notebook_id: str) -> LabelListResult:
     """List current labels. Triggers AI auto-labeling if none exist."""
     return auto_label(client, notebook_id)
+
+
+def reorganize_labels(
+    client: NotebookLMClient,
+    notebook_id: str,
+    unlabeled_only: bool = False,
+) -> LabelListResult:
+    """Force AI re-categorization of sources into new labels.
+
+    Args:
+        client: Authenticated NotebookLM client
+        notebook_id: Notebook UUID
+        unlabeled_only: If True, only label sources not yet in any label.
+            If False (default), replace all existing labels from scratch.
+
+    Returns:
+        LabelListResult with the resulting label set
+
+    Raises:
+        ValidationError: If notebook_id is empty
+        ServiceError: If the API call fails
+    """
+    _require_notebook_id(notebook_id)
+    try:
+        labels = client.reorganize_labels(notebook_id, unlabeled_only=unlabeled_only)
+    except Exception as e:
+        raise ServiceError(f"Failed to reorganize labels: {e}") from e
+    return _make_list_result(notebook_id, labels)
 
 
 def create_label(

@@ -1504,11 +1504,19 @@ Labels allow users to organize sources into thematic categories. Available when 
 - Move a source to a different label (multi-label assignment via checkboxes)
 - Return to flat list view
 
-### `agX4Bc` — Auto-Label / Create Label / List Labels
+### `agX4Bc` — Auto-Label / Reorganize / Create Label / List Labels
 
-This RPC handles both auto-labeling (AI-generated) and manual label creation.
+This RPC handles auto-labeling, force-reorganization, and manual label creation.
+The 5th parameter (mode) controls the labeling behavior:
 
-#### Auto-label all sources
+| Mode | Meaning |
+|------|---------|
+| `[]` | Return existing labels, or auto-generate if none exist |
+| `[0]` | Reorganize: only label sources not yet in any label (no confirmation in UI) |
+| `[1]` | Reorganize: force-regenerate ALL labels from scratch (UI shows confirmation dialog) |
+| `null` + 6th param | Create a new empty label with the given name/emoji |
+
+#### Auto-label all sources (returns existing if already labeled)
 
 ```python
 # Request params
@@ -1529,6 +1537,32 @@ This RPC handles both auto-labeling (AI-generated) and manual label creation.
      ""],
     # ...
 ]]
+```
+
+#### Reorganize — all sources (replaces existing labels)
+
+```python
+# Request params — [1] = force full regeneration
+[[2], notebook_id, null, null, [1]]
+
+# Example
+[[2], "180cfc20-9d9f-4ebf-a5d3-1b50d5593b8b", null, null, [1]]
+
+# Response: same structure as auto-label — returns the new label set
+# NOTE: UI shows a confirmation dialog before sending this request
+```
+
+#### Reorganize — unlabeled sources only
+
+```python
+# Request params — [0] = only label sources with no existing label assignment
+[[2], notebook_id, null, null, [0]]
+
+# Example
+[[2], "180cfc20-9d9f-4ebf-a5d3-1b50d5593b8b", null, null, [0]]
+
+# Response: same structure as auto-label — returns the full updated label set
+# NOTE: UI fires this immediately without a confirmation dialog
 ```
 
 #### Create a new empty label

@@ -481,15 +481,26 @@ def find_existing_nlm_chrome(
 def find_any_existing_cdp_browser(
     port_range: range = CDP_PORT_RANGE,
 ) -> tuple[int | None, str | None]:
-    """Find a single reachable CDP browser in our local port range.
+    """Find a single reachable non-headless CDP browser in our local port range.
 
     This is a fallback for environments where the browser is already running
     with remote debugging enabled but wasn't launched by this tool, so no
     port-map entry exists yet.
+
+    Headless browsers are skipped because they typically belong to other
+    automation tools (e.g. Perplexity MCP, Playwright) and cannot be used
+    for interactive sign-in.
     """
     matches: list[tuple[int, str]] = []
     for port in port_range:
-        debugger_url = get_debugger_url(port, tries=1, timeout=2)
+        version_info = _fetch_cdp_version(port, timeout=2)
+        if not version_info:
+            continue
+        ua = version_info.get("User-Agent", "")
+        if "Headless" in ua:
+            _logger.debug("Skipping headless browser on port %d", port)
+            continue
+        debugger_url = _normalize_ws_url(version_info.get("webSocketDebuggerUrl"))
         if debugger_url:
             matches.append((port, debugger_url))
 
@@ -610,19 +621,25 @@ def terminate_chrome(process: subprocess.Popen | None = None, port: int | None =
     return True
 
 
+def _fetch_cdp_version(port: int, *, timeout: int = 5) -> dict | None:
+    """Fetch /json/version from a CDP endpoint, returning parsed JSON or None."""
+    try:
+        response = httpx_client.get(f"{_cdp_http_base(port)}/json/version", timeout=timeout)
+        return response.json()
+    except Exception:
+        return None
+
+
 def get_debugger_url(
     port: int = CDP_DEFAULT_PORT, *, tries: int = 1, timeout: int = 5
 ) -> str | None:
     """Get the WebSocket debugger URL for Chrome."""
     for attempt in range(tries):
-        try:
-            response = httpx_client.get(f"{_cdp_http_base(port)}/json/version", timeout=timeout)
-            data = response.json()
+        data = _fetch_cdp_version(port, timeout=timeout)
+        if data:
             return _normalize_ws_url(data.get("webSocketDebuggerUrl"))
-        except Exception:
-            # Don't sleep on the last try
-            if attempt < tries - 1:
-                time.sleep(1)
+        if attempt < tries - 1:
+            time.sleep(1)
     return None
 
 
@@ -817,11 +834,18 @@ def _is_notebooklm_url(url: str) -> bool:
 
 
 def is_logged_in(url: str) -> bool:
-    """Check login status by URL.
+    """Check login status by parsed URL hostname.
 
-    If NotebookLM redirects to accounts.google.com, user is not logged in.
+    Inspect the parsed hostname so query strings such as
+    ``?original_referer=https://accounts.google.com#`` (which NotebookLM
+    appends to the redirect target right after Google sign-in) are not
+    mistaken for an accounts.google.com redirect.
     """
-    if "accounts.google.com" in url:
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except Exception:
+        return False
+    if host == "accounts.google.com" or host.endswith(".accounts.google.com"):
         return False
     return _is_notebooklm_url(url)
 
@@ -1028,7 +1052,9 @@ def extract_cookies_from_page(
     current_url = get_current_url(ws_url)
 
     if not is_logged_in(current_url) and wait_for_login:
+        _logger.warning("Waiting for sign-in in browser window (timeout: %ds)...", login_timeout)
         start_time = time.time()
+        last_log_at = 0
         while time.time() - start_time < login_timeout:
             time.sleep(0.5)
             try:
@@ -1038,6 +1064,10 @@ def extract_cookies_from_page(
             except Exception as _e:
                 # SEC-007: transient CDP poll failure during login wait — log and continue
                 _logger.debug("Transient error polling login status: %s", _e)
+            elapsed = int(time.time() - start_time)
+            if elapsed - last_log_at >= 30:
+                last_log_at = elapsed
+                _logger.warning("Still waiting for sign-in... (%ds elapsed)", elapsed)
 
         if not is_logged_in(current_url):
             raise AuthenticationError(
