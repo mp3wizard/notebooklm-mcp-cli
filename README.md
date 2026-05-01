@@ -12,6 +12,22 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.2 — April 2026)
+- **Login timeout fix (#174, @SKMKZP)** — `is_logged_in()` now parses URL hostname via `urlparse()` instead of substring-matching the full URL, fixing post-sign-in false-negative when the redirect URL contains `original_referer=...accounts.google.com...` in the query string
+- **Headless browser hijacking fix** — `find_any_existing_cdp_browser()` now skips browsers whose User-Agent contains `HeadlessChrome` (e.g. Perplexity MCP), preventing `nlm login` from silently hanging 5 minutes on an invisible browser
+- **Silent login wait loop** — CLI now emits "Still waiting for sign-in... (Ns elapsed)" every 30s during the login wait (combined with local SEC-007 transient-error logging in the merge resolution)
+- **Refactor** — extracted `_fetch_cdp_version()` helper to share `/json/version` logic between `get_debugger_url()` and `find_any_existing_cdp_browser()`
+
+### Upstream sync (v0.6.1 — April 2026)
+- **Label reorganize support** — new `reorganize_labels` action (core/service/MCP/CLI). Mode `[1]` reorganizes all sources (replaces all labels, requires confirm); mode `[0]` only labels sources not yet categorized. `_require_notebook_id()` helper extracted to deduplicate validation. `docs/API_REFERENCE.md` updated with both modes
+
+### Security scan (May 2026 — v0.6.2)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner
+- **0 vulnerabilities** in uv.lock (88 packages, Trivy + OSV-Scanner)
+- **0 secrets** in git history (501 commits, 9.13 MB; Gitleaks + TruffleHog)
+- **0 SAST findings** (Semgrep 542 rules / 101 files; Bandit 22,312 LOC)
+- **Overall risk posture: Clean** — no fixes required
+
 ### Upstream sync (v0.6.0 — April 2026)
 - **Source Label Management** — organize notebook sources into thematic categories with the new `label` MCP tool and `nlm label` CLI commands. Actions: `auto` (AI-generated labels), `list`, `create`, `rename`, `set_emoji`, `move_source`, `delete`. Multi-label assignment supported (≥5 sources required for auto-labeling)
 - **EOF on initialization fix** (v0.5.31, Issue #171) — `_StdoutToStderrWrapper` in `server.py` redirects stray text output to stderr so the stdio JSON-RPC channel stays clean (fixes EOF crashes on Windows/macOS)
