@@ -12,6 +12,17 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.3 — May 2026)
+- **CDP tab creation fallback (#175)** — `nlm login` now reuses an existing tab if CDP `Target.createTarget` fails (e.g. in locked-down environments where new-tab creation is blocked by enterprise policy). The reuse path is consolidated into a single pass that picks the freshest existing page
+- **GitHub Copilot setup target (#178, @whatnick)** — `nlm setup` now supports `--client github-copilot`, installing the skill files into the GitHub Copilot config path
+
+### Security scan (May 2026 — v0.6.3)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog
+- **0 vulnerabilities** in uv.lock (Trivy fs)
+- **0 secrets** in git history (507 commits, 9.15 MB; Gitleaks + TruffleHog)
+- **0 SAST findings** (Semgrep 542 rules / 101 files; Bandit 22,409 LOC)
+- **Overall risk posture: Clean** — no fixes required (full report: `docs/security-scan-report-2026-05-04.md`)
+
 ### Upstream sync (v0.6.2 — April 2026)
 - **Login timeout fix (#174, @SKMKZP)** — `is_logged_in()` now parses URL hostname via `urlparse()` instead of substring-matching the full URL, fixing post-sign-in false-negative when the redirect URL contains `original_referer=...accounts.google.com...` in the query string
 - **Headless browser hijacking fix** — `find_any_existing_cdp_browser()` now skips browsers whose User-Agent contains `HeadlessChrome` (e.g. Perplexity MCP), preventing `nlm login` from silently hanging 5 minutes on an invisible browser
