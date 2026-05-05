@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-05-04
+
+### Fixed
+
+- **Cross-domain artifact downloads (PR #180)** — Fixed an authentication bug where `OSID` cookies leaked during cross-domain artifact downloads, causing `ServiceLogin` redirects. The `_download_url` method now correctly strips service-scoped cookies for external hosts. Thanks to **@laofun** for this critical fix!
+
+---
+
+## [0.6.3] - 2026-05-04
+
+### Fixed
+
+- **CDP tab creation failures in locked-down environments (Issue #175)** — Added fallbacks to reuse existing tabs if CDP tab creation fails. Removed redundant page fetch and merged reuse loops into one pass.
+
+---
+
 ## [0.6.2] - 2026-04-29
 
 ### Fixed

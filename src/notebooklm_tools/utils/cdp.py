@@ -681,7 +681,9 @@ def find_or_create_notebooklm_page_by_cdp_url(cdp_http_url: str) -> dict | None:
             if ws_url:
                 navigate_to_url(ws_url, NOTEBOOKLM_URL)
             return page
-        _logger.debug("Failed to create blank page via PUT /json/new: HTTP %s", response.status_code)
+        _logger.debug(
+            "Failed to create blank page via PUT /json/new: HTTP %s", response.status_code
+        )
     except Exception as e:
         _logger.debug("Exception creating blank page via PUT /json/new: %s", e)
 
