@@ -12,6 +12,17 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.4 — May 2026)
+- **Cross-domain artifact downloads (PR #180, @laofun)** — Fixed an authentication bug where `OSID` / `__Secure-OSID` cookies leaked during cross-domain artifact downloads (e.g. redirects from `notebooklm.google.com` to `lh3.googleusercontent.com`), causing `ServiceLogin` redirects and HTML login pages instead of the actual file. `_download_url` now strips service-scoped cookies for external Google hosts while preserving other auth cookies
+- **CI hygiene** — manifest version aligned across `desktop-extension/manifest.json`; `cdp.py` reformatted to satisfy ruff format CI gate
+
+### Security scan (May 2026 — v0.6.4)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner
+- **0 vulnerabilities** in uv.lock (88 packages, Trivy + OSV-Scanner)
+- **0 secrets** in git history (512 commits, 9.16 MB; Gitleaks + TruffleHog)
+- **0 SAST findings** (Semgrep 542 rules / 101 files; Bandit 22,414 LOC)
+- **Overall risk posture: Clean** — no fixes required (full report: `docs/security-scan-report-2026-05-05.md`)
+
 ### Upstream sync (v0.6.3 — May 2026)
 - **CDP tab creation fallback (#175)** — `nlm login` now reuses an existing tab if CDP `Target.createTarget` fails (e.g. in locked-down environments where new-tab creation is blocked by enterprise policy). The reuse path is consolidated into a single pass that picks the freshest existing page
 - **GitHub Copilot setup target (#178, @whatnick)** — `nlm setup` now supports `--client github-copilot`, installing the skill files into the GitHub Copilot config path
