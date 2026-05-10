@@ -133,7 +133,7 @@ def _source_positions_by_url(sources: list[object]) -> dict[str, list[int]]:
 
 def _is_importable_source(source: object) -> bool:
     """Return whether core import_research_sources can import this source.
-    
+
     The research task outputs the final Deep Report as a pseudo-source in the results,
     but it cannot be imported back into the notebook.
     """
@@ -172,7 +172,9 @@ def _derive_cited_source_positions(report: str, sources: list[object]) -> set[in
         # (e.g. "analysis" matching inside "psychoanalysis"). We avoid \b because
         # it fails when titles start or end with non-word characters like ( ) [ ].
         pattern = rf"(?:^|\s){re.escape(title)}(?:\s|$)"
-        if re.search(pattern, report_lower) and not any(position in strong_positions for position in positions):
+        if re.search(pattern, report_lower) and not any(
+            position in strong_positions for position in positions
+        ):
             cited_positions.update(positions)
 
     return cited_positions
