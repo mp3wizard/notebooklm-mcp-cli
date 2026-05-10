@@ -1,6 +1,7 @@
 # tests/core/test_base.py
 """Tests for BaseClient infrastructure class."""
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -222,6 +223,150 @@ def test_constants_available():
     # Check constant re-exports
     assert hasattr(BaseClient, "STUDIO_TYPE_AUDIO")
     assert hasattr(BaseClient, "AUDIO_FORMAT_DEEP_DIVE")
+
+
+def test_extract_rpc_result_raises_resource_exhausted_on_code_8():
+    """Code 8 with UserDisplayableError should raise ResourceExhaustedError."""
+    from notebooklm_tools.core.base import BaseClient
+    from notebooklm_tools.core.errors import ResourceExhaustedError, RPCError
+
+    with patch.object(BaseClient, "_refresh_auth_tokens"):
+        client = BaseClient(cookies={}, csrf_token="token")
+
+        parsed = [
+            [
+                [
+                    "wrb.fr",
+                    "testRpc",
+                    None,
+                    None,
+                    None,
+                    [
+                        8,
+                        None,
+                        [
+                            [
+                                "type.googleapis.com/google.internal.labs.tailwind.orchestration.v1.UserDisplayableError",
+                                ["Too many requests, please try again later"],
+                            ]
+                        ],
+                    ],
+                    "generic",
+                ]
+            ]
+        ]
+
+        with pytest.raises(ResourceExhaustedError) as exc_info:
+            client._extract_rpc_result(parsed, "testRpc")
+
+        assert exc_info.value.error_code == 8
+        assert "Too many requests" in str(exc_info.value)
+        assert isinstance(exc_info.value, RPCError)
+
+
+def test_extract_rpc_result_code_8_without_user_displayable():
+    """Code 8 without UserDisplayableError still raises ResourceExhaustedError."""
+    from notebooklm_tools.core.base import BaseClient
+    from notebooklm_tools.core.errors import ResourceExhaustedError
+
+    with patch.object(BaseClient, "_refresh_auth_tokens"):
+        client = BaseClient(cookies={}, csrf_token="token")
+
+        parsed = [[["wrb.fr", "testRpc", None, None, None, [8], "generic"]]]
+
+        with pytest.raises(ResourceExhaustedError) as exc_info:
+            client._extract_rpc_result(parsed, "testRpc")
+
+        assert exc_info.value.error_code == 8
+        assert "RESOURCE_EXHAUSTED" in str(exc_info.value)
+
+
+def test_extract_rpc_result_user_displayable_extracts_message():
+    """UserDisplayableError detail_data text is included in error message for any code."""
+    from notebooklm_tools.core.base import BaseClient
+    from notebooklm_tools.core.errors import RPCError
+
+    with patch.object(BaseClient, "_refresh_auth_tokens"):
+        client = BaseClient(cookies={}, csrf_token="token")
+
+        parsed = [
+            [
+                [
+                    "wrb.fr",
+                    "testRpc",
+                    None,
+                    None,
+                    None,
+                    [
+                        3,
+                        None,
+                        [
+                            [
+                                "type.googleapis.com/UserDisplayableError",
+                                ["Notebook has too many sources"],
+                            ]
+                        ],
+                    ],
+                    "generic",
+                ]
+            ]
+        ]
+
+        with pytest.raises(RPCError) as exc_info:
+            client._extract_rpc_result(parsed, "testRpc")
+
+        assert "Notebook has too many sources" in str(exc_info.value)
+        assert exc_info.value.error_code == 3
+
+
+def test_extract_user_message_string():
+    from notebooklm_tools.core.base import _extract_user_message
+
+    assert _extract_user_message("Hello world") == "Hello world"
+
+
+def test_extract_user_message_none():
+    from notebooklm_tools.core.base import _extract_user_message
+
+    assert _extract_user_message(None) == ""
+
+
+def test_extract_user_message_nested_list():
+    from notebooklm_tools.core.base import _extract_user_message
+
+    result = _extract_user_message([None, ["Rate limit exceeded", 42], "try later"])
+    assert "Rate limit exceeded" in result
+    assert "try later" in result
+
+
+def test_extract_user_message_empty_structures():
+    from notebooklm_tools.core.base import _extract_user_message
+
+    assert _extract_user_message([]) == ""
+    assert _extract_user_message([None, [], None]) == ""
+
+
+def test_extract_user_message_ints_skipped():
+    from notebooklm_tools.core.base import _extract_user_message
+
+    assert _extract_user_message([1, 2, 3]) == ""
+
+
+def test_extract_user_message_deeply_nested():
+    from notebooklm_tools.core.base import _extract_user_message
+
+    data = [None, [None, [None, ["deeply nested message"]]]]
+    assert _extract_user_message(data) == "deeply nested message"
+
+
+def test_extract_user_message_depth_limit():
+    from notebooklm_tools.core.base import _extract_user_message
+
+    # Build a 25-level deep structure — should return "" due to depth guard
+    data: Any = ["message"]
+    for _ in range(25):
+        data = [data]
+    assert _extract_user_message(data) == ""
 
 
 class TestBuildLabelPriority:

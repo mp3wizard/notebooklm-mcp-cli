@@ -24,7 +24,7 @@ from notebooklm_tools.utils.config import get_base_url
 from . import constants
 from .data_types import ConversationTurn
 from .errors import ClientAuthenticationError as AuthenticationError
-from .errors import RPCError
+from .errors import ResourceExhaustedError, RPCError
 from .retry import DEFAULT_BASE_DELAY, DEFAULT_MAX_DELAY, DEFAULT_MAX_RETRIES, is_retryable_error
 from .utils import (
     RPC_NAMES,
@@ -36,6 +36,30 @@ from .utils import (
 # Configure logger (API internals only logged at DEBUG level, usually disabled)
 logger = logging.getLogger("notebooklm_mcp.api")
 logger.setLevel(logging.WARNING)  # Suppress internal API logs by default
+
+
+def _extract_user_message(detail_data: Any, _depth: int = 0) -> str:
+    """Recursively extract human-readable strings from a protobuf detail payload.
+
+    UserDisplayableError payloads contain user-facing text buried in nested
+    lists. This walks the structure depth-first and returns all non-empty
+    strings joined by '; '. Capped at 20 levels to guard against malformed
+    responses.
+    """
+    if _depth > 20 or detail_data is None:
+        return ""
+    if isinstance(detail_data, str):
+        stripped = detail_data.strip()
+        return stripped if stripped else ""
+    if isinstance(detail_data, list):
+        parts: list[str] = []
+        for item in detail_data:
+            found = _extract_user_message(item, _depth + 1)
+            if found:
+                parts.append(found)
+        return "; ".join(parts)
+    return ""
+
 
 # Timeout configuration (seconds)
 DEFAULT_TIMEOUT = 30.0  # Default for most operations
@@ -562,12 +586,27 @@ class BaseClient:
                                             3: "INVALID_ARGUMENT",
                                             5: "NOT_FOUND",
                                             7: "PERMISSION_DENIED",
+                                            8: "RESOURCE_EXHAUSTED",
                                             16: "UNAUTHENTICATED",
                                         }
                                         friendly_type = grpc_codes.get(error_code, "unknown")
 
+                                    msg = f"API error (code {error_code}): {friendly_type}"
+
+                                    if "UserDisplayableError" in detail_type:
+                                        user_msg = _extract_user_message(detail_data)
+                                        if user_msg:
+                                            msg = f"API error (code {error_code}): {user_msg}"
+
+                                    if error_code == 8:
+                                        raise ResourceExhaustedError(
+                                            msg,
+                                            detail_type=detail_type,
+                                            detail_data=detail_data,
+                                        )
+
                                     raise RPCError(
-                                        f"API error (code {error_code}): {friendly_type}",
+                                        msg,
                                         error_code=error_code,
                                         detail_type=detail_type,
                                         detail_data=detail_data,

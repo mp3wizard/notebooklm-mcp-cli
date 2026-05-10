@@ -1,6 +1,8 @@
 # tests/core/test_errors.py
 """Tests for artifact exception classes."""
 
+import pytest
+
 from notebooklm_tools.core.errors import (
     ArtifactDownloadError,
     ArtifactError,
@@ -9,6 +11,8 @@ from notebooklm_tools.core.errors import (
     ArtifactParseError,
     ClientAuthenticationError,
     NotebookLMError,
+    ResourceExhaustedError,
+    RPCError,
 )
 
 
@@ -64,3 +68,29 @@ def test_exception_hierarchy():
     assert issubclass(ArtifactNotFoundError, ArtifactError)
     # ClientAuthenticationError is separate from NotebookLMError
     assert issubclass(ClientAuthenticationError, Exception)
+    # ResourceExhaustedError is a subclass of RPCError
+    assert issubclass(ResourceExhaustedError, RPCError)
+    assert issubclass(ResourceExhaustedError, NotebookLMError)
+
+
+def test_resource_exhausted_error():
+    """Test ResourceExhaustedError stores attributes and has error_code=8."""
+    err = ResourceExhaustedError(
+        "Rate limited",
+        detail_type="type.googleapis.com/UserDisplayableError",
+        detail_data=["Please wait"],
+    )
+    assert err.error_code == 8
+    assert "UserDisplayableError" in err.detail_type
+    assert err.detail_data == ["Please wait"]
+    assert "Rate limited" in str(err)
+
+
+def test_resource_exhausted_caught_by_rpc_error_handler():
+    """Catching RPCError should also catch ResourceExhaustedError."""
+    try:
+        raise ResourceExhaustedError("test")
+    except RPCError as e:
+        assert e.error_code == 8
+    else:
+        pytest.fail("ResourceExhaustedError was not caught by except RPCError")

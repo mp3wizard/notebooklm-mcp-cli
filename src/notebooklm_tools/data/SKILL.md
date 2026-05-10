@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.6.4"
+version: "0.6.6"
 description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", or any NotebookLM-related automation task."
 ---
 
@@ -236,6 +236,7 @@ nlm research status <nb-id> --full            # Full details
 # Import discovered sources
 nlm research import <nb-id> <task-id>            # Import all
 nlm research import <nb-id> <task-id> --indices 0,2,5  # Import specific
+nlm research import <nb-id> <task-id> --cited-only      # Import cited sources
 nlm research import <nb-id> <task-id> --timeout 600    # Custom timeout (default: 300s)
 ```
 

@@ -115,6 +115,7 @@ class RPCError(NotebookLMError):
 
     Known error codes:
         3  — Transient/service error (e.g., DeepResearchErrorDetail)
+        8  — Resource exhausted / rate limited (raised as ResourceExhaustedError)
         16 — Authentication expired (handled separately as ClientAuthenticationError)
 
     Attributes:
@@ -128,3 +129,16 @@ class RPCError(NotebookLMError):
         self.error_code = error_code
         self.detail_type = detail_type
         self.detail_data = detail_data
+
+
+class ResourceExhaustedError(RPCError):
+    """Raised when a batchexecute RPC returns error code 8 (RESOURCE_EXHAUSTED).
+
+    This typically indicates rate limiting or capacity throttling from the
+    NotebookLM backend (e.g., infographic generation during peak hours).
+
+    Subclass of RPCError so existing ``except RPCError`` handlers still catch it.
+    """
+
+    def __init__(self, message: str, detail_type: str = "", detail_data=None):
+        super().__init__(message, error_code=8, detail_type=detail_type, detail_data=detail_data)

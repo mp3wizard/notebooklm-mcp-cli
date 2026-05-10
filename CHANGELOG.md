@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.6] - 2026-05-07
+
+### Fixed
+
+- **Opaque error on capacity throttle (Issue #182)** — When NotebookLM returns `RPCError code=8` (RESOURCE_EXHAUSTED) with a `UserDisplayableError` payload, the error message now surfaces the human-readable text instead of the raw protobuf type URL. Added `ResourceExhaustedError(RPCError)` subclass so callers can catch throttle errors distinctly. Studio artifact creation now provides retry-specific hints. Thanks to **@nikolaykazakovvs-ux** for the detailed report!
+
+- **Cinematic video silently ignores --style-prompt (Issue #183)** — `--style-prompt` with cinematic format now maps to `custom_instructions` (same API field as the web UI's "Customize Video Overview" dialog) instead of being silently dropped. `--style` still rejects for cinematic since visual style codes don't apply. Validation now runs before source resolution for faster feedback. Thanks to **@guia-matthieu** for the report!
+
+### Changed
+
+- Updated README to note Google AI Ultra ($249/mo) compatibility (PR #184). Thanks to **@guia-matthieu**!
+
+---
+
+## [0.6.5] - 2026-05-05
+
+### Fixed
+
+- **Authentication Race Condition (Issue #181)** — Fixed an issue where the `nlm login` CLI and headless authentication flows exited prematurely, resulting in incomplete cookie extraction and subsequent "Authentication expired" errors. Implemented deterministic DOM polling to wait for session tokens (`FdrFJe` or build label) before extracting cookies.
+
+---
+
 ## [0.6.4] - 2026-05-04
 
 ### Fixed

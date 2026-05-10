@@ -1052,6 +1052,27 @@ def extract_cookies_via_existing_cdp(
     return extract_cookies_from_page(cdp_http_url, wait_for_login, login_timeout)
 
 
+def _wait_for_page_ready(ws_url: str, timeout: int = 30) -> tuple[str, bool]:
+    """Poll until NotebookLM page is fully loaded (session tokens in DOM).
+
+    Returns (html, ready) tuple.
+    """
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            html = get_page_html(ws_url)
+            if extract_session_id(html) or extract_build_label(html):
+                return html, True
+        except Exception:
+            pass
+        time.sleep(1)
+    # Timeout — return last HTML we got
+    try:
+        return get_page_html(ws_url), False
+    except Exception:
+        return "", False
+
+
 def extract_cookies_from_page(
     cdp_http_url: str,
     wait_for_login: bool = True,
@@ -1103,6 +1124,11 @@ def extract_cookies_from_page(
                 hint="Please log in to NotebookLM in the connected browser window.",
             )
 
+    # Wait for NotebookLM to fully load (session tokens in DOM)
+    html, ready = _wait_for_page_ready(ws_url, timeout=30)
+    if not ready:
+        _logger.warning("Page loaded but session tokens not found in DOM after 30s")
+
     # Extract cookies
     cookies = get_page_cookies(ws_url)
 
@@ -1113,7 +1139,7 @@ def extract_cookies_from_page(
         )
 
     # Get page HTML for CSRF, session ID, email, and build label
-    html = get_page_html(ws_url)
+    # html already fetched by _wait_for_page_ready
     csrf_token = extract_csrf_token(html)
     session_id = extract_session_id(html)
     email = extract_email(html)
@@ -1246,10 +1272,26 @@ def run_headless_auth(
         if not ws_url:
             return None
 
-        # Check if logged in by URL
-        current_url = get_current_url(ws_url)
-        if not is_logged_in(current_url):
+        # Poll for login completion (navigation is async)
+        start = time.time()
+        logged_in = False
+        while time.time() - start < timeout:
+            try:
+                current_url = get_current_url(ws_url)
+                if is_logged_in(current_url):
+                    logged_in = True
+                    break
+            except Exception:
+                pass
+            time.sleep(1)
+
+        if not logged_in:
             # Not logged in - headless can't help
+            return None
+
+        # Wait for full page load
+        html, ready = _wait_for_page_ready(ws_url, timeout=timeout)
+        if not ready:
             return None
 
         # Extract cookies
@@ -1260,7 +1302,7 @@ def run_headless_auth(
             return None
 
         # Get page HTML for CSRF extraction
-        html = get_page_html(ws_url)
+        # html already fetched by _wait_for_page_ready
         csrf_token = extract_csrf_token(html)
         session_id = extract_session_id(html)
 

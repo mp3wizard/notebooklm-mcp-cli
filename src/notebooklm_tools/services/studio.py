@@ -16,7 +16,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from notebooklm_tools.core import constants
-from notebooklm_tools.core.errors import RPCError
+from notebooklm_tools.core.errors import ResourceExhaustedError, RPCError
 
 from ._compat import TypedDict
 from .errors import ServiceError, ValidationError
@@ -40,6 +40,10 @@ VALID_ARTIFACT_TYPES = frozenset(
         "data_table",
         "mind_map",
     ]
+)
+
+_CINEMATIC_FOCUS_HINT = (
+    "Use --focus to pass creative direction (visual style, narrative, audience)."
 )
 
 
@@ -220,9 +224,13 @@ def _normalize_video_style(
 
     if video_format == "cinematic":
         if style != "auto_select":
-            raise ValidationError("video format 'cinematic' does not support --style")
+            raise ValidationError(
+                f"video format 'cinematic' does not support --style. {_CINEMATIC_FOCUS_HINT}"
+            )
         if prompt:
-            raise ValidationError("video format 'cinematic' does not support --style-prompt")
+            raise ValidationError(
+                f"video format 'cinematic' does not support --style-prompt. {_CINEMATIC_FOCUS_HINT}"
+            )
         return style, ""
 
     if prompt:
@@ -289,6 +297,23 @@ def create_artifact(
         ServiceError: API call failures
     """
     validate_artifact_type(artifact_type)
+
+    if artifact_type == "video":
+        # Cinematic format: --style-prompt maps to custom_instructions (same as --focus),
+        # not visual_style_prompt. Remap before validation so the user can use either flag.
+        if video_format == "cinematic" and video_style_prompt.strip():
+            if focus_prompt:
+                focus_prompt = f"{focus_prompt}\n\n{video_style_prompt}"
+            else:
+                focus_prompt = video_style_prompt
+            video_style_prompt = ""
+
+        _normalize_video_style(
+            video_format=video_format,
+            visual_style=visual_style,
+            video_style_prompt=video_style_prompt,
+        )
+
     resolved_ids = _resolve_source_ids(client, notebook_id, source_ids)
 
     try:
@@ -330,6 +355,25 @@ def create_artifact(
 
     except (ValidationError, ServiceError):
         raise
+    except ResourceExhaustedError as e:
+        raise ServiceError(
+            f"Failed to create {artifact_type}: {e}",
+            user_message=(
+                f"Rate limited — {e}. "
+                f"Wait a few minutes before retrying {artifact_type.replace('_', ' ')} creation."
+            ),
+            hint="NotebookLM limits how frequently artifacts can be created. "
+            "Wait 1-2 minutes and try again.",
+        ) from e
+    except RPCError as e:
+        short_detail = e.detail_type.rsplit(".", 1)[-1] if e.detail_type else ""
+        formatted_error = (
+            f"Google API error code {e.error_code} ({short_detail})" if short_detail else str(e)
+        )
+        raise ServiceError(
+            f"Failed to create {artifact_type}: {formatted_error}",
+            user_message=f"Could not create {artifact_type.replace('_', ' ')} — {formatted_error}.",
+        ) from e
     except Exception as e:
         logger.error("Studio create failed: %s: %s", type(e).__name__, e, exc_info=True)
         raise ServiceError(
@@ -756,7 +800,12 @@ def revise_artifact(
         formatted_error = (
             f"Google API error code {e.error_code} ({short_detail})" if short_detail else str(e)
         )
-        if e.error_code == 7:
+        if e.error_code == 8:
+            hint = (
+                "NotebookLM limits how frequently artifacts can be revised. "
+                "Wait 1-2 minutes and try again."
+            )
+        elif e.error_code == 7:
             hint = (
                 "Verify the artifact_id points to a completed slide deck in an editable "
                 "notebook you own. NotebookLM rejects revisions for view-only/shared decks."
