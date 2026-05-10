@@ -12,6 +12,20 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.6 + cited research import — May 2026)
+- **Cited research source import (PR #188, @zxyasfas)** — new feature to import cited sources from a research run directly back into the notebook (services/research.py + CLI/MCP wrappers + docs)
+- **Opaque throttle errors fixed (Issue #182)** — `RPCError code=8` (RESOURCE_EXHAUSTED) with a `UserDisplayableError` payload now surfaces the human-readable message instead of the raw protobuf type URL; new `ResourceExhaustedError(RPCError)` subclass; studio creation provides retry-specific hints
+- **Cinematic `--style-prompt` honored (Issue #183, @guia-matthieu)** — `--style-prompt` with cinematic format now maps to `custom_instructions` (web UI's "Customize Video Overview" field). Validation runs before source resolution; clearer error pointing to `--focus` when `--style`/`--style-prompt` rejected
+- **Login race-condition fix (Issue #181, v0.6.5)** — `nlm login` and headless flows now use deterministic DOM polling for `FdrFJe` / build label before extracting cookies, eliminating premature exit and "Authentication expired"
+- **Docs** — Google AI Ultra ($249/mo) added to tested tiers (PR #184)
+
+### Security scan (May 2026 — v0.6.6)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **1 HIGH fixed** — `python-multipart` 0.0.26 → **0.0.28** (CVE-2026-42561, GHSA-pp6c-gr5w-3c5g, CVSS 7.5: DoS via unbounded multipart part headers). Re-scan: clean
+- **0 secrets** in git history (521 commits, 9.19 MB; Gitleaks + TruffleHog)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 101 files; Bandit 22,679 LOC — 2 Low retry-loop `try/except/pass` left as-is)
+- **Overall risk posture: Clean** after fix (full report: `docs/security-scan-report-2026-05-10.md`)
+
 ### Upstream sync (v0.6.4 — May 2026)
 - **Cross-domain artifact downloads (PR #180, @laofun)** — Fixed an authentication bug where `OSID` / `__Secure-OSID` cookies leaked during cross-domain artifact downloads (e.g. redirects from `notebooklm.google.com` to `lh3.googleusercontent.com`), causing `ServiceLogin` redirects and HTML login pages instead of the actual file. `_download_url` now strips service-scoped cookies for external Google hosts while preserving other auth cookies
 - **CI hygiene** — manifest version aligned across `desktop-extension/manifest.json`; `cdp.py` reformatted to satisfy ruff format CI gate
