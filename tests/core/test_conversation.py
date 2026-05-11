@@ -2,7 +2,7 @@
 """Tests for ConversationMixin."""
 
 import json
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 
@@ -153,9 +153,9 @@ class TestQueryUsesServerConversationId:
         mixin = self._make_mixin()
         with (
             patch.object(mixin, "get_conversation_id", return_value="server-conv-id"),
-            patch.object(mixin, "_get_client") as mock_client,
+            patch("notebooklm_tools.core.conversation._httpx.Client") as mock_client_class,
         ):
-            mock_response = mock_client.return_value.post.return_value
+            mock_response = mock_client_class.return_value.__enter__.return_value.post.return_value
             mock_response.text = ")]}'\n100\n" + json.dumps(
                 [
                     [
@@ -169,6 +169,11 @@ class TestQueryUsesServerConversationId:
 
             result = mixin.query("nb-123", "Hello?", source_ids=["src-1"])
 
+        mock_client_class.assert_called_once_with(
+            timeout=120.0,
+            cookies=ANY,
+            headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"},
+        )
         assert result["conversation_id"] == "server-conv-id"
 
     def test_falls_back_to_uuid_when_no_server_id(self):
@@ -176,9 +181,9 @@ class TestQueryUsesServerConversationId:
         mixin = self._make_mixin()
         with (
             patch.object(mixin, "get_conversation_id", return_value=None),
-            patch.object(mixin, "_get_client") as mock_client,
+            patch("notebooklm_tools.core.conversation._httpx.Client") as mock_client_class,
         ):
-            mock_response = mock_client.return_value.post.return_value
+            mock_response = mock_client_class.return_value.__enter__.return_value.post.return_value
             mock_response.text = ")]}'\n100\n" + json.dumps(
                 [
                     [

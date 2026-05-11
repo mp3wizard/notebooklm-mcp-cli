@@ -1,0 +1,425 @@
+Build and publish to PyPI	Set up job	﻿2026-05-10T15:43:06.1970126Z Current runner version: '2.334.0'
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.1996036Z ##[group]Runner Image Provisioner
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.1996942Z Hosted Compute Agent
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.1997421Z Version: 20260213.493
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.1997986Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.1998615Z Build Date: 2026-02-13T00:28:41Z
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.1999188Z Worker ID: {2ae4587c-8f98-4b1f-9710-037394303f07}
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.1999854Z Azure Region: westus3
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2000350Z ##[endgroup]
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2001621Z ##[group]Operating System
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2002190Z Ubuntu
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2002585Z 24.04.4
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2003003Z LTS
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2003414Z ##[endgroup]
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2003850Z ##[group]Runner Image
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2004303Z Image: ubuntu-24.04
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2004772Z Version: 20260413.86.1
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2005670Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2007512Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260413.86
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2008262Z ##[endgroup]
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2009118Z ##[group]GITHUB_TOKEN Permissions
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2010937Z Contents: write
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2011427Z Metadata: read
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2011860Z ##[endgroup]
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2013917Z Secret source: Actions
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2014527Z Prepare workflow directory
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2326565Z Prepare all required actions
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.2365934Z Getting action download info
+Build and publish to PyPI	Set up job	2026-05-10T15:43:06.7008502Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+Build and publish to PyPI	Set up job	2026-05-10T15:43:07.1690166Z Download action repository 'astral-sh/setup-uv@v4' (SHA:38f3f104447c67c051c4a08e39b64a148898af3a)
+Build and publish to PyPI	Set up job	2026-05-10T15:43:08.1236932Z Download action repository 'pypa/gh-action-pypi-publish@release/v1' (SHA:cef221092ed1bacb1cc03d23a2d87d1d172e277b)
+Build and publish to PyPI	Set up job	2026-05-10T15:43:08.4241065Z Download action repository 'softprops/action-gh-release@v2' (SHA:3bb12739c298aeb8a4eeaf626c5b8d85266b0e65)
+Build and publish to PyPI	Set up job	2026-05-10T15:43:09.0454476Z Getting action download info
+Build and publish to PyPI	Set up job	2026-05-10T15:43:09.2017768Z Download action repository 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+Build and publish to PyPI	Set up job	2026-05-10T15:43:09.3779930Z Complete job name: Build and publish to PyPI
+Build and publish to PyPI	Checkout repository	﻿2026-05-10T15:43:09.4497475Z ##[group]Run actions/checkout@v4
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4498031Z with:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4498262Z   repository: jacob-bd/notebooklm-mcp-cli
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4498712Z   token: ***
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4498901Z   ssh-strict: true
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4499088Z   ssh-user: git
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4499308Z   persist-credentials: true
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4499540Z   clean: true
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4499738Z   sparse-checkout-cone-mode: true
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4499998Z   fetch-depth: 1
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4500174Z   fetch-tags: false
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4500369Z   show-progress: true
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4500557Z   lfs: false
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4500760Z   submodules: false
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4500946Z   set-safe-directory: true
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.4501392Z ##[endgroup]
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.5564664Z Syncing repository: jacob-bd/notebooklm-mcp-cli
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.5566088Z ##[group]Getting Git version info
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.5566699Z Working directory is '/home/runner/work/notebooklm-mcp-cli/notebooklm-mcp-cli'
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.5567404Z [command]/usr/bin/git version
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6088932Z git version 2.53.0
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6111801Z ##[endgroup]
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6125274Z Temporarily overriding HOME='/home/runner/work/_temp/c3119ecd-0835-4b1f-b52d-1453f50b5233' before making global git config changes
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6126083Z Adding repository directory to the temporary git global config as a safe directory
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6131451Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/notebooklm-mcp-cli/notebooklm-mcp-cli
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6160251Z Deleting the contents of '/home/runner/work/notebooklm-mcp-cli/notebooklm-mcp-cli'
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6163252Z ##[group]Initializing the repository
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6167438Z [command]/usr/bin/git init /home/runner/work/notebooklm-mcp-cli/notebooklm-mcp-cli
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6373567Z hint: Using 'master' as the name for the initial branch. This default branch name
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6374213Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6374741Z hint: to use in all of your new repositories, which will suppress this warning,
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6375090Z hint: call:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6375261Z hint:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6375539Z hint: 	git config --global init.defaultBranch <name>
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6375812Z hint:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6376413Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6377108Z hint: 'development'. The just-created branch can be renamed via this command:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6377458Z hint:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6377663Z hint: 	git branch -m <name>
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6377881Z hint:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6378195Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6378800Z Initialized empty Git repository in /home/runner/work/notebooklm-mcp-cli/notebooklm-mcp-cli/.git/
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6386184Z [command]/usr/bin/git remote add origin https://github.com/jacob-bd/notebooklm-mcp-cli
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6412950Z ##[endgroup]
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6413609Z ##[group]Disabling automatic garbage collection
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6418320Z [command]/usr/bin/git config --local gc.auto 0
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6441201Z ##[endgroup]
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6441797Z ##[group]Setting up auth
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6449181Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.6473938Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.7157278Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.7182274Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.7354747Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.7381714Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.7553502Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.7581680Z ##[endgroup]
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.7582351Z ##[group]Fetching the repository
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:09.7589690Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +3dad2aa61ccd6367ff6f87bcf7322a266b6611d6:refs/tags/v0.6.7
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6300579Z From https://github.com/jacob-bd/notebooklm-mcp-cli
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6301488Z  * [new ref]         3dad2aa61ccd6367ff6f87bcf7322a266b6611d6 -> v0.6.7
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6321010Z ##[endgroup]
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6321436Z ##[group]Determining the checkout info
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6324306Z ##[endgroup]
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6331519Z [command]/usr/bin/git sparse-checkout disable
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6362738Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6382822Z ##[group]Checking out the ref
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6388420Z [command]/usr/bin/git checkout --progress --force refs/tags/v0.6.7
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6521648Z Note: switching to 'refs/tags/v0.6.7'.
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6522086Z 
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6522490Z You are in 'detached HEAD' state. You can look around, make experimental
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6523035Z changes and commit them, and you can discard any commits you make in this
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6523717Z state without impacting any branches by switching back to a branch.
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6523974Z 
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6524170Z If you want to create a new branch to retain commits you create, you may
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6524599Z do so (now or later) by using -c with the switch command. Example:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6524829Z 
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6524951Z   git switch -c <new-branch-name>
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6525124Z 
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6525227Z Or undo this operation with:
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6525379Z 
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6525459Z   git switch -
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6525627Z 
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6525841Z Turn off this advice by setting config variable advice.detachedHead to false
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6526341Z 
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6526639Z HEAD is now at 3dad2aa fix: align versions and fix formatting for release
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6527853Z ##[endgroup]
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6559394Z [command]/usr/bin/git log -1 --format=%H
+Build and publish to PyPI	Checkout repository	2026-05-10T15:43:10.6577184Z 3dad2aa61ccd6367ff6f87bcf7322a266b6611d6
+Build and publish to PyPI	Install uv	﻿2026-05-10T15:43:10.6762146Z ##[group]Run astral-sh/setup-uv@v4
+Build and publish to PyPI	Install uv	2026-05-10T15:43:10.6762481Z with:
+Build and publish to PyPI	Install uv	2026-05-10T15:43:10.6762664Z   version: latest
+Build and publish to PyPI	Install uv	2026-05-10T15:43:10.6762991Z   github-token: ***
+Build and publish to PyPI	Install uv	2026-05-10T15:43:10.6763200Z   enable-cache: false
+Build and publish to PyPI	Install uv	2026-05-10T15:43:10.6763406Z   cache-dependency-glob: **/uv.lock
+Build and publish to PyPI	Install uv	2026-05-10T15:43:10.6763647Z   prune-cache: true
+Build and publish to PyPI	Install uv	2026-05-10T15:43:10.6763865Z   ignore-nothing-to-cache: false
+Build and publish to PyPI	Install uv	2026-05-10T15:43:10.6764088Z ##[endgroup]
+Build and publish to PyPI	Install uv	2026-05-10T15:43:12.2939625Z Downloading uv from "https://github.com/astral-sh/uv/releases/download/0.11.12/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+Build and publish to PyPI	Install uv	2026-05-10T15:43:12.7645860Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/22553e2a-f484-4bdd-b122-0a0f47a7438a -f /home/runner/work/_temp/ca3d15ee-88b3-486d-809a-a98061767afc
+Build and publish to PyPI	Install uv	2026-05-10T15:43:13.2027570Z Added /opt/hostedtoolcache/uv/0.11.12/x86_64 to the path
+Build and publish to PyPI	Install uv	2026-05-10T15:43:13.2028860Z Added /home/runner/.local/bin to the path
+Build and publish to PyPI	Install uv	2026-05-10T15:43:13.2052781Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Install uv	2026-05-10T15:43:13.2053363Z Successfully installed uv version 0.11.12
+Build and publish to PyPI	Set up Python	﻿2026-05-10T15:43:13.2137110Z ##[group]Run uv python install 3.11
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:13.2137544Z [36;1muv python install 3.11[0m
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:13.2155578Z shell: /usr/bin/bash -e {0}
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:13.2155843Z env:
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:13.2156081Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:13.2156627Z ##[endgroup]
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:13.3511997Z Downloading cpython-3.11.15-linux-x86_64-gnu (download) (29.4MiB)
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:14.0827393Z  Downloaded cpython-3.11.15-linux-x86_64-gnu (download)
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:14.0868021Z Installed Python 3.11.15 in 858ms
+Build and publish to PyPI	Set up Python	2026-05-10T15:43:14.0868669Z  + cpython-3.11.15-linux-x86_64-gnu (python3.11)
+Build and publish to PyPI	Build package	﻿2026-05-10T15:43:14.0913918Z ##[group]Run uv build
+Build and publish to PyPI	Build package	2026-05-10T15:43:14.0914193Z [36;1muv build[0m
+Build and publish to PyPI	Build package	2026-05-10T15:43:14.0927568Z shell: /usr/bin/bash -e {0}
+Build and publish to PyPI	Build package	2026-05-10T15:43:14.0927810Z env:
+Build and publish to PyPI	Build package	2026-05-10T15:43:14.0928057Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Build package	2026-05-10T15:43:14.0928335Z ##[endgroup]
+Build and publish to PyPI	Build package	2026-05-10T15:43:14.2598449Z Building source distribution...
+Build and publish to PyPI	Build package	2026-05-10T15:43:15.0939538Z Building wheel from source distribution...
+Build and publish to PyPI	Build package	2026-05-10T15:43:15.3922908Z Successfully built dist/notebooklm_mcp_cli-0.6.7.tar.gz
+Build and publish to PyPI	Build package	2026-05-10T15:43:15.3923807Z Successfully built dist/notebooklm_mcp_cli-0.6.7-py3-none-any.whl
+Build and publish to PyPI	Publish to PyPI	﻿2026-05-10T15:43:15.4095237Z ##[group]Run pypa/gh-action-pypi-publish@release/v1
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4095572Z with:
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4095746Z   user: __token__
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4095999Z   repository_url: https://upload.pypi.org/legacy/
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4096544Z   packages_dir: dist
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4096762Z   verify_metadata: true
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4096974Z   skip_existing: false
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4097164Z   verbose: true
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4097348Z   print_hash: true
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4097527Z   attestations: true
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4097720Z env:
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4097937Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4098349Z ##[endgroup]
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4191664Z ##[group]Run # Reset path if needed
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4192026Z [36;1m# Reset path if needed[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4192465Z [36;1m# https://github.com/pypa/gh-action-pypi-publish/issues/112[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4192883Z [36;1mif [[ $PATH != *"/usr/bin"* ]]; then[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4193278Z [36;1m  echo "\$PATH=$PATH. Resetting \$PATH for GitHub Actions."[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4193809Z [36;1m  PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4194240Z [36;1m  echo "PATH=$PATH" >>"$GITHUB_ENV"[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4194551Z [36;1m  echo "$PATH" >>"$GITHUB_PATH"[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4194859Z [36;1m  echo "\$PATH reset. \$PATH=$PATH"[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4195133Z [36;1mfi[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4210074Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4210395Z env:
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4210639Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4210913Z ##[endgroup]
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4266477Z ##[group]Run # 🔎 Discover pre-installed Python
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4266829Z [36;1m# 🔎 Discover pre-installed Python[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4267221Z [36;1mecho "python-path=$(command -v python3 || :)" | tee -a "${GITHUB_OUTPUT}"[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4279009Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4279333Z env:
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4279558Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4279829Z ##[endgroup]
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4319095Z python-path=/usr/bin/python3
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4389310Z ##[group]Run # Create Docker container action
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4389654Z [36;1m# Create Docker container action[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4390171Z [36;1m/usr/bin/python3 '/home/runner/work/_actions/pypa/gh-action-pypi-publish/release/v1/create-docker-action.py'[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4402331Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4402652Z env:
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4402882Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4403149Z   REF: release/v1
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4403361Z   REPO: pypa/gh-action-pypi-publish
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4403599Z   REPO_ID: 1121438740
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4403787Z ##[endgroup]
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4778938Z ##[group]Run ./.github/.tmp/.generated-actions/run-pypi-publish-in-docker-container
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4779388Z with:
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4779568Z   user: __token__
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4779809Z   repository-url: https://upload.pypi.org/legacy/
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4780089Z   packages-dir: dist
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4780281Z   verify-metadata: true
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4780487Z   skip-existing: false
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4780676Z   verbose: true
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4780862Z   print-hash: true
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4781041Z   attestations: true
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4781221Z env:
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4781426Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4781708Z ##[endgroup]
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.4910341Z ##[command]/usr/bin/docker run --name ghcriopypaghactionpypipublishreleasev1_1cd01b --label 9c7bb4 --workdir /github/workspace --rm -e "UV_CACHE_DIR" -e "INPUT_USER" -e "INPUT_PASSWORD" -e "INPUT_REPOSITORY-URL" -e "INPUT_PACKAGES-DIR" -e "INPUT_VERIFY-METADATA" -e "INPUT_SKIP-EXISTING" -e "INPUT_VERBOSE" -e "INPUT_PRINT-HASH" -e "INPUT_ATTESTATIONS" -e "HOME" -e "GITHUB_JOB" -e "GITHUB_REF" -e "GITHUB_SHA" -e "GITHUB_REPOSITORY" -e "GITHUB_REPOSITORY_OWNER" -e "GITHUB_REPOSITORY_OWNER_ID" -e "GITHUB_RUN_ID" -e "GITHUB_RUN_NUMBER" -e "GITHUB_RETENTION_DAYS" -e "GITHUB_RUN_ATTEMPT" -e "GITHUB_ACTOR_ID" -e "GITHUB_ACTOR" -e "GITHUB_WORKFLOW" -e "GITHUB_HEAD_REF" -e "GITHUB_BASE_REF" -e "GITHUB_EVENT_NAME" -e "GITHUB_SERVER_URL" -e "GITHUB_API_URL" -e "GITHUB_GRAPHQL_URL" -e "GITHUB_REF_NAME" -e "GITHUB_REF_PROTECTED" -e "GITHUB_REF_TYPE" -e "GITHUB_WORKFLOW_REF" -e "GITHUB_WORKFLOW_SHA" -e "GITHUB_REPOSITORY_ID" -e "GITHUB_TRIGGERING_ACTOR" -e "GITHUB_WORKSPACE" -e "GITHUB_ACTION" -e "GITHUB_EVENT_PATH" -e "GITHUB_ACTION_REPOSITORY" -e "GITHUB_ACTION_REF" -e "GITHUB_PATH" -e "GITHUB_ENV" -e "GITHUB_STEP_SUMMARY" -e "GITHUB_STATE" -e "GITHUB_OUTPUT" -e "GITHUB_ACTION_PATH" -e "RUNNER_OS" -e "RUNNER_ARCH" -e "RUNNER_NAME" -e "RUNNER_ENVIRONMENT" -e "RUNNER_TOOL_CACHE" -e "RUNNER_TEMP" -e "RUNNER_WORKSPACE" -e "ACTIONS_RUNTIME_URL" -e "ACTIONS_RUNTIME_TOKEN" -e "ACTIONS_CACHE_URL" -e "ACTIONS_ID_TOKEN_REQUEST_URL" -e "ACTIONS_ID_TOKEN_REQUEST_TOKEN" -e "ACTIONS_RESULTS_URL" -e "ACTIONS_ORCHESTRATION_ID" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work/_temp":"/github/runner_temp" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" -v "/home/runner/work/_temp/_runner_file_commands":"/github/file_commands" -v "/home/runner/work/notebooklm-mcp-cli/notebooklm-mcp-cli":"/github/workspace" ghcr.io/pypa/gh-action-pypi-publish:release-v1
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:15.8115144Z Unable to find image 'ghcr.io/pypa/gh-action-pypi-publish:release-v1' locally
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6212220Z release-v1: Pulling from pypa/gh-action-pypi-publish
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6275323Z 9d11882d4b58: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6275909Z 4eeb9a554e5a: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6276140Z 559c2b59f78d: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6276681Z 02b5ccdcca95: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6276947Z a3051f342870: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6277196Z b0c54e5184e0: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6277417Z 736d1ace839c: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6277628Z f49adb0f2ede: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6277842Z 77c4c4ac7b62: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6278049Z b9db235c841b: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6278262Z 0501f1b4799b: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6278463Z 191533a2d4ee: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6278680Z b003759e3ef8: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6278905Z 4f4fb700ef54: Pulling fs layer
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6279104Z a3051f342870: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6279291Z b0c54e5184e0: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6279491Z 736d1ace839c: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6279675Z f49adb0f2ede: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6279849Z 77c4c4ac7b62: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6280027Z b9db235c841b: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6280198Z 0501f1b4799b: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6280383Z 191533a2d4ee: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6280606Z b003759e3ef8: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6280784Z 4f4fb700ef54: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.6280961Z 02b5ccdcca95: Waiting
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.9336837Z 4eeb9a554e5a: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:16.9337300Z 4eeb9a554e5a: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.0278698Z 9d11882d4b58: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.0279178Z 9d11882d4b58: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.1607864Z 02b5ccdcca95: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.1608635Z 02b5ccdcca95: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.1833269Z 559c2b59f78d: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.1833683Z 559c2b59f78d: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.2505906Z a3051f342870: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.2506513Z a3051f342870: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.4669244Z 736d1ace839c: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.4670210Z 736d1ace839c: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.4908237Z f49adb0f2ede: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.4908792Z f49adb0f2ede: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.7453282Z b9db235c841b: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.7453967Z b9db235c841b: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.7819966Z 77c4c4ac7b62: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.7820440Z 77c4c4ac7b62: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.8401473Z 9d11882d4b58: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:17.8928226Z b0c54e5184e0: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.1314630Z 0501f1b4799b: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.1316071Z 191533a2d4ee: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.1317097Z 191533a2d4ee: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.1317643Z 0501f1b4799b: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.1324940Z b003759e3ef8: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.1325339Z b003759e3ef8: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.3624663Z 4f4fb700ef54: Verifying Checksum
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.3625084Z 4f4fb700ef54: Download complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.4524919Z 4eeb9a554e5a: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.9421118Z 559c2b59f78d: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.9550313Z 02b5ccdcca95: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:18.9673181Z a3051f342870: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.0715448Z b0c54e5184e0: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.0801279Z 736d1ace839c: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.0893961Z f49adb0f2ede: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.0957471Z 77c4c4ac7b62: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.1041596Z b9db235c841b: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.1105655Z 0501f1b4799b: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.1168809Z 191533a2d4ee: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.1229667Z b003759e3ef8: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.1299909Z 4f4fb700ef54: Pull complete
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.1377874Z Digest: sha256:6d88f308559d95bdafd10ac3d0b6ed95df4e2daaf7f97f6d4588d8c14ca1fbdd
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:20.1391387Z Status: Downloaded newer image for ghcr.io/pypa/gh-action-pypi-publish:release-v1
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:22.5586940Z Checking dist/notebooklm_mcp_cli-0.6.7-py3-none-any.whl: [32mPASSED[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:22.5853155Z Checking dist/notebooklm_mcp_cli-0.6.7.tar.gz: [32mPASSED[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:22.6232342Z ##[notice]Generating and uploading digital attestations
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:23.5351554Z TUF metadata: /root/.local/share/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:23.5352232Z TUF targets cache: /root/.cache/sigstore-python/tuf/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:23.8212164Z Found and verified trusted root
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:23.8216763Z Found and verified signing config
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:23.8231491Z Fulcio client using URL: https://fulcio.sigstore.dev
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:23.8232326Z Generating ephemeral keys...
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:23.8238077Z Requesting ephemeral certificate...
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:23.8238559Z Retrieving signed certificate...
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:24.0183792Z Found <Name(O=sigstore.dev,CN=sigstore-intermediate)> as issuer, verifying if it is a ca
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:24.0184897Z attempting to verify SCT with key ID dd3d306ac6c7113263191e1c99673702a24a5eb8de3cadff878a72802f29ee8e
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:24.0185659Z Successfully verified SCT...
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:24.0195290Z DSSE PAE: b'DSSEv1 28 application/vnd.in-toto+json 266 {"_type":"https://in-toto.io/Statement/v1","subject":[{"name":"notebooklm_mcp_cli-0.6.7.tar.gz","digest":{"sha256":"45ec996af9407e2dc2137d3a625b2469ed53f2fecb4d9391fb20fa5b87a092b2"}}],"predicateType":"https://docs.pypi.org/attestations/publish/v1","predicate":null}'
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:24.1571921Z proposed: {"apiVersion": "0.0.1", "kind": "dsse", "spec": {"proposedContent": {"envelope": "{\"payload\":\"eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoibm90ZWJvb2tsbV9tY3BfY2xpLTAuNi43LnRhci5neiIsImRpZ2VzdCI6eyJzaGEyNTYiOiI0NWVjOTk2YWY5NDA3ZTJkYzIxMzdkM2E2MjViMjQ2OWVkNTNmMmZlY2I0ZDkzOTFmYjIwZmE1Yjg3YTA5MmIyIn19XSwicHJlZGljYXRlVHlwZSI6Imh0dHBzOi8vZG9jcy5weXBpLm9yZy9hdHRlc3RhdGlvbnMvcHVibGlzaC92MSIsInByZWRpY2F0ZSI6bnVsbH0=\",\"payloadType\":\"application/vnd.in-toto+json\",\"signatures\":[{\"sig\":\"MEQCIA/UsDWf/ezHuFLas36HBw1kXBWfIFDWyZcicUN8JxkeAiAMUbLyV/rXwuPARbZ+FShLF9lycwNDYhdrJYuOEK3zig==\"}]}", "verifiers": ["LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUc5RENDQm5xZ0F3SUJBZ0lVTkVUN0lWOU1rSDgzZzNwZFpVZlU2UDMyVWZFd0NnWUlLb1pJemowRUF3TXcKTnpFVk1CTUdBMVVFQ2hNTWMybG5jM1J2Y21VdVpHVjJNUjR3SEFZRFZRUURFeFZ6YVdkemRHOXlaUzFwYm5SbApjbTFsWkdsaGRHVXdIaGNOTWpZd05URXdNVFUwTXpJeldoY05Nall3TlRFd01UVTFNekl6V2pBQU1Ga3dFd1lICktvWkl6ajBDQVFZSUtvWkl6ajBEQVFjRFFnQUU0Sk5ySEQ0eXVBOUJrVkxLNzc2QWFIWm5WeW16RVBiWHk5SzcKQ1JuMUY1REZscHMvOGUrVGVzejhTRFNiVlBtdURUamNrS1FmZS9STWNHMVRYRFRJcDZPQ0Jaa3dnZ1dWTUE0RwpBMVVkRHdFQi93UUVBd0lIZ0RBVEJnTlZIU1VFRERBS0JnZ3JCZ0VGQlFjREF6QWRCZ05WSFE0RUZnUVVHc1VZCkY3Y2czUXZqb3dFTmdMc1lLemtTelNFd0h3WURWUjBqQkJnd0ZvQVUzOVBwejFZa0VaYjVxTmpwS0ZXaXhpNFkKWkQ4d2F3WURWUjBSQVFIL0JHRXdYNFpkYUhSMGNITTZMeTluYVhSb2RXSXVZMjl0TDJwaFkyOWlMV0prTDI1dgpkR1ZpYjI5cmJHMHRiV053TFdOc2FTOHVaMmwwYUhWaUwzZHZjbXRtYkc5M2N5OXdkV0pzYVhOb0xubHRiRUJ5ClpXWnpMM1JoWjNNdmRqQXVOaTQzTURrR0Npc0dBUVFCZzc4d0FRRUVLMmgwZEhCek9pOHZkRzlyWlc0dVlXTjAKYVc5dWN5NW5hWFJvZFdKMWMyVnlZMjl1ZEdWdWRDNWpiMjB3RlFZS0t3WUJCQUdEdnpBQkFnUUhjbVZzWldGegpaVEEyQmdvckJnRUVBWU8vTUFFREJDZ3paR0ZrTW1GaE5qRmpZMlEyTXpZM1ptWTJaamczWW1ObU56TXlNbUV5Ck5qWmlOall4TVdRMk1CMEdDaXNHQVFRQmc3OHdBUVFFRDFCMVlteHBjMmdnZEc4Z1VIbFFTVEFwQmdvckJnRUUKQVlPL01BRUZCQnRxWVdOdllpMWlaQzl1YjNSbFltOXZhMnh0TFcxamNDMWpiR2t3SGdZS0t3WUJCQUdEdnpBQgpCZ1FRY21WbWN5OTBZV2R6TDNZd0xqWXVOekE3QmdvckJnRUVBWU8vTUFFSUJDME1LMmgwZEhCek9pOHZkRzlyClpXNHVZV04wYVc5dWN5NW5hWFJvZFdKMWMyVnlZMjl1ZEdWdWRDNWpiMjB3YlFZS0t3WUJCQUdEdnpBQkNRUmYKREYxb2RIUndjem92TDJkcGRHaDFZaTVqYjIwdmFtRmpiMkl0WW1RdmJtOTBaV0p2YjJ0c2JTMXRZM0F0WTJ4cApMeTVuYVhSb2RXSXZkMjl5YTJac2IzZHpMM0IxWW14cGMyZ3VlVzFzUUhKbFpuTXZkR0ZuY3k5Mk1DNDJMamN3Ck9BWUtLd1lCQkFHRHZ6QUJDZ1FxRENnelpHRmtNbUZoTmpGalkyUTJNelkzWm1ZMlpqZzNZbU5tTnpNeU1tRXkKTmpaaU5qWXhNV1EyTUIwR0Npc0dBUVFCZzc4d0FRc0VEd3dOWjJsMGFIVmlMV2h2YzNSbFpEQStCZ29yQmdFRQpBWU8vTUFFTUJEQU1MbWgwZEhCek9pOHZaMmwwYUhWaUxtTnZiUzlxWVdOdllpMWlaQzl1YjNSbFltOXZhMnh0CkxXMWpjQzFqYkdrd09BWUtLd1lCQkFHRHZ6QUJEUVFxRENnelpHRmtNbUZoTmpGalkyUTJNelkzWm1ZMlpqZzMKWW1ObU56TXlNbUV5TmpaaU5qWXhNV1EyTUNBR0Npc0dBUVFCZzc4d0FRNEVFZ3dRY21WbWN5OTBZV2R6TDNZdwpMall1TnpBYUJnb3JCZ0VFQVlPL01BRVBCQXdNQ2pFeE1qRTBNemczTkRBd0t3WUtLd1lCQkFHRHZ6QUJFQVFkCkRCdG9kSFJ3Y3pvdkwyZHBkR2gxWWk1amIyMHZhbUZqYjJJdFltUXdHQVlLS3dZQkJBR0R2ekFCRVFRS0RBZzAKTnpZME1UZzVNREJ0QmdvckJnRUVBWU8vTUFFU0JGOE1YV2gwZEhCek9pOHZaMmwwYUhWaUxtTnZiUzlxWVdOdgpZaTFpWkM5dWIzUmxZbTl2YTJ4dExXMWpjQzFqYkdrdkxtZHBkR2gxWWk5M2IzSnJabXh2ZDNNdmNIVmliR2x6CmFDNTViV3hBY21WbWN5OTBZV2R6TDNZd0xqWXVOekE0QmdvckJnRUVBWU8vTUFFVEJDb01LRE5rWVdReVlXRTIKTVdOalpEWXpOamRtWmpabU9EZGlZMlkzTXpJeVlUSTJObUkyTmpFeFpEWXdGd1lLS3dZQkJBR0R2ekFCRkFRSgpEQWR5Wld4bFlYTmxNR0lHQ2lzR0FRUUJnNzh3QVJVRVZBeFNhSFIwY0hNNkx5OW5hWFJvZFdJdVkyOXRMMnBoClkyOWlMV0prTDI1dmRHVmliMjlyYkcwdGJXTndMV05zYVM5aFkzUnBiMjV6TDNKMWJuTXZNalUyTXpJNE5UazQKTVRrdllYUjBaVzF3ZEhNdk1UQVdCZ29yQmdFRUFZTy9NQUVXQkFnTUJuQjFZbXhwWXpDQmlnWUtLd1lCQkFIVwplUUlFQWdSOEJIb0FlQUIyQU4wOU1Hckd4eEV5WXhrZUhKbG5Od0tpU2w2NDNqeXQvNGVLY29BdktlNk9BQUFCCm5oS091U2NBQUFRREFFY3dSUUloQVBPNG4zRC84SkRPcERTeCs5dkNkbmJaWWJjTUdzTEdvQ2gwMW5ubFJubWoKQWlCUlZJSm1FSTVpYURiQlhQbFFXU05kV2RMRlUrWEtjWjZCQ2hSTzVxMng2REFLQmdncWhrak9QUVFEQXdObwpBREJsQWpBcWFSRzViRE5BL1I3ZEFtVndBa29FZmhqc3hwV1l1SURwbFowekxHTkN3U3NWTXIzZm1mTWt3dm82CmRDRzA2VEVDTVFDM05oTHFTa0NPa0pkRFBJN3pIL3lqTEdQU3N1V0ZtNkl6YlRxQlNkWWdvTGpqNjlnc0NGcG0KT3Znb245RHAwQVE9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"]}, "signatures": null, "envelopeHash": null, "payloadHash": null}}
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:31.0143440Z integrated: {'108e9186e8c5677a586314111f78a1faae63ccdb2ad64927fa2570056033100a685e458582abe437': {'body': 'eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiZHNzZSIsInNwZWMiOnsiZW52ZWxvcGVIYXNoIjp7ImFsZ29yaXRobSI6InNoYTI1NiIsInZhbHVlIjoiZmM1ODJiYTg2YjNiODMyN2U4NzQ3ZjFhZmFjMjkzMWM4ZDY2OTQ5MDZhOTIyYTM2NWE4ODU3Y2RkNjhkMWRmMiJ9LCJwYXlsb2FkSGFzaCI6eyJhbGdvcml0aG0iOiJzaGEyNTYiLCJ2YWx1ZSI6Ijc4YjZiZThmMjgwYTg1Y2YwZTk4ZmI4MjY4NGE3YWVlZDYyMWI3ZTQwMDZiMGY0MDE5ZGNmNzFlM2JjNGQzNzgifSwic2lnbmF0dXJlcyI6W3sic2lnbmF0dXJlIjoiTUVRQ0lBL1VzRFdmL2V6SHVGTGFzMzZIQncxa1hCV2ZJRkRXeVpjaWNVTjhKeGtlQWlBTVViTHlWL3JYd3VQQVJiWitGU2hMRjlseWN3TkRZaGRySll1T0VLM3ppZz09IiwidmVyaWZpZXIiOiJMUzB0TFMxQ1JVZEpUaUJEUlZKVVNVWkpRMEZVUlMwdExTMHRDazFKU1VjNVJFTkRRbTV4WjBGM1NVSkJaMGxWVGtWVU4wbFdPVTFyU0Rnelp6TndaRnBWWmxVMlVETXlWV1pGZDBObldVbExiMXBKZW1vd1JVRjNUWGNLVG5wRlZrMUNUVWRCTVZWRlEyaE5UV015Ykc1ak0xSjJZMjFWZFZwSFZqSk5ValIzU0VGWlJGWlJVVVJGZUZaNllWZGtlbVJIT1hsYVV6RndZbTVTYkFwamJURnNXa2RzYUdSSFZYZElhR05PVFdwWmQwNVVSWGROVkZVd1RYcEplbGRvWTA1TmFsbDNUbFJGZDAxVVZURk5la2w2VjJwQlFVMUdhM2RGZDFsSUNrdHZXa2w2YWpCRFFWRlpTVXR2V2tsNmFqQkVRVkZqUkZGblFVVTBTazV5U0VRMGVYVkJPVUpyVmt4TE56YzJRV0ZJV201V2VXMTZSVkJpV0hrNVN6Y0tRMUp1TVVZMVJFWnNjSE12T0dVclZHVnplamhUUkZOaVZsQnRkVVJVYW1OclMxRm1aUzlTVFdOSE1WUllSRlJKY0RaUFEwSmFhM2RuWjFkV1RVRTBSd3BCTVZWa1JIZEZRaTkzVVVWQmQwbElaMFJCVkVKblRsWklVMVZGUkVSQlMwSm5aM0pDWjBWR1FsRmpSRUY2UVdSQ1owNVdTRkUwUlVablVWVkhjMVZaQ2tZM1kyY3pVWFpxYjNkRlRtZE1jMWxMZW10VGVsTkZkMGgzV1VSV1VqQnFRa0puZDBadlFWVXpPVkJ3ZWpGWmEwVmFZalZ4VG1wd1MwWlhhWGhwTkZrS1drUTRkMkYzV1VSV1VqQlNRVkZJTDBKSFJYZFlORnBrWVVoU01HTklUVFpNZVRsdVlWaFNiMlJYU1hWWk1qbDBUREp3YUZreU9XbE1WMHByVERJMWRncGtSMVpwWWpJNWNtSkhNSFJpVjA1M1RGZE9jMkZUT0hWYU1td3dZVWhXYVV3elpIWmpiWFJ0WWtjNU0yTjVPWGRrVjBwellWaE9iMHh1YkhSaVJVSjVDbHBYV25wTU0xSm9Xak5OZG1ScVFYVk9hVFF6VFVSclIwTnBjMGRCVVZGQ1p6YzRkMEZSUlVWTE1tZ3daRWhDZWs5cE9IWmtSemx5V2xjMGRWbFhUakFLWVZjNWRXTjVOVzVoV0ZKdlpGZEtNV015Vm5sWk1qbDFaRWRXZFdSRE5XcGlNakIzUmxGWlMwdDNXVUpDUVVkRWRucEJRa0ZuVVVoamJWWnpXbGRHZWdwYVZFRXlRbWR2Y2tKblJVVkJXVTh2VFVGRlJFSkRaM3BhUjBaclRXMUdhRTVxUm1wWk1sRXlUWHBaTTFwdFdUSmFhbWN6V1cxT2JVNTZUWGxOYlVWNUNrNXFXbWxPYWxsNFRWZFJNazFDTUVkRGFYTkhRVkZSUW1jM09IZEJVVkZGUkRGQ01WbHRlSEJqTW1kblpFYzRaMVZJYkZGVFZFRndRbWR2Y2tKblJVVUtRVmxQTDAxQlJVWkNRblJ4V1ZkT2RsbHBNV2xhUXpsMVlqTlNiRmx0T1haaE1uaDBURmN4YW1ORE1XcGlSMnQzU0dkWlMwdDNXVUpDUVVkRWRucEJRZ3BDWjFGUlkyMVdiV041T1RCWlYyUjZURE5aZDB4cVdYVk9la0UzUW1kdmNrSm5SVVZCV1U4dlRVRkZTVUpETUUxTE1tZ3daRWhDZWs5cE9IWmtSemx5Q2xwWE5IVlpWMDR3WVZjNWRXTjVOVzVoV0ZKdlpGZEtNV015Vm5sWk1qbDFaRWRXZFdSRE5XcGlNakIzWWxGWlMwdDNXVUpDUVVkRWRucEJRa05SVW1ZS1JFWXhiMlJJVW5kamVtOTJUREprY0dSSGFERlphVFZxWWpJd2RtRnRSbXBpTWtsMFdXMVJkbUp0T1RCYVYwcDJZakowYzJKVE1YUlpNMEYwV1RKNGNBcE1lVFZ1WVZoU2IyUlhTWFprTWpsNVlUSmFjMkl6WkhwTU0wSXhXVzE0Y0dNeVozVmxWekZ6VVVoS2JGcHVUWFprUjBadVkzazVNazFETkRKTWFtTjNDazlCV1V0TGQxbENRa0ZIUkhaNlFVSkRaMUZ4UkVObmVscEhSbXROYlVab1RtcEdhbGt5VVRKTmVsa3pXbTFaTWxwcVp6TlpiVTV0VG5wTmVVMXRSWGtLVG1wYWFVNXFXWGhOVjFFeVRVSXdSME5wYzBkQlVWRkNaemM0ZDBGUmMwVkVkM2RPV2pKc01HRklWbWxNVjJoMll6TlNiRnBFUVN0Q1oyOXlRbWRGUlFwQldVOHZUVUZGVFVKRVFVMU1iV2d3WkVoQ2VrOXBPSFphTW13d1lVaFdhVXh0VG5aaVV6bHhXVmRPZGxscE1XbGFRemwxWWpOU2JGbHRPWFpoTW5oMENreFhNV3BqUXpGcVlrZHJkMDlCV1V0TGQxbENRa0ZIUkhaNlFVSkVVVkZ4UkVObmVscEhSbXROYlVab1RtcEdhbGt5VVRKTmVsa3pXbTFaTWxwcVp6TUtXVzFPYlU1NlRYbE5iVVY1VG1wYWFVNXFXWGhOVjFFeVRVTkJSME5wYzBkQlVWRkNaemM0ZDBGUk5FVkZaM2RSWTIxV2JXTjVPVEJaVjJSNlRETlpkd3BNYWxsMVRucEJZVUpuYjNKQ1owVkZRVmxQTDAxQlJWQkNRWGROUTJwRmVFMXFSVEJOZW1jelRrUkJkMHQzV1V0TGQxbENRa0ZIUkhaNlFVSkZRVkZrQ2tSQ2RHOWtTRkozWTNwdmRrd3laSEJrUjJneFdXazFhbUl5TUhaaGJVWnFZakpKZEZsdFVYZEhRVmxMUzNkWlFrSkJSMFIyZWtGQ1JWRlJTMFJCWnpBS1RucFpNRTFVWnpWTlJFSjBRbWR2Y2tKblJVVkJXVTh2VFVGRlUwSkdPRTFZVjJnd1pFaENlazlwT0haYU1td3dZVWhXYVV4dFRuWmlVemx4V1ZkT2RncFphVEZwV2tNNWRXSXpVbXhaYlRsMllUSjRkRXhYTVdwalF6RnFZa2RyZGt4dFpIQmtSMmd4V1drNU0ySXpTbkphYlhoMlpETk5kbU5JVm1saVIyeDZDbUZETlRWaVYzaEJZMjFXYldONU9UQlpWMlI2VEROWmQweHFXWFZPZWtFMFFtZHZja0puUlVWQldVOHZUVUZGVkVKRGIwMUxSRTVyV1ZkUmVWbFhSVElLVFZkT2FscEVXWHBPYW1SdFdtcGFiVTlFWkdsWk1sa3pUWHBKZVZsVVNUSk9iVWt5VG1wRmVGcEVXWGRHZDFsTFMzZFpRa0pCUjBSMmVrRkNSa0ZSU2dwRVFXUjVXbGQ0YkZsWVRteE5SMGxIUTJselIwRlJVVUpuTnpoM1FWSlZSVlpCZUZOaFNGSXdZMGhOTmt4NU9XNWhXRkp2WkZkSmRWa3lPWFJNTW5Cb0Nsa3lPV2xNVjBwclRESTFkbVJIVm1saU1qbHlZa2N3ZEdKWFRuZE1WMDV6WVZNNWFGa3pVbkJpTWpWNlRETktNV0p1VFhaTmFsVXlUWHBKTkU1VWF6UUtUVlJyZGxsWVVqQmFWekYzWkVoTmRrMVVRVmRDWjI5eVFtZEZSVUZaVHk5TlFVVlhRa0ZuVFVKdVFqRlpiWGh3V1hwRFFtbG5XVXRMZDFsQ1FrRklWd3BsVVVsRlFXZFNPRUpJYjBGbFFVSXlRVTR3T1UxSGNrZDRlRVY1V1hoclpVaEtiRzVPZDB0cFUydzJORE5xZVhRdk5HVkxZMjlCZGt0bE5rOUJRVUZDQ201b1MwOTFVMk5CUVVGUlJFRkZZM2RTVVVsb1FWQlBORzR6UkM4NFNrUlBjRVJUZUNzNWRrTmtibUphV1dKalRVZHpURWR2UTJnd01XNXViRkp1YldvS1FXbENVbFpKU20xRlNUVnBZVVJpUWxoUWJGRlhVMDVrVjJSTVJsVXJXRXRqV2paQ1EyaFNUelZ4TW5nMlJFRkxRbWRuY1docmFrOVFVVkZFUVhkT2J3cEJSRUpzUVdwQmNXRlNSelZpUkU1QkwxSTNaRUZ0Vm5kQmEyOUZabWhxYzNod1YxbDFTVVJ3YkZvd2VreEhUa04zVTNOV1RYSXpabTFtVFd0M2RtODJDbVJEUnpBMlZFVkRUVkZETTA1b1RIRlRhME5QYTBwa1JGQkpOM3BJTDNscVRFZFFVM04xVjBadE5rbDZZbFJ4UWxOa1dXZHZUR3BxTmpsbmMwTkdjRzBLVDNabmIyNDVSSEF3UVZFOUNpMHRMUzB0UlU1RUlFTkZVbFJKUmtsRFFWUkZMUzB0TFMwSyJ9XX19', 'integratedTime': 1778427804, 'logID': 'c0d23d6ad406973f9559f3ba2d1ca01f84147d8ffc5b8445c224f98b9591801d', 'logIndex': 1496056916, 'verification': {'inclusionProof': {'checkpoint': 'rekor.sigstore.dev - 1193050959916656506\n1374152909\ntxXfhbRp1rLbXvuhU2P9HjI3moHQn5MLobGUAY7Uxko=\n\n— rekor.sigstore.dev wNI9ajBFAiEAtowbRlYrBtIL5dX7TkI55uaYJOUMjGEDW12XGEiHwboCIH8isSj9K9NTKpa+KFKJhMGv+54yOumMTnKKWYAiKvjw\n', 'hashes': ['f1210483195778aa3db1a427a5710f984f1a655029994c17a10f0de6179e0cca', '0238934c70b6c8e7685e884d699711469dd0c3541e7782b6453b31ef5366f1b1', 'e9453e08c498dec66c581348b26fb0bd9d2b393c37b2f725ab710bf1e929bebf', 'cdbfa90135f392dad5cd2b100915eb127c01344bc971621151c792ae37dbb2c9', '9fc54dcf086d502ddee109d088b06bc76f601efbcb4887dcafafc83e4057696f', '6ab3ca4d3b948a19d2a18d18ee43e6a4747de670b5c4eb79132b11879f9f95c7', 'c0106d82bd28f5bef4c318eb454d1fbad659c8383de406df3372204f7591ed18', '1a145f0266c3293bd9cab2ccd8bd17c0cdeed5d6972284bb41cad31644561e32', '9382eae67628cf7555c719fa9f7e7151836bd8e53beb8b8276ba05078c392714', '291ed74405bd471cae98bb393a28147e6015e6d857bcd4a2e7a98e165122400e', 'bd2eeeb6f94112d2b9b4a00861dd02da262f74f7a31db50f938ff27138ee697e', '4a64c6cc60f0153b8336dda77f29c79f25c2e48cf6433243de428e7175bea015', 'aabf0b0ee9a62563cc68064b6dabec64ae2658388ee6d87706e9ca57afe28c66', '428efb57c40d14663ca78204f0fac81ab7a72b9e671886ab636cee176f655aed', '5da89de0305b0a99d6109d3f1ccd731a60caa0cb23519bcc1869a3a212879a20', '255294ce9c7bde3cc5833ce79ecc2deb3d5827e9ed3b2859da3e76755085ac04', '9510acc3e13a2a4ba971dd77fde6ed1343a56d50f4e89bb7f4b626b1232ac5a0', 'a49d4b2790912185d94be1f5f1a671d910c046aafcf93d9b51c97541823545ec', '6219a543294dd4a13c5bf69eac7901d1b1f7fb6d11583aa1b28c85f36713c61a', '1c7b67308ba87460d88dccde0302a493f30d8bb32f6e8e43a4a9115c67567466', '425a5cd9487f1a4e7a04684a5d1ff6b085c56bf23d73ad01c11adc3b8ed17ea4', 'c4ee000ebfde79278206c0f824c57ae0bef791dd491b08b1ebc71d040519861a', '793f85e3bd60d8725f778dd4e23e0bd4f20192de2b2db1d077fa4e47fae594ed', '0ce09ea12328bc8bcb13192122f8aca30f40b8d5e0796b3810293247a11ca985'], 'logIndex': 1374152654, 'rootHash': 'b715df85b469d6b2db5efba15363fd1e32379a81d09f930ba1b194018ed4c64a', 'treeSize': 1374152909}, 'signedEntryTimestamp': 'MEUCIQC982+fSs2JgVj5ibQOGohc6sPK98HxE/otl8ZbKiUDVQIgdd9RAYysBtpTWAr4fsJRaW/KAZ4wn12UOLDMwuD1LHI='}}}
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:31.0375164Z Transparency log entry created with index: 1496056916
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:31.0377065Z DSSE PAE: b'DSSEv1 28 application/vnd.in-toto+json 276 {"_type":"https://in-toto.io/Statement/v1","subject":[{"name":"notebooklm_mcp_cli-0.6.7-py3-none-any.whl","digest":{"sha256":"055dd6fe177fdf8d429ed38948e0a36a56c15c02bbf74f34b9536aa258a5ebc5"}}],"predicateType":"https://docs.pypi.org/attestations/publish/v1","predicate":null}'
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:31.1246389Z proposed: {"apiVersion": "0.0.1", "kind": "dsse", "spec": {"proposedContent": {"envelope": "{\"payload\":\"eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoibm90ZWJvb2tsbV9tY3BfY2xpLTAuNi43LXB5My1ub25lLWFueS53aGwiLCJkaWdlc3QiOnsic2hhMjU2IjoiMDU1ZGQ2ZmUxNzdmZGY4ZDQyOWVkMzg5NDhlMGEzNmE1NmMxNWMwMmJiZjc0ZjM0Yjk1MzZhYTI1OGE1ZWJjNSJ9fV0sInByZWRpY2F0ZVR5cGUiOiJodHRwczovL2RvY3MucHlwaS5vcmcvYXR0ZXN0YXRpb25zL3B1Ymxpc2gvdjEiLCJwcmVkaWNhdGUiOm51bGx9\",\"payloadType\":\"application/vnd.in-toto+json\",\"signatures\":[{\"sig\":\"MEUCIFNpY/4JLEkqO+DgBTdd5BlX7gwCPPP9Ac3M90NmhTmHAiEApsLkKImP6YPPBKCtZ5IcZnHZ0AAxarYtpzUmCn4/2q8=\"}]}", "verifiers": ["LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUc5RENDQm5xZ0F3SUJBZ0lVTkVUN0lWOU1rSDgzZzNwZFpVZlU2UDMyVWZFd0NnWUlLb1pJemowRUF3TXcKTnpFVk1CTUdBMVVFQ2hNTWMybG5jM1J2Y21VdVpHVjJNUjR3SEFZRFZRUURFeFZ6YVdkemRHOXlaUzFwYm5SbApjbTFsWkdsaGRHVXdIaGNOTWpZd05URXdNVFUwTXpJeldoY05Nall3TlRFd01UVTFNekl6V2pBQU1Ga3dFd1lICktvWkl6ajBDQVFZSUtvWkl6ajBEQVFjRFFnQUU0Sk5ySEQ0eXVBOUJrVkxLNzc2QWFIWm5WeW16RVBiWHk5SzcKQ1JuMUY1REZscHMvOGUrVGVzejhTRFNiVlBtdURUamNrS1FmZS9STWNHMVRYRFRJcDZPQ0Jaa3dnZ1dWTUE0RwpBMVVkRHdFQi93UUVBd0lIZ0RBVEJnTlZIU1VFRERBS0JnZ3JCZ0VGQlFjREF6QWRCZ05WSFE0RUZnUVVHc1VZCkY3Y2czUXZqb3dFTmdMc1lLemtTelNFd0h3WURWUjBqQkJnd0ZvQVUzOVBwejFZa0VaYjVxTmpwS0ZXaXhpNFkKWkQ4d2F3WURWUjBSQVFIL0JHRXdYNFpkYUhSMGNITTZMeTluYVhSb2RXSXVZMjl0TDJwaFkyOWlMV0prTDI1dgpkR1ZpYjI5cmJHMHRiV053TFdOc2FTOHVaMmwwYUhWaUwzZHZjbXRtYkc5M2N5OXdkV0pzYVhOb0xubHRiRUJ5ClpXWnpMM1JoWjNNdmRqQXVOaTQzTURrR0Npc0dBUVFCZzc4d0FRRUVLMmgwZEhCek9pOHZkRzlyWlc0dVlXTjAKYVc5dWN5NW5hWFJvZFdKMWMyVnlZMjl1ZEdWdWRDNWpiMjB3RlFZS0t3WUJCQUdEdnpBQkFnUUhjbVZzWldGegpaVEEyQmdvckJnRUVBWU8vTUFFREJDZ3paR0ZrTW1GaE5qRmpZMlEyTXpZM1ptWTJaamczWW1ObU56TXlNbUV5Ck5qWmlOall4TVdRMk1CMEdDaXNHQVFRQmc3OHdBUVFFRDFCMVlteHBjMmdnZEc4Z1VIbFFTVEFwQmdvckJnRUUKQVlPL01BRUZCQnRxWVdOdllpMWlaQzl1YjNSbFltOXZhMnh0TFcxamNDMWpiR2t3SGdZS0t3WUJCQUdEdnpBQgpCZ1FRY21WbWN5OTBZV2R6TDNZd0xqWXVOekE3QmdvckJnRUVBWU8vTUFFSUJDME1LMmgwZEhCek9pOHZkRzlyClpXNHVZV04wYVc5dWN5NW5hWFJvZFdKMWMyVnlZMjl1ZEdWdWRDNWpiMjB3YlFZS0t3WUJCQUdEdnpBQkNRUmYKREYxb2RIUndjem92TDJkcGRHaDFZaTVqYjIwdmFtRmpiMkl0WW1RdmJtOTBaV0p2YjJ0c2JTMXRZM0F0WTJ4cApMeTVuYVhSb2RXSXZkMjl5YTJac2IzZHpMM0IxWW14cGMyZ3VlVzFzUUhKbFpuTXZkR0ZuY3k5Mk1DNDJMamN3Ck9BWUtLd1lCQkFHRHZ6QUJDZ1FxRENnelpHRmtNbUZoTmpGalkyUTJNelkzWm1ZMlpqZzNZbU5tTnpNeU1tRXkKTmpaaU5qWXhNV1EyTUIwR0Npc0dBUVFCZzc4d0FRc0VEd3dOWjJsMGFIVmlMV2h2YzNSbFpEQStCZ29yQmdFRQpBWU8vTUFFTUJEQU1MbWgwZEhCek9pOHZaMmwwYUhWaUxtTnZiUzlxWVdOdllpMWlaQzl1YjNSbFltOXZhMnh0CkxXMWpjQzFqYkdrd09BWUtLd1lCQkFHRHZ6QUJEUVFxRENnelpHRmtNbUZoTmpGalkyUTJNelkzWm1ZMlpqZzMKWW1ObU56TXlNbUV5TmpaaU5qWXhNV1EyTUNBR0Npc0dBUVFCZzc4d0FRNEVFZ3dRY21WbWN5OTBZV2R6TDNZdwpMall1TnpBYUJnb3JCZ0VFQVlPL01BRVBCQXdNQ2pFeE1qRTBNemczTkRBd0t3WUtLd1lCQkFHRHZ6QUJFQVFkCkRCdG9kSFJ3Y3pvdkwyZHBkR2gxWWk1amIyMHZhbUZqYjJJdFltUXdHQVlLS3dZQkJBR0R2ekFCRVFRS0RBZzAKTnpZME1UZzVNREJ0QmdvckJnRUVBWU8vTUFFU0JGOE1YV2gwZEhCek9pOHZaMmwwYUhWaUxtTnZiUzlxWVdOdgpZaTFpWkM5dWIzUmxZbTl2YTJ4dExXMWpjQzFqYkdrdkxtZHBkR2gxWWk5M2IzSnJabXh2ZDNNdmNIVmliR2x6CmFDNTViV3hBY21WbWN5OTBZV2R6TDNZd0xqWXVOekE0QmdvckJnRUVBWU8vTUFFVEJDb01LRE5rWVdReVlXRTIKTVdOalpEWXpOamRtWmpabU9EZGlZMlkzTXpJeVlUSTJObUkyTmpFeFpEWXdGd1lLS3dZQkJBR0R2ekFCRkFRSgpEQWR5Wld4bFlYTmxNR0lHQ2lzR0FRUUJnNzh3QVJVRVZBeFNhSFIwY0hNNkx5OW5hWFJvZFdJdVkyOXRMMnBoClkyOWlMV0prTDI1dmRHVmliMjlyYkcwdGJXTndMV05zYVM5aFkzUnBiMjV6TDNKMWJuTXZNalUyTXpJNE5UazQKTVRrdllYUjBaVzF3ZEhNdk1UQVdCZ29yQmdFRUFZTy9NQUVXQkFnTUJuQjFZbXhwWXpDQmlnWUtLd1lCQkFIVwplUUlFQWdSOEJIb0FlQUIyQU4wOU1Hckd4eEV5WXhrZUhKbG5Od0tpU2w2NDNqeXQvNGVLY29BdktlNk9BQUFCCm5oS091U2NBQUFRREFFY3dSUUloQVBPNG4zRC84SkRPcERTeCs5dkNkbmJaWWJjTUdzTEdvQ2gwMW5ubFJubWoKQWlCUlZJSm1FSTVpYURiQlhQbFFXU05kV2RMRlUrWEtjWjZCQ2hSTzVxMng2REFLQmdncWhrak9QUVFEQXdObwpBREJsQWpBcWFSRzViRE5BL1I3ZEFtVndBa29FZmhqc3hwV1l1SURwbFowekxHTkN3U3NWTXIzZm1mTWt3dm82CmRDRzA2VEVDTVFDM05oTHFTa0NPa0pkRFBJN3pIL3lqTEdQU3N1V0ZtNkl6YlRxQlNkWWdvTGpqNjlnc0NGcG0KT3Znb245RHAwQVE9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"]}, "signatures": null, "envelopeHash": null, "payloadHash": null}}
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.1517232Z integrated: {'108e9186e8c5677a58e4a78a817184e1a5dec867cae702e3567b3f25e2a708303dffcdb4a1efb5a1': {'body': 'eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiZHNzZSIsInNwZWMiOnsiZW52ZWxvcGVIYXNoIjp7ImFsZ29yaXRobSI6InNoYTI1NiIsInZhbHVlIjoiZTRkMjQxNDU2YjgxOWY1Mzk0YTliYTA4N2MwZDJjNThjODFkMDRjNjE4NWNmYzg4ZTM2MzE3Y2E0MWE1NjFjMiJ9LCJwYXlsb2FkSGFzaCI6eyJhbGdvcml0aG0iOiJzaGEyNTYiLCJ2YWx1ZSI6IjRjMjUyNDY1OTE4ZDdlYTQ4Mzc3MzVhMzE5YzcxN2MxNzA1ZTEzYTA3MTUyZjNkZjYzMmE5MTk2NDIzYjFhNzAifSwic2lnbmF0dXJlcyI6W3sic2lnbmF0dXJlIjoiTUVVQ0lGTnBZLzRKTEVrcU8rRGdCVGRkNUJsWDdnd0NQUFA5QWMzTTkwTm1oVG1IQWlFQXBzTGtLSW1QNllQUEJLQ3RaNUljWm5IWjBBQXhhcll0cHpVbUNuNC8ycTg9IiwidmVyaWZpZXIiOiJMUzB0TFMxQ1JVZEpUaUJEUlZKVVNVWkpRMEZVUlMwdExTMHRDazFKU1VjNVJFTkRRbTV4WjBGM1NVSkJaMGxWVGtWVU4wbFdPVTFyU0Rnelp6TndaRnBWWmxVMlVETXlWV1pGZDBObldVbExiMXBKZW1vd1JVRjNUWGNLVG5wRlZrMUNUVWRCTVZWRlEyaE5UV015Ykc1ak0xSjJZMjFWZFZwSFZqSk5ValIzU0VGWlJGWlJVVVJGZUZaNllWZGtlbVJIT1hsYVV6RndZbTVTYkFwamJURnNXa2RzYUdSSFZYZElhR05PVFdwWmQwNVVSWGROVkZVd1RYcEplbGRvWTA1TmFsbDNUbFJGZDAxVVZURk5la2w2VjJwQlFVMUdhM2RGZDFsSUNrdHZXa2w2YWpCRFFWRlpTVXR2V2tsNmFqQkVRVkZqUkZGblFVVTBTazV5U0VRMGVYVkJPVUpyVmt4TE56YzJRV0ZJV201V2VXMTZSVkJpV0hrNVN6Y0tRMUp1TVVZMVJFWnNjSE12T0dVclZHVnplamhUUkZOaVZsQnRkVVJVYW1OclMxRm1aUzlTVFdOSE1WUllSRlJKY0RaUFEwSmFhM2RuWjFkV1RVRTBSd3BCTVZWa1JIZEZRaTkzVVVWQmQwbElaMFJCVkVKblRsWklVMVZGUkVSQlMwSm5aM0pDWjBWR1FsRmpSRUY2UVdSQ1owNVdTRkUwUlVablVWVkhjMVZaQ2tZM1kyY3pVWFpxYjNkRlRtZE1jMWxMZW10VGVsTkZkMGgzV1VSV1VqQnFRa0puZDBadlFWVXpPVkJ3ZWpGWmEwVmFZalZ4VG1wd1MwWlhhWGhwTkZrS1drUTRkMkYzV1VSV1VqQlNRVkZJTDBKSFJYZFlORnBrWVVoU01HTklUVFpNZVRsdVlWaFNiMlJYU1hWWk1qbDBUREp3YUZreU9XbE1WMHByVERJMWRncGtSMVpwWWpJNWNtSkhNSFJpVjA1M1RGZE9jMkZUT0hWYU1td3dZVWhXYVV3elpIWmpiWFJ0WWtjNU0yTjVPWGRrVjBwellWaE9iMHh1YkhSaVJVSjVDbHBYV25wTU0xSm9Xak5OZG1ScVFYVk9hVFF6VFVSclIwTnBjMGRCVVZGQ1p6YzRkMEZSUlVWTE1tZ3daRWhDZWs5cE9IWmtSemx5V2xjMGRWbFhUakFLWVZjNWRXTjVOVzVoV0ZKdlpGZEtNV015Vm5sWk1qbDFaRWRXZFdSRE5XcGlNakIzUmxGWlMwdDNXVUpDUVVkRWRucEJRa0ZuVVVoamJWWnpXbGRHZWdwYVZFRXlRbWR2Y2tKblJVVkJXVTh2VFVGRlJFSkRaM3BhUjBaclRXMUdhRTVxUm1wWk1sRXlUWHBaTTFwdFdUSmFhbWN6V1cxT2JVNTZUWGxOYlVWNUNrNXFXbWxPYWxsNFRWZFJNazFDTUVkRGFYTkhRVkZSUW1jM09IZEJVVkZGUkRGQ01WbHRlSEJqTW1kblpFYzRaMVZJYkZGVFZFRndRbWR2Y2tKblJVVUtRVmxQTDAxQlJVWkNRblJ4V1ZkT2RsbHBNV2xhUXpsMVlqTlNiRmx0T1haaE1uaDBURmN4YW1ORE1XcGlSMnQzU0dkWlMwdDNXVUpDUVVkRWRucEJRZ3BDWjFGUlkyMVdiV041T1RCWlYyUjZURE5aZDB4cVdYVk9la0UzUW1kdmNrSm5SVVZCV1U4dlRVRkZTVUpETUUxTE1tZ3daRWhDZWs5cE9IWmtSemx5Q2xwWE5IVlpWMDR3WVZjNWRXTjVOVzVoV0ZKdlpGZEtNV015Vm5sWk1qbDFaRWRXZFdSRE5XcGlNakIzWWxGWlMwdDNXVUpDUVVkRWRucEJRa05SVW1ZS1JFWXhiMlJJVW5kamVtOTJUREprY0dSSGFERlphVFZxWWpJd2RtRnRSbXBpTWtsMFdXMVJkbUp0T1RCYVYwcDJZakowYzJKVE1YUlpNMEYwV1RKNGNBcE1lVFZ1WVZoU2IyUlhTWFprTWpsNVlUSmFjMkl6WkhwTU0wSXhXVzE0Y0dNeVozVmxWekZ6VVVoS2JGcHVUWFprUjBadVkzazVNazFETkRKTWFtTjNDazlCV1V0TGQxbENRa0ZIUkhaNlFVSkRaMUZ4UkVObmVscEhSbXROYlVab1RtcEdhbGt5VVRKTmVsa3pXbTFaTWxwcVp6TlpiVTV0VG5wTmVVMXRSWGtLVG1wYWFVNXFXWGhOVjFFeVRVSXdSME5wYzBkQlVWRkNaemM0ZDBGUmMwVkVkM2RPV2pKc01HRklWbWxNVjJoMll6TlNiRnBFUVN0Q1oyOXlRbWRGUlFwQldVOHZUVUZGVFVKRVFVMU1iV2d3WkVoQ2VrOXBPSFphTW13d1lVaFdhVXh0VG5aaVV6bHhXVmRPZGxscE1XbGFRemwxWWpOU2JGbHRPWFpoTW5oMENreFhNV3BqUXpGcVlrZHJkMDlCV1V0TGQxbENRa0ZIUkhaNlFVSkVVVkZ4UkVObmVscEhSbXROYlVab1RtcEdhbGt5VVRKTmVsa3pXbTFaTWxwcVp6TUtXVzFPYlU1NlRYbE5iVVY1VG1wYWFVNXFXWGhOVjFFeVRVTkJSME5wYzBkQlVWRkNaemM0ZDBGUk5FVkZaM2RSWTIxV2JXTjVPVEJaVjJSNlRETlpkd3BNYWxsMVRucEJZVUpuYjNKQ1owVkZRVmxQTDAxQlJWQkNRWGROUTJwRmVFMXFSVEJOZW1jelRrUkJkMHQzV1V0TGQxbENRa0ZIUkhaNlFVSkZRVkZrQ2tSQ2RHOWtTRkozWTNwdmRrd3laSEJrUjJneFdXazFhbUl5TUhaaGJVWnFZakpKZEZsdFVYZEhRVmxMUzNkWlFrSkJSMFIyZWtGQ1JWRlJTMFJCWnpBS1RucFpNRTFVWnpWTlJFSjBRbWR2Y2tKblJVVkJXVTh2VFVGRlUwSkdPRTFZVjJnd1pFaENlazlwT0haYU1td3dZVWhXYVV4dFRuWmlVemx4V1ZkT2RncFphVEZwV2tNNWRXSXpVbXhaYlRsMllUSjRkRXhYTVdwalF6RnFZa2RyZGt4dFpIQmtSMmd4V1drNU0ySXpTbkphYlhoMlpETk5kbU5JVm1saVIyeDZDbUZETlRWaVYzaEJZMjFXYldONU9UQlpWMlI2VEROWmQweHFXWFZPZWtFMFFtZHZja0puUlVWQldVOHZUVUZGVkVKRGIwMUxSRTVyV1ZkUmVWbFhSVElLVFZkT2FscEVXWHBPYW1SdFdtcGFiVTlFWkdsWk1sa3pUWHBKZVZsVVNUSk9iVWt5VG1wRmVGcEVXWGRHZDFsTFMzZFpRa0pCUjBSMmVrRkNSa0ZSU2dwRVFXUjVXbGQ0YkZsWVRteE5SMGxIUTJselIwRlJVVUpuTnpoM1FWSlZSVlpCZUZOaFNGSXdZMGhOTmt4NU9XNWhXRkp2WkZkSmRWa3lPWFJNTW5Cb0Nsa3lPV2xNVjBwclRESTFkbVJIVm1saU1qbHlZa2N3ZEdKWFRuZE1WMDV6WVZNNWFGa3pVbkJpTWpWNlRETktNV0p1VFhaTmFsVXlUWHBKTkU1VWF6UUtUVlJyZGxsWVVqQmFWekYzWkVoTmRrMVVRVmRDWjI5eVFtZEZSVUZaVHk5TlFVVlhRa0ZuVFVKdVFqRlpiWGh3V1hwRFFtbG5XVXRMZDFsQ1FrRklWd3BsVVVsRlFXZFNPRUpJYjBGbFFVSXlRVTR3T1UxSGNrZDRlRVY1V1hoclpVaEtiRzVPZDB0cFUydzJORE5xZVhRdk5HVkxZMjlCZGt0bE5rOUJRVUZDQ201b1MwOTFVMk5CUVVGUlJFRkZZM2RTVVVsb1FWQlBORzR6UkM4NFNrUlBjRVJUZUNzNWRrTmtibUphV1dKalRVZHpURWR2UTJnd01XNXViRkp1YldvS1FXbENVbFpKU20xRlNUVnBZVVJpUWxoUWJGRlhVMDVrVjJSTVJsVXJXRXRqV2paQ1EyaFNUelZ4TW5nMlJFRkxRbWRuY1docmFrOVFVVkZFUVhkT2J3cEJSRUpzUVdwQmNXRlNSelZpUkU1QkwxSTNaRUZ0Vm5kQmEyOUZabWhxYzNod1YxbDFTVVJ3YkZvd2VreEhUa04zVTNOV1RYSXpabTFtVFd0M2RtODJDbVJEUnpBMlZFVkRUVkZETTA1b1RIRlRhME5QYTBwa1JGQkpOM3BJTDNscVRFZFFVM04xVjBadE5rbDZZbFJ4UWxOa1dXZHZUR3BxTmpsbmMwTkdjRzBLVDNabmIyNDVSSEF3UVZFOUNpMHRMUzB0UlU1RUlFTkZVbFJKUmtsRFFWUkZMUzB0TFMwSyJ9XX19', 'integratedTime': 1778427811, 'logID': 'c0d23d6ad406973f9559f3ba2d1ca01f84147d8ffc5b8445c224f98b9591801d', 'logIndex': 1496057725, 'verification': {'inclusionProof': {'checkpoint': 'rekor.sigstore.dev - 1193050959916656506\n1374153635\nRWcjqoncgQJLAgkOap+JwBv1jKxnk6oFBGIDY8eFYrw=\n\n— rekor.sigstore.dev wNI9ajBFAiEAjUQvUOEEEx8xysFMcWQny8WJ0zmzRTt9ATihXYdQh+wCIH2Ha2sJmzgg79hzdk7gtcoLFIE8tCdDqhJa4TNrT0Oo\n', 'hashes': ['ad32db41f490eea0e02ac2a5b7d008efd5a1461e24864d0e4b5bf9d6501b3fcb', '50e1e5538aa3a036824221e817a85e112e03c5ba6f270e36b55fb9222149c924', '67d79a1ff4ea720c01eb86edc3a510b0d9a01172508c87eb8c02c3c29c02582b', 'b5e4ed9ad0ca34d58fc099d814ebda87ce6954d1ecbbae9ab9cf2f74eaea49eb', '62840aaf5215c7602f024c0d0b037dfcb3d4c57b084500819ffd017db1c21361', '82a482fa046bcd73e41e358434dd61650de9928d96949307b7b2219e2f64f708', '8de6651f913fe36b9dabe8107537547db1f3aca84b17fd60d77a68305648af50', 'ea492c83c5018820264d20584586b8321a019345557a68b73a022359d23f4727', 'a436bda01eb58a4ccdfe4309cd6761dd8e5db2fbba5beaa0f24519014d1e1623', '6837bc1b1abc69601530a53f47334a86f4fc15d04055ae81be268638cd393d6e', '3b24b0c42cf257b359d8625d01a9538f7e86f550e8a4731613f8e04a77939320', 'aabf0b0ee9a62563cc68064b6dabec64ae2658388ee6d87706e9ca57afe28c66', '428efb57c40d14663ca78204f0fac81ab7a72b9e671886ab636cee176f655aed', '5da89de0305b0a99d6109d3f1ccd731a60caa0cb23519bcc1869a3a212879a20', '255294ce9c7bde3cc5833ce79ecc2deb3d5827e9ed3b2859da3e76755085ac04', '9510acc3e13a2a4ba971dd77fde6ed1343a56d50f4e89bb7f4b626b1232ac5a0', 'a49d4b2790912185d94be1f5f1a671d910c046aafcf93d9b51c97541823545ec', '6219a543294dd4a13c5bf69eac7901d1b1f7fb6d11583aa1b28c85f36713c61a', '1c7b67308ba87460d88dccde0302a493f30d8bb32f6e8e43a4a9115c67567466', '425a5cd9487f1a4e7a04684a5d1ff6b085c56bf23d73ad01c11adc3b8ed17ea4', 'c4ee000ebfde79278206c0f824c57ae0bef791dd491b08b1ebc71d040519861a', '793f85e3bd60d8725f778dd4e23e0bd4f20192de2b2db1d077fa4e47fae594ed', '0ce09ea12328bc8bcb13192122f8aca30f40b8d5e0796b3810293247a11ca985'], 'logIndex': 1374153463, 'rootHash': '456723aa89dc81024b02090e6a9f89c01bf58cac6793aa0504620363c78562bc', 'treeSize': 1374153635}, 'signedEntryTimestamp': 'MEUCIGXFdTSG1cLVPYXun/zZ+vL7Ak8MbomGNrscwG0eqZcoAiEAxMzJ6umm20SysqnNhmIlxoaMv2boPE+6D7aYw7o39yE='}}}
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.1747877Z Transparency log entry created with index: 1496057725
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2779522Z Showing hash values of files to be uploaded:
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2780359Z /github/workspace/dist/notebooklm_mcp_cli-0.6.7-py3-none-any.whl.publish.attestation
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2780920Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2781271Z SHA256: 8cdca250fae71e533263f4c368816479abf57ddded1944b1d6cf5ea32b58382c
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2781723Z MD5: ad4c6d8d31d7e0f7bcc99af846f8bddf
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2782091Z BLAKE2-256: 3bd6dbed1a34c71b3c3427e50cf1aaf1f8922dd58ba605832f7e6268b920e502
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2782401Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2782543Z /github/workspace/dist/notebooklm_mcp_cli-0.6.7.tar.gz
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2782755Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2802376Z SHA256: 45ec996af9407e2dc2137d3a625b2469ed53f2fecb4d9391fb20fa5b87a092b2
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2802989Z MD5: 29c6077d282188843ade782796b1fed8
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2803457Z BLAKE2-256: 2798d369346dac32bd3d9c08934ac5b4adb849a41598d539dc56d98fa8ece18d
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2803882Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2804168Z /github/workspace/dist/notebooklm_mcp_cli-0.6.7.tar.gz.publish.attestation
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2804564Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2804809Z SHA256: 12ea852287022d24e3b9a85b87695c1f3f170d9aabccfbf1a00c0a43e3326f04
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2805303Z MD5: 0db96ad66dffe570ad0994d771ab1f89
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2805769Z BLAKE2-256: 321d0ef561d61ad3c9fbd9443a010f5632598c2ae301bfa0fe414cd3eea9a50a
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2806152Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2806467Z /github/workspace/dist/.gitignore
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2806696Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2806890Z SHA256: 684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2807226Z MD5: 3389dae361af79b04c9c8e7057f60cc6
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2807580Z BLAKE2-256: 395a122eb1402bf256d86e3fa44764cf9acc559017a00b2b9ee12498e73ef2b5
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2807850Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2808022Z /github/workspace/dist/notebooklm_mcp_cli-0.6.7-py3-none-any.whl
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2808265Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2813895Z SHA256: 055dd6fe177fdf8d429ed38948e0a36a56c15c02bbf74f34b9536aa258a5ebc5
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2814598Z MD5: 37981e3c5afe0cd82a039097793229f7
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2814958Z BLAKE2-256: 189d22f26a8bd09db1a684ded423ac82be4150eabdb8aec0aaff554c83680712
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.2815239Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.9214105Z Uploading distributions to https://upload.pypi.org/legacy/
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.9284406Z [34mINFO    [0m dist/notebooklm_mcp_cli-0.6.7-py3-none-any.whl (296.4 KB)              
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.9552871Z [34mINFO    [0m dist/notebooklm_mcp_cli-0.6.7.tar.gz (521.0 KB)                        
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.9556616Z [34mINFO    [0m username set by command options                                        
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.9561724Z [34mINFO    [0m password set by command options                                        
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.9571231Z [34mINFO    [0m username: __token__                                                    
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.9576512Z [34mINFO    [0m password: <hidden>                                                     
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:38.9588096Z Uploading notebooklm_mcp_cli-0.6.7-py3-none-any.whl
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0678015Z [34mINFO    [0m Response from https://upload.pypi.org/legacy/:                         
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0678905Z          200 OK                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0685391Z [34mINFO    [0m <html>                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0686125Z           <head>                                                                
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0686967Z            <title>200 OK</title>                                                
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0687620Z           </head>                                                               
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0688215Z           <body>                                                                
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0688829Z            <h1>200 OK</h1>                                                      
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0689388Z            <br/><br/>                                                           
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0689692Z                                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0689991Z                                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0690283Z                                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0690581Z           </body>                                                               
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0690903Z          </html>                                                                
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:41.0691216Z Uploading notebooklm_mcp_cli-0.6.7.tar.gz
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8452578Z [34mINFO    [0m Response from https://upload.pypi.org/legacy/:                         
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8453463Z          200 OK                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8460104Z [34mINFO    [0m <html>                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8460839Z           <head>                                                                
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8461468Z            <title>200 OK</title>                                                
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8462048Z           </head>                                                               
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8462617Z           <body>                                                                
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8463209Z            <h1>200 OK</h1>                                                      
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8463784Z            <br/><br/>                                                           
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8464258Z                                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8464732Z                                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8465136Z                                                                                 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8466133Z           </body>                                                               
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8466830Z          </html>                                                                
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8467180Z 
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8467398Z [32mView at:[0m
+Build and publish to PyPI	Publish to PyPI	2026-05-10T15:43:42.8467791Z https://pypi.org/project/notebooklm-mcp-cli/0.6.7/
+Build and publish to PyPI	Build MCPB extension	﻿2026-05-10T15:43:42.9489224Z ##[group]Run python3 scripts/build_mcpb.py
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9489573Z [36;1mpython3 scripts/build_mcpb.py[0m
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9502959Z shell: /usr/bin/bash -e {0}
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9503191Z env:
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9503422Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9503723Z ##[endgroup]
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9798609Z 
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9799482Z 📦 Building notebooklm-mcp-0.6.7.mcpb
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9799893Z 
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9800069Z   manifest.json: already at 0.6.7
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9800350Z 
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9800633Z ✅ Built: notebooklm-mcp-0.6.7.mcpb (2.3 KB)
+Build and publish to PyPI	Build MCPB extension	2026-05-10T15:43:42.9801425Z    Location: /home/runner/work/notebooklm-mcp-cli/notebooklm-mcp-cli/notebooklm-mcp-0.6.7.mcpb
+Build and publish to PyPI	Upload MCPB to release	﻿2026-05-10T15:43:42.9892362Z ##[group]Run softprops/action-gh-release@v2
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:42.9892646Z with:
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:42.9892852Z   files: notebooklm-mcp-*.mcpb
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:42.9893085Z   overwrite_files: true
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:42.9893441Z   token: ***
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:42.9893616Z env:
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:42.9893825Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:42.9894104Z ##[endgroup]
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:43.4554264Z Found release v0.6.7 - Cited Research Filter & Maintenance (with id=320146786)
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:43.6905753Z ⬆️ Uploading notebooklm-mcp-0.6.7.mcpb...
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:44.4516762Z ✅ Uploaded notebooklm-mcp-0.6.7.mcpb
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:44.4517183Z Finalizing release...
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:44.4517410Z Getting assets list...
+Build and publish to PyPI	Upload MCPB to release	2026-05-10T15:43:44.6123218Z 🎉 Release ready at https://github.com/jacob-bd/notebooklm-mcp-cli/releases/tag/v0.6.7
+Build and publish to PyPI	Post Publish to PyPI	﻿2026-05-10T15:43:44.6263013Z Post job cleanup.
+Build and publish to PyPI	Post Install uv	﻿2026-05-10T15:43:44.6330335Z Post job cleanup.
+Build and publish to PyPI	Post Checkout repository	﻿2026-05-10T15:43:44.7854271Z Post job cleanup.
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.8810543Z [command]/usr/bin/git version
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.8843021Z git version 2.53.0
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.8881012Z Temporarily overriding HOME='/home/runner/work/_temp/3060cda2-574d-41c9-8269-978f2bef5b62' before making global git config changes
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.8881973Z Adding repository directory to the temporary git global config as a safe directory
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.8894073Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/notebooklm-mcp-cli/notebooklm-mcp-cli
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.8923610Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.8950164Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.9127220Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.9144505Z http.https://github.com/.extraheader
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.9155427Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.9180757Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.9352307Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Build and publish to PyPI	Post Checkout repository	2026-05-10T15:43:44.9379725Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Build and publish to PyPI	Complete job	﻿2026-05-10T15:43:44.9653801Z Cleaning up orphan processes
+Build and publish to PyPI	Complete job	2026-05-10T15:43:44.9903423Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, astral-sh/setup-uv@v4, softprops/action-gh-release@v2. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

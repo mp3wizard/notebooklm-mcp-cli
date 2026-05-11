@@ -11,6 +11,7 @@ from notebooklm_tools.services.downloads import (
     download_sync,
     get_default_extension,
     validate_artifact_type,
+    validate_audio_extension,
     validate_output_format,
 )
 from notebooklm_tools.services.errors import ServiceError, ValidationError
@@ -229,3 +230,34 @@ class TestDownloadAsync:
         assert result["artifact_type"] == "data_table"
         assert result["path"] == "/tmp/table.csv"
         mock_client.download_data_table.assert_called_once_with("nb-1", "/tmp/dt.csv", None)
+
+
+class TestValidateAudioExtension:
+    """Test validate_audio_extension — Issue #185."""
+
+    @pytest.mark.parametrize("ext", [".mp3", ".wav", ".ogg", ".flac", ".aiff", ".wma"])
+    def test_mismatched_extensions_rejected(self, ext):
+        with pytest.raises(ValidationError, match="cannot honor"):
+            validate_audio_extension(f"/tmp/podcast{ext}")
+
+    @pytest.mark.parametrize("ext", [".m4a", ".mp4", ".m4b"])
+    def test_compatible_extensions_pass(self, ext):
+        validate_audio_extension(f"/tmp/podcast{ext}")  # should not raise
+
+    def test_no_extension_passes(self):
+        validate_audio_extension("/tmp/podcast")  # should not raise
+
+    def test_case_insensitive(self):
+        with pytest.raises(ValidationError, match="cannot honor"):
+            validate_audio_extension("/tmp/podcast.MP3")
+
+    @pytest.mark.asyncio
+    async def test_download_audio_rejects_mp3_async(self, mock_client):
+        """Issue #185: download_async must reject .mp3 for audio."""
+        with pytest.raises(ValidationError, match="cannot honor"):
+            await download_async(mock_client, "nb-1", "audio", "/tmp/out.mp3")
+
+    def test_download_audio_rejects_mp3_sync(self, mock_client):
+        """Issue #185: download_sync must also reject .mp3 for audio."""
+        with pytest.raises(ValidationError, match="cannot honor"):
+            download_sync(mock_client, "nb-1", "audio", "/tmp/out.mp3")

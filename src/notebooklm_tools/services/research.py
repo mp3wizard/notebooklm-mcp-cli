@@ -5,6 +5,7 @@ import time
 from collections import defaultdict
 
 from ..core.client import NotebookLMClient
+from ..core.constants import RESULT_TYPE_DEEP_REPORT
 from ..core.errors import RPCError
 from ._compat import TypedDict
 from .errors import ServiceError, ValidationError
@@ -131,10 +132,14 @@ def _source_positions_by_url(sources: list[object]) -> dict[str, list[int]]:
 
 
 def _is_importable_source(source: object) -> bool:
-    """Return whether core import_research_sources can import this source."""
+    """Return whether core import_research_sources can import this source.
+
+    The research task outputs the final Deep Report as a pseudo-source in the results,
+    but it cannot be imported back into the notebook.
+    """
     if not isinstance(source, dict):
         return True
-    return bool(source.get("url")) and source.get("result_type") != 5
+    return bool(source.get("url")) and source.get("result_type") != RESULT_TYPE_DEEP_REPORT
 
 
 def _derive_cited_source_positions(report: str, sources: list[object]) -> set[int]:
@@ -163,7 +168,13 @@ def _derive_cited_source_positions(report: str, sources: list[object]) -> set[in
             title_to_positions[title].append(position)
 
     for title, positions in title_to_positions.items():
-        if title in report_lower and not any(position in strong_positions for position in positions):
+        # Use whitespace/boundary anchors to prevent substring false positives
+        # (e.g. "analysis" matching inside "psychoanalysis"). We avoid \b because
+        # it fails when titles start or end with non-word characters like ( ) [ ].
+        pattern = rf"(?:^|\s){re.escape(title)}(?:\s|$)"
+        if re.search(pattern, report_lower) and not any(
+            position in strong_positions for position in positions
+        ):
             cited_positions.update(positions)
 
     return cited_positions
@@ -287,7 +298,8 @@ def poll_research(
             the timeout is reached.
 
     Returns:
-        ResearchStatusResult with current status
+        ResearchStatusResult with current status. Note that the returned `sources`
+        are annotated with a `cited` boolean flag derived from the report.
 
     Raises:
         ServiceError: If the poll fails

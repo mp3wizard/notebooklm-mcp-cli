@@ -68,6 +68,29 @@ _BLOCKED_DIRS = {
 }
 
 
+_MISMATCHED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".flac", ".aiff", ".wma"}
+
+
+def validate_audio_extension(output_path: str) -> None:
+    """Reject output extensions that don't match NotebookLM's AAC-in-MP4 audio format.
+
+    NotebookLM Studio delivers audio as AAC inside an MP4/M4A container.
+    Writing that stream to a `.mp3` (or other incompatible) extension produces
+    a file whose bytes don't match the extension, breaking downstream tools.
+
+    Raises ValidationError with a helpful message and ffmpeg workaround.
+    """
+    suffix = Path(output_path).suffix.lower()
+    if suffix in _MISMATCHED_AUDIO_EXTENSIONS:
+        raise ValidationError(
+            f"NotebookLM delivers AAC audio in an MP4 container; "
+            f"cannot honor '{suffix}' suffix.\n"
+            f"Re-run with a .m4a or .mp4 suffix, or transcode with ffmpeg:\n"
+            f"  nlm download audio <id> -o raw.m4a\n"
+            f"  ffmpeg -i raw.m4a -acodec libmp3lame -q:a 2 podcast.mp3",
+        )
+
+
 def validate_output_path(output_path: str) -> None:
     """Validate that output_path is safe and does not escape to sensitive locations.
 
@@ -160,6 +183,9 @@ def download_sync(
     validate_artifact_type(artifact_type)
     validate_output_path(output_path)
 
+    if artifact_type == "audio":
+        validate_audio_extension(output_path)
+
     if artifact_type in INTERACTIVE_TYPES:
         validate_output_format(output_format)
 
@@ -222,6 +248,9 @@ async def download_async(
     """
     validate_artifact_type(artifact_type)
     validate_output_path(output_path)
+
+    if artifact_type == "audio":
+        validate_audio_extension(output_path)
 
     if artifact_type in INTERACTIVE_TYPES:
         validate_output_format(output_format)

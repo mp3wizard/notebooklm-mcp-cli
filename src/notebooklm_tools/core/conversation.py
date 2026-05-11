@@ -11,6 +11,8 @@ import os
 import urllib.parse
 from typing import Any, Protocol, cast
 
+import httpx as _httpx
+
 from .base import BaseClient
 from .data_types import ConversationTurn
 from .errors import NotebookLMError
@@ -221,8 +223,6 @@ class ConversationMixin(BaseClient):
         """
         import uuid
 
-        client = self._get_client()
-
         # If no source_ids provided, get them from the notebook
         if source_ids is None:
             notebook_client = cast(_NotebookLookupProtocol, self)
@@ -291,8 +291,13 @@ class ConversationMixin(BaseClient):
         query_string = urllib.parse.urlencode(url_params)
         url = f"{self._get_base_url()}{self.QUERY_ENDPOINT}?{query_string}"
 
-        response = client.post(url, content=body, timeout=timeout)
-        response.raise_for_status()
+        cookies = self._get_httpx_cookies()
+        # The streamed query endpoint is stricter than batchexecute and rejects
+        # form-encoded payloads without an explicit Content-Type header.
+        headers = {"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"}
+        with _httpx.Client(timeout=timeout, cookies=cookies, headers=headers) as client:
+            response = client.post(url, content=body)
+            response.raise_for_status()
 
         logger.debug("Raw query response (first 2000 chars): %s", response.text[:2000])
 

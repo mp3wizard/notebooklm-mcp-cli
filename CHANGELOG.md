@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.8] - 2026-05-11
+
+### Fixed
+
+- **Conversation Query Rejection** — Fixed an issue where the notebook query endpoint would reject requests with an opaque error due to strict backend requirements. Explicitly added `Content-Type: application/x-www-form-urlencoded;charset=UTF-8` to the streamed query endpoint. Thanks to **@fabianafurtadoff** for the contribution (PR #189)!
+
+## [0.6.7] - 2026-05-10
+
+### Added
+
+- **Cited-Only Filtering for Research** — Added support for filtering out non-cited sources during research imports. This includes a robust citation parser that handles standard markers (`[1]`), ranges (`[4-6]`), and bibliography extraction. The `research_status` polling output now also annotates sources with a `cited: bool` field for visibility. Thanks to **@zxyasfas** for the contribution (PR #188)!
+
+### Fixed
+
+- **Audio Download Extension Validation (Issue #185)** — `nlm download audio` now rejects incompatible file extensions (like `.mp3` or `.wav`) instead of writing AAC data with the wrong file extension. A helpful hint now suggests using `.m4a` or `.mp4` and provides an `ffmpeg` command for conversion.
+- **Conversation Query Hangs** — Replaced direct `client.post()` with a fresh `httpx.Client()` context in conversation queries to prevent internal connection pool exhaustion or unexpected hangs during repeated querying.
+- **Fuzzy Title Matching in Research** — Upgraded the research citation title matcher from basic substring checks to whitespace-aware boundary regex, preventing false positives where a short title matches a substring of a longer word.
+
+---
+
 ## [0.6.6] - 2026-05-07
 
 ### Fixed
