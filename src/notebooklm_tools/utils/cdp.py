@@ -1063,7 +1063,7 @@ def _wait_for_page_ready(ws_url: str, timeout: int = 30) -> tuple[str, bool]:
             html = get_page_html(ws_url)
             if extract_session_id(html) or extract_build_label(html):
                 return html, True
-        except Exception:
+        except Exception:  # nosec B110  # transient CDP error during page-load polling; retry until timeout
             pass
         time.sleep(1)
     # Timeout — return last HTML we got
@@ -1281,7 +1281,7 @@ def run_headless_auth(
                 if is_logged_in(current_url):
                     logged_in = True
                     break
-            except Exception:
+            except Exception:  # nosec B110  # transient CDP error while polling for login; retry until timeout
                 pass
             time.sleep(1)
 

@@ -12,6 +12,21 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.9 — May 2026)
+- **EPUB file upload support (PR #191, @mateogon)** — `.epub` files can now be uploaded as notebook sources
+- **Hermes Agent support** — `nlm skill install hermes` installs the NotebookLM skill for NousResearch's Hermes Agent; respects `$HERMES_HOME`
+- **Windows hardening** — fixed false "tool not installed" warnings, `PermissionError` now yields an actionable `icacls` hint instead of a traceback, and all file I/O specifies `encoding="utf-8"` to prevent `UnicodeDecodeError` on cp1252 systems
+- **CLI studio status mind maps (fix)** — `nlm studio status` routes through the service layer so mind maps appear in the output
+- **Refactor** — shared `is_tool_on_system()` helper in `cli/utils.py`; `TOOL_CONFIGS` now uses a typed `ToolConfig` `TypedDict`
+
+### Security scan (May 2026 — v0.6.9)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner
+- **2 HIGH + 1 MEDIUM fixed** — `urllib3` 2.6.3 → **2.7.0** (CVE-2026-44431 CVSS 8.9 cross-origin header leak; CVE-2026-44432 CVSS 8.2 decompression-bomb bypass); `authlib` 1.6.11 → **1.7.2** (CVE-2026-44681 CVSS 6.1 OIDC open redirect). Re-scan: clean
+- **3 Low fixed** — Bandit B110 `try/except/pass` retry loops in `cli/main.py` + `utils/cdp.py` annotated with `# nosec B110` + justification
+- **0 secrets** in git history (530 commits, 9.29 MB; Gitleaks + TruffleHog)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 101 files; Bandit 22,782 LOC — 0 issues after annotation)
+- **Overall risk posture: Clean** after fixes (full report: `docs/security-scan-report-2026-05-14.md`)
+
 ### Upstream sync (v0.6.6 + cited research import — May 2026)
 - **Cited research source import (PR #188, @zxyasfas)** — new feature to import cited sources from a research run directly back into the notebook (services/research.py + CLI/MCP wrappers + docs)
 - **Opaque throttle errors fixed (Issue #182)** — `RPCError code=8` (RESOURCE_EXHAUSTED) with a `UserDisplayableError` payload now surfaces the human-readable message instead of the raw protobuf type URL; new `ResourceExhaustedError(RPCError)` subclass; studio creation provides retry-specific hints

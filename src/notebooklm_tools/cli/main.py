@@ -812,7 +812,7 @@ def cli_main():
             from notebooklm_tools.cli.utils import print_update_notification
 
             print_update_notification()
-        except Exception:
+        except Exception:  # nosec B110  # best-effort notification in finally; must never mask the real error
             pass
 
 
