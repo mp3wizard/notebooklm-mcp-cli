@@ -38,7 +38,7 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
             hint="Create the file with cookies copied from browser DevTools.",
         )
 
-    content = path.read_text().strip()
+    content = path.read_text(encoding="utf-8").strip()
 
     # Try to parse as JSON first
     try:

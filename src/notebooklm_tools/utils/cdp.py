@@ -127,7 +127,7 @@ def _read_port_map() -> dict[str, dict]:
         return {}
 
     try:
-        data = json.loads(map_file.read_text())
+        data = json.loads(map_file.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -155,7 +155,7 @@ def _save_port_map(data: dict[str, dict]) -> None:
     """Write port map to disk."""
     map_file = _get_port_map_file()
     try:  # noqa: SIM105
-        map_file.write_text(json.dumps(data, indent=2))
+        map_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
         map_file.chmod(0o600)
     except OSError:
         pass  # Best-effort

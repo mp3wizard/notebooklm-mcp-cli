@@ -44,12 +44,11 @@ source_add(notebook_id="...", source_type="file", file_path="/path/to/file.pdf")
 
 ### Supported File Types
 
-- PDF (`.pdf`)
-- Text (`.txt`, `.md`)
-- Documents (`.docx`, `.csv`)
-- Audio (`.mp3`)
+- Documents (`.pdf`, `.txt`, `.md`, `.docx`, `.csv`)
+- Ebooks (`.epub`)
+- Audio (`.mp3`, `.m4a`, `.wav`, `.aac`, `.ogg`, `.opus`)
 - Video (`.mp4`)
-- Images (`.jpg`, `.jpeg`, `.png`)
+- Images (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`)
 
 ### Advantages
 

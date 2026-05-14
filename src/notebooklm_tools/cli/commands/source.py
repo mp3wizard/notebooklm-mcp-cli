@@ -262,7 +262,7 @@ def get_source_content(
         if output:
             from pathlib import Path
 
-            Path(output).write_text(content["content"])
+            Path(output).write_text(content["content"], encoding="utf-8")
             console.print(
                 f"[green]✓[/green] Wrote {content['char_count']:,} characters to {output}"
             )

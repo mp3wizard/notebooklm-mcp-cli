@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.9] - 2026-05-11
+
+### Added
+
+- **Hermes Agent Support** — `nlm skill install hermes` now installs the NotebookLM skill for [Hermes Agent](https://github.com/NousResearch/hermes-agent) by NousResearch. Respects the `$HERMES_HOME` environment variable for custom install paths.
+- **EPUB File Upload Support (PR #191)** — `.epub` files can now be uploaded as notebook sources. Thanks to **@mateogon** for the contribution!
+
+### Fixed
+
+- **Windows Tool Detection** — `nlm skill install` no longer falsely warns that tools are not installed on Windows. Detection now checks for the tool's binary on PATH and root config directory existence instead of only checking the (possibly non-existent) skills subdirectory.
+- **Windows Permission Errors** — `safe_mkdir` now catches `PermissionError` and provides an actionable fix command (`icacls`) instead of a raw traceback. The update-check cache and `print_update_notification()` no longer crash the CLI when the storage directory has restrictive ACLs.
+- **Windows Encoding Errors** — All `read_text()` / `write_text()` calls now explicitly specify `encoding="utf-8"` to prevent `UnicodeDecodeError` on Windows systems that default to `cp1252`.
+- **CLI Studio Status Missing Mind Maps** — `nlm studio status` now routes through the service layer (`get_studio_status`) so mind maps are included in the output.
+
+### Changed
+
+- **Shared Tool Detection** — Extracted `is_tool_on_system()` helper into `cli/utils.py`, shared by both `nlm skill install` and `nlm setup` to eliminate duplicate detection logic.
+- **Typed Skill Config** — `TOOL_CONFIGS` in `skill.py` now uses a `ToolConfig` `TypedDict` instead of `dict[str, Any]` for better type safety.
+- **File Upload Docs** — Updated supported file types list to include `.epub` and all audio/image formats actually supported by the API.
+
+---
+
 ## [0.6.8] - 2026-05-11
 
 ### Fixed

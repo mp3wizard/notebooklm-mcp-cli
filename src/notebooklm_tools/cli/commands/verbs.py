@@ -1072,7 +1072,8 @@ install_app = typer.Typer(help="Install resources (skills)")
 @install_app.command("skill")
 def install_skill_verb(
     tool: str = typer.Argument(
-        ..., help="Tool to install skill for (claude-code, agents, opencode, antigravity, other)"
+        ...,
+        help="Tool to install skill for (claude-code, agents, hermes, opencode, antigravity, other)",
     ),
     level: str = typer.Option(
         "user", "--level", "-l", help="Install at user level (~/.config) or project level (./)"

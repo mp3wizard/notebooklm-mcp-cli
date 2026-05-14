@@ -40,7 +40,7 @@ class AliasManager:
             return
 
         try:
-            content = self.aliases_file.read_text()
+            content = self.aliases_file.read_text(encoding="utf-8")
             if content:
                 raw_data = json.loads(content)
                 # Convert to AliasEntry objects (handles legacy format)
@@ -55,7 +55,9 @@ class AliasManager:
         """Save aliases to disk."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
         data = {name: entry.to_dict() for name, entry in self._aliases.items()}
-        self.aliases_file.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        self.aliases_file.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
     def set_alias(self, name: str, value: str, alias_type: str = "unknown") -> None:
         """Set an alias with optional type."""

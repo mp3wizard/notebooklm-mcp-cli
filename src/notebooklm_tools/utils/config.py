@@ -36,6 +36,11 @@ def safe_mkdir(
         if path.is_dir():
             return
         raise
+    except PermissionError:
+        raise PermissionError(
+            f"Cannot write to {path} — permission denied.\n"
+            f'On Windows, fix with: icacls "{path.parent}" /grant %USERNAME%:(OI)(CI)F /t'
+        ) from None
 
 
 _ALLOWED_BASE_HOSTS = {
@@ -417,7 +422,7 @@ def save_config(config: Config) -> None:
 
     # Convert to TOML format
     toml_content = _config_to_toml(config)
-    config_file.write_text(toml_content)
+    config_file.write_text(toml_content, encoding="utf-8")
 
 
 def _config_to_toml(config: Config) -> str:

@@ -1,15 +1,16 @@
 """Skill installer commands for NotebookLM CLI."""
 
+import os
 import re
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import typer
 from rich.table import Table
 
 from notebooklm_tools import __version__
-from notebooklm_tools.cli.utils import make_console
+from notebooklm_tools.cli.utils import is_tool_on_system, make_console
 
 console = make_console()
 app = typer.Typer(
@@ -18,68 +19,112 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Tool configuration mapping
-TOOL_CONFIGS = {
+_HOME = Path.home()
+
+# Shared paths: agents, gemini-cli, codex, and antigravity (project) all install here
+_AGENTS_USER = _HOME / ".agents" / "skills" / "nlm-skill"
+_AGENTS_PROJECT = Path(".agents/skills/nlm-skill")
+
+# Hermes supports $HERMES_HOME override; fall back to ~/.hermes
+_HERMES_HOME = Path(os.environ.get("HERMES_HOME") or _HOME / ".hermes")
+
+
+class ToolConfig(TypedDict, total=False):
+    user: Path
+    project: Path
+    format: str
+    description: str
+    binary: str
+    root_dirs: list[Path]
+    frontmatter_extras: dict[str, str]
+
+
+TOOL_CONFIGS: dict[str, ToolConfig] = {
     "claude-code": {
-        "user": Path.home() / ".claude/skills/nlm-skill",
+        "user": _HOME / ".claude" / "skills" / "nlm-skill",
         "project": Path(".claude/skills/nlm-skill"),
         "format": "skill.md",
         "description": "Claude Code CLI and Desktop",
+        "binary": "claude",
+        "root_dirs": [_HOME / ".claude"],
     },
     "cursor": {
-        "user": Path.home() / ".cursor/skills/nlm-skill",
+        "user": _HOME / ".cursor" / "skills" / "nlm-skill",
         "project": Path(".cursor/skills/nlm-skill"),
         "format": "skill.md",
         "description": "Cursor AI editor",
+        "binary": "cursor",
+        "root_dirs": [_HOME / ".cursor"],
     },
     "agents": {
-        "user": Path.home() / ".agents/skills/nlm-skill",
-        "project": Path(".agents/skills/nlm-skill"),
+        "user": _AGENTS_USER,
+        "project": _AGENTS_PROJECT,
         "format": "skill.md",
         "description": "Generic agent skill (Gemini CLI, Codex, and others)",
+        "root_dirs": [_HOME / ".agents"],
     },
     "gemini-cli": {
-        "user": Path.home() / ".agents/skills/nlm-skill",
-        "project": Path(".agents/skills/nlm-skill"),
+        "user": _AGENTS_USER,
+        "project": _AGENTS_PROJECT,
         "format": "skill.md",
         "description": "Google Gemini CLI",
+        "binary": "gemini",
+        "root_dirs": [_HOME / ".agents", _HOME / ".gemini"],
     },
     "codex": {
-        "user": Path.home() / ".agents/skills/nlm-skill",
-        "project": Path(".agents/skills/nlm-skill"),
+        "user": _AGENTS_USER,
+        "project": _AGENTS_PROJECT,
         "format": "skill.md",
         "description": "OpenAI Codex CLI",
+        "binary": "codex",
+        "root_dirs": [_HOME / ".codex", _HOME / ".agents"],
     },
     "opencode": {
-        "user": Path.home() / ".config/opencode/skills/nlm-skill",
+        "user": _HOME / ".config" / "opencode" / "skills" / "nlm-skill",
         "project": Path(".opencode/skills/nlm-skill"),
         "format": "skill.md",
         "description": "OpenCode AI assistant",
+        "binary": "opencode",
+        "root_dirs": [_HOME / ".config" / "opencode"],
     },
     "antigravity": {
-        "user": Path.home() / ".gemini/antigravity/skills/nlm-skill",
-        "project": Path(".agents/skills/nlm-skill"),
+        "user": _HOME / ".gemini" / "antigravity" / "skills" / "nlm-skill",
+        "project": _AGENTS_PROJECT,
         "format": "skill.md",
         "description": "Antigravity agent framework",
+        "root_dirs": [_HOME / ".gemini" / "antigravity"],
     },
     "cline": {
-        "user": Path.home() / ".cline/skills/nlm-skill",
+        "user": _HOME / ".cline" / "skills" / "nlm-skill",
         "project": Path(".cline/skills/nlm-skill"),
         "format": "skill.md",
         "description": "Cline CLI terminal agent",
+        "binary": "cline",
+        "root_dirs": [_HOME / ".cline"],
     },
     "openclaw": {
-        "user": Path.home() / ".openclaw/workspace/skills/nlm-skill",
+        "user": _HOME / ".openclaw" / "workspace" / "skills" / "nlm-skill",
         "project": Path(".openclaw/workspace/skills/nlm-skill"),
         "format": "skill.md",
         "description": "OpenClaw AI agent framework",
+        "binary": "openclaw",
+        "root_dirs": [_HOME / ".openclaw"],
     },
     "alef-agent": {
-        "user": Path.home() / ".alef-agent/workspace/skills/nlm-skill",
+        "user": _HOME / ".alef-agent" / "workspace" / "skills" / "nlm-skill",
         "project": Path(".alef-agent/workspace/skills/nlm-skill"),
         "format": "skill.md",
         "description": "Alef Agent AI agent framework",
         "frontmatter_extras": {"type": "tool", "status": "approved"},
+        "root_dirs": [_HOME / ".alef-agent"],
+    },
+    "hermes": {
+        "user": _HERMES_HOME / "skills" / "nlm-skill",
+        "project": Path(".hermes/skills/nlm-skill"),
+        "format": "skill.md",
+        "description": "Hermes Agent (NousResearch)",
+        "binary": "hermes",
+        "root_dirs": [_HERMES_HOME],
     },
     "other": {
         "project": Path("./nlm-skill-export"),
@@ -87,6 +132,12 @@ TOOL_CONFIGS = {
         "description": "Export all formats for manual installation",
     },
 }
+
+
+def _is_tool_installed(tool: str) -> bool:
+    """Detect whether a tool is actually installed on this system."""
+    config = TOOL_CONFIGS.get(tool, {})
+    return is_tool_on_system(config.get("binary"), config.get("root_dirs"))
 
 
 def complete_tool_name(ctx: Any, param: Any, incomplete: str) -> list[str]:
@@ -388,11 +439,17 @@ cp -r nlm-skill ~/.agents/skills/
 cp -r nlm-skill ~/.gemini/antigravity/skills/
 ```
 
+### Hermes Agent
+```bash
+cp -r nlm-skill ~/.hermes/skills/
+```
+
 Or for project-level installation, copy to:
 - Claude Code: `.claude/skills/`
 - OpenCode: `.opencode/skills/`
 - Gemini CLI / Codex: `.agents/skills/`
 - Antigravity: `.agents/skills/`
+- Hermes: `.hermes/skills/`
 
 ## Automated Installation
 
@@ -401,7 +458,7 @@ Instead of manual copying, you can use:
 nlm skill install <tool>
 ```
 
-Where `<tool>` is: claude-code, cursor, agents, opencode, antigravity, cline, openclaw, alef-agent.
+Where `<tool>` is: claude-code, cursor, agents, opencode, antigravity, hermes, cline, openclaw, alef-agent.
 
 > **Note:** `agents` replaces the old `gemini-cli` and `codex` entries. The `.agents/skills/`
 > path is the cross-tool compatible alias supported by Gemini CLI (v0.33.1+), Codex, and others.
@@ -421,7 +478,7 @@ Where `<tool>` is: claude-code, cursor, agents, opencode, antigravity, cline, op
 def install(
     tool: str = typer.Argument(
         ...,
-        help="Tool to install skill for (claude-code, cursor, agents, opencode, antigravity, other)",
+        help="Tool to install skill for (claude-code, cursor, agents, hermes, opencode, antigravity, other)",
         shell_complete=complete_tool_name,
     ),
     level: str = typer.Option(
@@ -469,20 +526,15 @@ def install(
     if not install_path:
         install_path = config.get("project")  # Fallback
 
-    # Validate parent directory exists for user-level installs
+    # Validate that the tool is installed for user-level installs
     if level == "user" and install_path:
-        # For SKILL.md format, check the parent of the skill directory
-        # For AGENTS.md format, check the parent of the file
-        if config["format"] == "skill.md" or config["format"] == "agents.md":
-            parent_dir = install_path.parent
-        else:
-            parent_dir = None
+        tool_detected = _is_tool_installed(tool)
 
-        if parent_dir and not parent_dir.exists():
+        if not tool_detected:
             console.print(
-                f"[yellow]Warning:[/yellow] Parent directory does not exist: {parent_dir}"
+                f"[yellow]Warning:[/yellow] {tool} does not appear to be installed on your system."
             )
-            console.print(f"This suggests {tool} may not be installed on your system.")
+            console.print("[dim](No binary on PATH and no config directory found)[/dim]")
             console.print()
 
             # Offer options
@@ -499,8 +551,8 @@ def install(
             )
 
             if choice == 1:
-                console.print(f"[dim]Creating {parent_dir}...[/dim]")
-                parent_dir.mkdir(parents=True, exist_ok=True)
+                console.print(f"[dim]Creating {install_path}...[/dim]")
+                install_path.mkdir(parents=True, exist_ok=True)
             elif choice == 2:
                 console.print("[dim]Switching to project-level installation...[/dim]")
                 level = "project"

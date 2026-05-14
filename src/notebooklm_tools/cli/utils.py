@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sys
 import time
 import urllib.request
@@ -125,17 +126,20 @@ def extract_cookies_from_string(cookie_str: str) -> dict[str, str]:
 # ========== Version Check Utilities ==========
 
 
-def _get_cache_path() -> Path:
-    """Get path to version check cache file."""
+def _get_cache_path() -> Path | None:
+    """Get path to version check cache file, or None if inaccessible."""
     cache_dir = get_storage_dir() / "cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        return None
     return cache_dir / "update_check.json"
 
 
 def _get_cached_version_info() -> dict | None:
     """Load cached version info if still valid (within 24 hours)."""
     cache_path = _get_cache_path()
-    if not cache_path.exists():
+    if cache_path is None or not cache_path.exists():
         return None
 
     try:
@@ -154,6 +158,8 @@ def _get_cached_version_info() -> dict | None:
 def _save_version_cache(latest_version: str) -> None:
     """Save version info to cache."""
     cache_path = _get_cache_path()
+    if cache_path is None:
+        return
     try:
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump(
@@ -227,3 +233,21 @@ def print_update_notification() -> None:
             f"[dim]🔔 Update available:[/dim] [cyan]{__version__}[/cyan] → [green]{latest}[/green]. "
             f"[dim]Run[/dim] [bold]uv tool upgrade notebooklm-mcp-cli[/bold] [dim]to update.[/dim]"
         )
+
+
+def is_tool_on_system(
+    binary: str | None = None,
+    root_dirs: list[Path] | None = None,
+) -> bool:
+    """Check whether an AI tool is installed on this system.
+
+    Returns True if either signal is found:
+    1. ``binary`` is on PATH (via ``shutil.which``)
+    2. Any directory in ``root_dirs`` exists
+
+    Shared by ``nlm skill install`` (detection before installing skills) and
+    ``nlm setup`` (detection before configuring MCP servers).
+    """
+    if binary and shutil.which(binary):
+        return True
+    return any(d.exists() for d in (root_dirs or []))

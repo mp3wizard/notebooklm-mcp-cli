@@ -845,7 +845,7 @@ class SourceMixin(BaseClient):
         2. Start upload session with SOURCE_ID → get upload URL
         3. Stream upload file content (memory-efficient for large files)
 
-        Supported file types: PDF, TXT, MD, DOCX, CSV, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, PNG, GIF, WEBP
+        Supported file types: PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, PNG, GIF, WEBP
 
         Args:
             notebook_id: The notebook ID to add the source to
@@ -883,6 +883,7 @@ class SourceMixin(BaseClient):
             ".md",
             ".docx",
             ".csv",  # Documents
+            ".epub",  # Ebooks
             ".mp3",
             ".m4a",
             ".wav",

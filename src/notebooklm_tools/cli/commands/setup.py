@@ -20,7 +20,7 @@ from rich.prompt import Confirm, Prompt
 from rich.syntax import Syntax
 from rich.table import Table
 
-from notebooklm_tools.cli.utils import make_console
+from notebooklm_tools.cli.utils import is_tool_on_system, make_console
 
 console = make_console()
 app = typer.Typer(
@@ -48,7 +48,7 @@ def _read_json_config(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -396,14 +396,14 @@ def _setup_codex() -> bool:
 
         if config_path.exists():
             try:
-                content = config_path.read_text()
+                content = config_path.read_text(encoding="utf-8")
                 config = tomllib.loads(content)
                 mcp_servers = config.get("mcp_servers", {})
                 if "notebooklm" in mcp_servers or "notebooklm-mcp" in mcp_servers:
                     console.print("[green]✓[/green] Already configured in Codex CLI")
                     return True
             except Exception:
-                content = config_path.read_text() if config_path.exists() else ""
+                content = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
         else:
             content = ""
 
@@ -417,7 +417,7 @@ enabled = true
         new_content = content.rstrip() + "\n" + section if content.strip() else section.lstrip()
 
         config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(new_content)
+        config_path.write_text(new_content, encoding="utf-8")
         console.print("[green]✓[/green] Added to Codex CLI (config.toml)")
         console.print(f"  [dim]{config_path}[/dim]")
         return True
@@ -473,31 +473,26 @@ def _ensure_opencode_timeout(config: dict) -> None:
 def _detect_tool(client_id: str) -> bool:
     """Check if an AI tool is installed/present on the system.
 
-    Uses binary checks and config directory presence to determine
-    if a tool is available.
+    Delegates to the shared ``is_tool_on_system`` helper with per-client
+    binary names and root config directories.
     """
-    checks = {
-        "claude-code": lambda: shutil.which("claude") is not None,
-        "gemini": lambda: (
-            shutil.which("gemini") is not None or _gemini_config_path().parent.exists()
-        ),
-        "cursor": lambda: (Path.home() / ".cursor").exists(),
-        "github-copilot": lambda: (
-            shutil.which("code") is not None or _github_copilot_config_path().parent.exists()
-        ),
-        "windsurf": lambda: _windsurf_config_path().parent.exists(),
-        "cline": lambda: (Path.home() / ".cline").exists(),
-        "antigravity": lambda: _antigravity_config_path().parent.exists(),
-        "codex": lambda: shutil.which("codex") is not None or _codex_config_path().exists(),
-        "opencode": lambda: (
-            shutil.which("opencode") is not None or _opencode_config_path().exists()
-        ),
+    _home = Path.home()
+    detection: dict[str, tuple[str | None, list[Path]]] = {
+        "claude-code": ("claude", [_home / ".claude"]),
+        "gemini": ("gemini", [_gemini_config_path().parent]),
+        "cursor": ("cursor", [_home / ".cursor"]),
+        "github-copilot": ("code", [_github_copilot_config_path().parent]),
+        "windsurf": (None, [_windsurf_config_path().parent]),
+        "cline": ("cline", [_home / ".cline"]),
+        "antigravity": (None, [_antigravity_config_path().parent]),
+        "codex": ("codex", [_codex_config_path()]),
+        "opencode": ("opencode", [_opencode_config_path()]),
     }
-    check_fn = checks.get(client_id)
-    if not check_fn:
+    entry = detection.get(client_id)
+    if not entry:
         return False
     try:
-        return check_fn()
+        return is_tool_on_system(binary=entry[0], root_dirs=entry[1])
     except Exception:
         return False
 
@@ -549,7 +544,7 @@ def _is_already_configured(client_id: str) -> bool:
                 # Check config.toml directly
                 toml_path = _codex_config_path() / "config.toml"
                 if toml_path.exists():
-                    config = tomllib.loads(toml_path.read_text())
+                    config = tomllib.loads(toml_path.read_text(encoding="utf-8"))
                     mcp = config.get("mcp_servers", {})
                     return "notebooklm" in mcp or "notebooklm-mcp" in mcp
         elif client_id == "opencode":

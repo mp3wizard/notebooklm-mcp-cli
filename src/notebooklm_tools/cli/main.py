@@ -808,10 +808,12 @@ def cli_main():
         else:
             raise
     finally:
-        # Check for updates after command execution (runs even on typer.Exit)
-        from notebooklm_tools.cli.utils import print_update_notification
+        try:
+            from notebooklm_tools.cli.utils import print_update_notification
 
-        print_update_notification()
+            print_update_notification()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
