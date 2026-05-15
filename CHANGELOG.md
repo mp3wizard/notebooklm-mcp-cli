@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Windows CDP Authentication Reliability (#192)** — Major stability improvements for authentication on Windows 11.
+- **Windows CDP Authentication Reliability (#192)** — Major stability improvements for authentication on Windows 11. Thanks to **@jonathanzhan1975** for the detailed bug report and testing!
     - Improved Windows Edge detection logic in `nlm doctor` to match the login flow.
     - Optimized CDP port scan timeouts (reduced from 2s to 1s) to prevent 20-second blocks when ports are unresponsive.
     - Added process isolation for Windows via `CREATE_NEW_PROCESS_GROUP`.
