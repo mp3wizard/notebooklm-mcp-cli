@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-__version__ = "0.6.9"
+__version__ = "0.6.10"
 
 __all__ = ["NotebookLMClient", "__version__"]
 

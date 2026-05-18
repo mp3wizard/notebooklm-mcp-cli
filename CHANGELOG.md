@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.10] - 2026-05-15
+
+### Fixed
+
+- **Windows CDP Authentication Reliability (#192)** — Major stability improvements for authentication on Windows 11. Thanks to **@jonathanzhan1975** for the detailed bug report and testing!
+    - Improved Windows Edge detection logic in `nlm doctor` to match the login flow.
+    - Optimized CDP port scan timeouts (reduced from 2s to 1s) to prevent 20-second blocks when ports are unresponsive.
+    - Added process isolation for Windows via `CREATE_NEW_PROCESS_GROUP`.
+    - Added `--disable-features=msEdgeStartupBoost` launch flag to prevent Edge's "Startup Boost" background processes from intercepting CDP sessions.
+    - Implemented automated cleanup of stale NLM-spawned browser processes.
+    - Enhanced failure diagnostics to log process exit codes when browser initialization fails.
+
 ## [0.6.9] - 2026-05-11
 
 ### Added

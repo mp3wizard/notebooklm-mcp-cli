@@ -2,7 +2,6 @@
 
 import platform
 import shutil
-from pathlib import Path
 
 import typer
 
@@ -245,27 +244,22 @@ def _check_wsl_chrome(verbose: bool) -> bool:
 
 def _check_chrome(verbose: bool) -> bool:
     """Check Chrome installation and saved profile."""
-    console.print("[bold]Chrome[/bold]")
+    console.print("[bold]Browser[/bold]")
     ok = True
 
-    # Chrome binary
-    system = platform.system()
-    if system == "Darwin":
-        chrome_path = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    elif system == "Windows":
-        chrome_path = Path("C:/Program Files/Google/Chrome/Application/chrome.exe")
-        if not chrome_path.exists():
-            chrome_path = Path("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe")
-    else:
-        chrome_path = Path(shutil.which("google-chrome") or shutil.which("chromium") or "")
+    # Browser binary
+    from notebooklm_tools.utils.cdp import get_browser_display_name, get_chrome_path
 
-    if chrome_path.exists():
-        console.print("  Chrome: [green]installed[/green]")
+    chrome_path = get_chrome_path()
+    browser_name = get_browser_display_name() if chrome_path else "Browser"
+
+    if chrome_path:
+        console.print(f"  {browser_name}: [green]installed[/green]")
         if verbose:
             console.print(f"  [dim]{chrome_path}[/dim]")
     else:
-        console.print("  Chrome: [red]not found[/red]")
-        console.print("  [yellow]→[/yellow] Chrome is required for authentication")
+        console.print("  Browser: [red]not found[/red]")
+        console.print("  [yellow]→[/yellow] A supported browser is required for authentication")
         ok = False
 
     # Saved Chrome profile

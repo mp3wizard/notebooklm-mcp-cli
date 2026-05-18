@@ -82,22 +82,26 @@ def _cdp_http_base(port: int) -> str:
 
 def _summarize_browser_startup_failure(process: subprocess.Popen | None) -> str | None:
     """Best-effort summary when the launched browser exits before CDP is ready."""
-    if process is None or process.poll() is None or process.stderr is None:
+    if process is None or process.poll() is None:
         return None
+
+    exit_code = process.poll()
+    if process.stderr is None:
+        return f"Process exited with code {exit_code}"
 
     try:
         stderr = process.stderr.read().decode("utf-8", errors="replace").strip()
     except Exception:
-        return None
+        return f"Process exited with code {exit_code}"
 
     if not stderr:
-        return None
+        return f"Process exited with code {exit_code}"
 
     lines = [line.strip() for line in stderr.splitlines() if line.strip()]
     if not lines:
-        return None
+        return f"Process exited with code {exit_code}"
 
-    return lines[-1]
+    return f"Exit code {exit_code}: {lines[-1]}"
 
 
 # =============================================================================
@@ -466,7 +470,7 @@ def find_existing_nlm_chrome(
         if entry.get("profile") != profile_name:
             continue
         port = int(port_str)
-        debugger_url = get_debugger_url(port, timeout=2)
+        debugger_url = get_debugger_url(port, timeout=1)
         if debugger_url:
             _logger.debug(f"Reusing mapped Chrome on port {port} for profile '{profile_name}'")
             return port, debugger_url
@@ -493,7 +497,7 @@ def find_any_existing_cdp_browser(
     """
     matches: list[tuple[int, str]] = []
     for port in port_range:
-        version_info = _fetch_cdp_version(port, timeout=2)
+        version_info = _fetch_cdp_version(port, timeout=1)
         if not version_info:
             continue
         ua = version_info.get("User-Agent", "")
@@ -529,16 +533,23 @@ def launch_chrome_process(
         f"--remote-allow-origins=http://127.0.0.1:{port}",  # SEC-003: restrict to localhost only
     ]
 
+    if platform.system() == "Windows":
+        args.append("--disable-features=msEdgeStartupBoost")
+
     if headless:
         args.append("--headless=new")
 
+    kwargs: dict[str, Any] = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+    }
+
+    if platform.system() == "Windows":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
     try:
         _logger.debug("Launching browser: %s on port %d", chrome_path, port)
-        process = subprocess.Popen(  # nosec B603 — chrome_path from shutil.which(); args built from hardcoded flags + validated port
-            args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        process = subprocess.Popen(args, **kwargs)  # nosec B603 — chrome_path from shutil.which(); args built from hardcoded flags + validated port
         return process
     except Exception as e:
         _logger.error(
@@ -926,6 +937,35 @@ def extract_email(html: str) -> str:
     return ""
 
 
+def _kill_process(pid: int) -> None:
+    """Best effort to kill a process by PID."""
+    import os
+    import signal
+
+    try:
+        if platform.system() == "Windows":
+            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, check=False)
+        else:
+            os.kill(pid, signal.SIGTERM)
+    except Exception:
+        pass
+
+
+def _kill_stale_nlm_browsers() -> None:
+    """Kill browser processes started by NLM that are no longer responsive on CDP."""
+    port_map = _read_port_map()
+    for port_str, entry in list(port_map.items()):
+        pid = entry.get("pid")
+        if pid:
+            # Check if process is alive but CDP is unresponsive
+            debugger_url = get_debugger_url(int(port_str), timeout=1)
+            if not debugger_url:
+                # Process alive but CDP dead — zombie, kill it
+                _logger.debug(f"Killing stale NLM browser process {pid} on port {port_str}")
+                _kill_process(pid)
+                _clear_port_map(int(port_str))
+
+
 def extract_cookies_via_cdp(
     port: int = CDP_DEFAULT_PORT,
     auto_launch: bool = True,
@@ -963,6 +1003,8 @@ def extract_cookies_via_cdp(
 
     # Check if Chrome is running with debugging
     # First, try to find an existing instance on any port in our range
+    _kill_stale_nlm_browsers()
+
     reused_existing = False
     existing_port, debugger_url = None, None
     if not clear_profile:
