@@ -12,6 +12,20 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.10 — May 2026)
+- **Windows CDP authentication reliability (PR #192, @jonathanzhan1975)** — unifies browser detection in `doctor.py` to match `cdp.py` (Edge supported), reduces CDP port scan timeout 2s → 1s to prevent Windows blocking, adds `CREATE_NEW_PROCESS_GROUP` flag for Windows process isolation, disables Edge Startup Boost via `--disable-features=msEdgeStartupBoost`, introduces `_kill_stale_nlm_browsers` to clean zombie CDP processes, and improves `_summarize_browser_startup_failure` to log exit codes
+- **Merge note** — kept local's `# nosec B603` justification on the `subprocess.Popen(args, **kwargs)` call in `cdp.py` while adopting upstream's new `kwargs` (Windows `creationflags`) form
+- **AGENTS.md** — new upstream contributor guide (260 lines) added at repo root
+
+### Security scan (May 2026 — v0.6.10)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner
+- **0 HIGH / 0 MEDIUM** — clean
+- **3 Low (accepted, not fixed)** — all in newly merged `_kill_process()` (`utils/cdp.py:940-951`): B607 partial path `taskkill` (Windows System32 built-in, not user-controlled), B603 subprocess call (hardcoded args + integer PID), B110 `try/except/pass` (intentional "best effort" semantics, documented in docstring)
+- **0 secrets** in git history (534 commits, 9.31 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 101 files)
+- **0 dependency vulnerabilities** (Trivy + OSV-Scanner over 89 packages in `uv.lock`)
+- **Overall risk posture: Clean** (full report: `docs/security-scan-report-2026-05-18.md`)
+
 ### Upstream sync (v0.6.9 — May 2026)
 - **EPUB file upload support (PR #191, @mateogon)** — `.epub` files can now be uploaded as notebook sources
 - **Hermes Agent support** — `nlm skill install hermes` installs the NotebookLM skill for NousResearch's Hermes Agent; respects `$HERMES_HOME`
