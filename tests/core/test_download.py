@@ -221,6 +221,7 @@ class TestDownloadUrlCookies:
         class MockAsyncClient:
             def __init__(self, *, cookies, headers, follow_redirects, timeout):
                 captured["cookies"] = cookies
+                captured["headers"] = headers
 
             async def __aenter__(self):
                 return self
@@ -247,3 +248,7 @@ class TestDownloadUrlCookies:
         for domain in (".google.com", ".googleusercontent.com"):
             assert cookies.get("OSID", domain=domain) is None
             assert cookies.get("__Secure-OSID", domain=domain) is None
+
+        headers = captured["headers"]
+        assert headers.get("Sec-Fetch-Site") == "cross-site"
+        assert headers.get("Referer") == f"{mixin._get_base_url()}/"
