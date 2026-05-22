@@ -387,11 +387,13 @@ def _get_chromium_path(preferred: str | None = None) -> str | None:
     elif system == "Linux":
         if preferred_names:
             for name, exe in _LINUX_BROWSER_CANDIDATES:
-                if name in preferred_names and shutil.which(exe):
-                    return _found(name, exe)
+                full_path = shutil.which(exe)
+                if name in preferred_names and full_path:
+                    return _found(name, full_path)
         for name, exe in _LINUX_BROWSER_CANDIDATES:
-            if shutil.which(exe):
-                return _found(name, exe, fallback=bool(preferred_names))
+            full_path = shutil.which(exe)
+            if full_path:
+                return _found(name, full_path, fallback=bool(preferred_names))
         return None
 
     elif system == "Windows":
@@ -411,6 +413,64 @@ def _get_chromium_path(preferred: str | None = None) -> str | None:
 def get_chrome_path() -> str | None:
     """Return the path/executable for the first available Chromium-based browser."""
     return _get_chromium_path()
+
+
+def _is_snap_browser(browser_path: str) -> bool:
+    """Detect if a browser binary is a Snap package.
+
+    Snap packages have AppArmor confinement that prevents access to
+    arbitrary directories. We need to detect this and use a snap-accessible
+    profile directory instead.
+
+    Detection methods:
+    - Path starts with /snap/ (direct snap binary)
+    - Binary is a symlink or wrapper pointing to /snap/
+    - Binary path contains /snap/bin/ (snap command wrapper)
+    """
+    if not browser_path:
+        return False
+
+    # Direct snap path or snap binary wrapper
+    if "/snap/" in browser_path:
+        return True
+
+    # Check if it's a symlink pointing to a snap path
+    try:
+        resolved = Path(browser_path).resolve()
+        if "/snap/" in str(resolved):
+            return True
+    except (OSError, RuntimeError):
+        pass
+
+    return False
+
+
+def get_snap_common_dir(browser_path: str) -> Path | None:
+    """Get the snap common directory for a snap-installed browser.
+
+    Snap packages can only write to specific directories like
+    ~/snap/<snap-name>/common/. This returns that directory if the
+    browser is a snap, or None if it's not.
+    """
+    if not _is_snap_browser(browser_path):
+        return None
+
+    # Extract snap name from path (e.g., /snap/chromium/3444/... -> chromium)
+    try:
+        resolved = Path(browser_path).resolve()
+        for part in resolved.parts:
+            if part in ("chromium", "google-chrome", "firefox"):
+                return Path.home() / "snap" / part / "common"
+    except (OSError, RuntimeError):
+        pass
+
+    # Fallback: try common snap names
+    for snap_name in ("chromium", "google-chrome"):
+        snap_common = Path.home() / "snap" / snap_name / "common"
+        if snap_common.exists():
+            return snap_common
+
+    return None
 
 
 def get_supported_browsers() -> list[str]:
@@ -440,9 +500,16 @@ import contextlib  # noqa: E402
 from notebooklm_tools.utils.config import get_chrome_profile_dir  # noqa: E402
 
 
-def is_profile_locked(profile_name: str = "default") -> bool:
-    """Check if the Chrome profile is locked (Chrome is using it)."""
-    lock_file = get_chrome_profile_dir(profile_name) / "SingletonLock"
+def is_profile_locked(profile_name: str = "default", profile_dir: Path | None = None) -> bool:
+    """Check if the Chrome profile is locked (Chrome is using it).
+
+    Args:
+        profile_name: NLM profile name (used if profile_dir is None)
+        profile_dir: Explicit profile directory path (overrides profile_name)
+    """
+    if profile_dir is None:
+        profile_dir = get_chrome_profile_dir(profile_name)
+    lock_file = profile_dir / "SingletonLock"
     return lock_file.exists()
 
 
@@ -513,6 +580,31 @@ def find_any_existing_cdp_browser(
     return None, None
 
 
+def _get_profile_dir_for_launch(
+    chrome_path: str, profile_name: str = "default"
+) -> Path:
+    """Get the correct Chrome profile directory for launch.
+
+    For snap browsers, returns a snap-accessible directory.
+    For non-snap browsers, returns the standard profile directory.
+
+    Args:
+        chrome_path: Path to the browser executable
+        profile_name: NLM profile name
+
+    Returns:
+        Path to the appropriate Chrome profile directory.
+    """
+    if _is_snap_browser(chrome_path):
+        from notebooklm_tools.utils.config import get_snap_chrome_profile_dir
+        snap_common = get_snap_common_dir(chrome_path)
+        profile_dir = get_snap_chrome_profile_dir(profile_name, snap_common)
+        _logger.debug("Snap browser detected, using snap-accessible profile: %s", profile_dir)
+    else:
+        profile_dir = get_chrome_profile_dir(profile_name)
+    return profile_dir
+
+
 def launch_chrome_process(
     port: int = CDP_DEFAULT_PORT, headless: bool = False, profile_name: str = "default"
 ) -> subprocess.Popen | None:
@@ -521,7 +613,7 @@ def launch_chrome_process(
     if not chrome_path:
         return None
 
-    profile_dir = get_chrome_profile_dir(profile_name)
+    profile_dir = _get_profile_dir_for_launch(chrome_path, profile_name)
 
     args = [
         chrome_path,
@@ -991,9 +1083,12 @@ def extract_cookies_via_cdp(
     if clear_profile:
         import shutil
 
-        from notebooklm_tools.utils.config import get_chrome_profile_dir
-
-        profile_dir = get_chrome_profile_dir(profile_name)
+        chrome_path = get_chrome_path()
+        if chrome_path:
+            profile_dir = _get_profile_dir_for_launch(chrome_path, profile_name)
+        else:
+            from notebooklm_tools.utils.config import get_chrome_profile_dir
+            profile_dir = get_chrome_profile_dir(profile_name)
         if profile_dir.exists():
             shutil.rmtree(profile_dir, ignore_errors=True)
 
@@ -1013,14 +1108,8 @@ def extract_cookies_via_cdp(
         reused_existing = True
 
     if not debugger_url and auto_launch:
-        if is_profile_locked(profile_name):
-            # Profile locked but no browser found on known ports - stale lock?
-            raise AuthenticationError(
-                message="The NLM auth profile is locked but no browser instance was found",
-                hint=f"Close any stuck browser processes or delete the SingletonLock file in the {profile_name} browser profile.",
-            )
-
-        if not get_chrome_path():
+        chrome_path = get_chrome_path()
+        if not chrome_path:
             browser_names = get_supported_browsers()
             if len(browser_names) > 1:
                 browsers = ", ".join(browser_names[:-1]) + f", or {browser_names[-1]}"
@@ -1029,6 +1118,16 @@ def extract_cookies_via_cdp(
             raise AuthenticationError(
                 message="No supported browser found",
                 hint=f"Install {browsers}, or use 'nlm login --manual' to import cookies from a file.",
+            )
+
+        # Get the correct profile directory for this browser (snap-aware)
+        profile_dir = _get_profile_dir_for_launch(chrome_path, profile_name)
+
+        if is_profile_locked(profile_name, profile_dir):
+            # Profile locked but no browser found on known ports - stale lock?
+            raise AuthenticationError(
+                message="The NLM auth profile is locked but no browser instance was found",
+                hint=f"Close any stuck browser processes or delete the SingletonLock file in the {profile_name} browser profile.",
             )
 
         # Find an available port
@@ -1201,11 +1300,26 @@ def has_chrome_profile(profile_name: str = "default") -> bool:
 
     Returns True if the profile directory exists and has login cookies,
     indicating that the user has previously authenticated.
+
+    Checks both standard and snap-accessible profile directories.
     """
+    # Check standard profile directory
     profile_dir = get_chrome_profile_dir(profile_name)
-    # Check for Cookies file which indicates the profile has been used
     cookies_file = profile_dir / "Default" / "Cookies"
-    return cookies_file.exists()
+    if cookies_file.exists():
+        return True
+
+    # Check snap-accessible profile directory
+    chrome_path = get_chrome_path()
+    if chrome_path and _is_snap_browser(chrome_path):
+        from notebooklm_tools.utils.config import get_snap_chrome_profile_dir
+        snap_common = get_snap_common_dir(chrome_path)
+        snap_profile_dir = get_snap_chrome_profile_dir(profile_name, snap_common)
+        snap_cookies_file = snap_profile_dir / "Default" / "Cookies"
+        if snap_cookies_file.exists():
+            return True
+
+    return False
 
 
 def cleanup_chrome_profile_cache(profile_name: str = "default") -> int:
@@ -1220,8 +1334,6 @@ def cleanup_chrome_profile_cache(profile_name: str = "default") -> int:
     Returns:
         Number of bytes freed.
     """
-    profile_dir = get_chrome_profile_dir(profile_name)
-
     # Cache directories that are safe to remove (not needed for auth)
     cache_dirs = [
         "Cache",
@@ -1235,18 +1347,32 @@ def cleanup_chrome_profile_cache(profile_name: str = "default") -> int:
     ]
 
     bytes_freed = 0
-    default_dir = profile_dir / "Default"
 
-    for cache_dir in cache_dirs:
-        cache_path = default_dir / cache_dir
-        if cache_path.exists():
-            try:
-                # Calculate size before deletion
-                size = sum(f.stat().st_size for f in cache_path.rglob("*") if f.is_file())
-                shutil.rmtree(cache_path, ignore_errors=True)
-                bytes_freed += size
-            except Exception:
-                pass
+    def _clean_profile_dir(profile_dir: Path) -> int:
+        freed = 0
+        default_dir = profile_dir / "Default"
+        for cache_dir in cache_dirs:
+            cache_path = default_dir / cache_dir
+            if cache_path.exists():
+                try:
+                    size = sum(f.stat().st_size for f in cache_path.rglob("*") if f.is_file())
+                    shutil.rmtree(cache_path, ignore_errors=True)
+                    freed += size
+                except Exception:
+                    pass
+        return freed
+
+    # Clean standard profile directory
+    profile_dir = get_chrome_profile_dir(profile_name)
+    bytes_freed += _clean_profile_dir(profile_dir)
+
+    # Clean snap-accessible profile directory
+    chrome_path = get_chrome_path()
+    if chrome_path and _is_snap_browser(chrome_path):
+        from notebooklm_tools.utils.config import get_snap_chrome_profile_dir
+        snap_common = get_snap_common_dir(chrome_path)
+        snap_profile_dir = get_snap_chrome_profile_dir(profile_name, snap_common)
+        bytes_freed += _clean_profile_dir(snap_profile_dir)
 
     return bytes_freed
 
