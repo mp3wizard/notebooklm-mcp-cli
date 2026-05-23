@@ -139,6 +139,42 @@ def get_chrome_profile_dir(profile_name: str = "default") -> Path:
     return chrome_dir
 
 
+def get_snap_chrome_profile_dir(
+    profile_name: str = "default",
+    snap_common: Path | None = None,
+) -> Path:
+    """Get a snap-accessible Chrome profile directory.
+
+    Snap packages (like snap Chromium) are confined by AppArmor and can
+    only write to ~/snap/<snap-name>/common/. This function returns a
+    profile directory inside that accessible location.
+
+    Args:
+        profile_name: NLM profile name
+        snap_common: Path to snap common directory (e.g., ~/snap/chromium/common)
+                     If None, auto-detects from installed snaps.
+
+    Returns:
+        Path to a snap-accessible Chrome profile directory.
+    """
+    if snap_common is None:
+        # Auto-detect snap common directory
+        for snap_name in ("chromium", "google-chrome"):
+            candidate = Path.home() / "snap" / snap_name / "common"
+            if candidate.exists():
+                snap_common = candidate
+                break
+
+    if snap_common is None:
+        # Fallback: use chromium common dir (create if needed)
+        snap_common = Path.home() / "snap" / "chromium" / "common"
+        safe_mkdir(snap_common, parents=True)
+
+    chrome_dir = snap_common / "notebooklm-mcp-cli" / "chrome-profiles" / profile_name
+    safe_mkdir(chrome_dir, parents=True)
+    return chrome_dir
+
+
 def get_firefox_profile_dir(profile_name: str = "default") -> Path:
     """Get Firefox profile directory kept for backwards compatibility."""
     firefox_dir = get_storage_dir() / "firefox-profiles" / profile_name

@@ -65,6 +65,47 @@ class SourceMixin(BaseClient):
         }
     )
 
+    def _reconcile_source(
+        self,
+        notebook_id: str,
+        match_fn: Any,
+        poll_attempts: int = 3,
+        poll_delay: float = 1.0,
+    ) -> dict[str, Any] | None:
+        """Poll the notebook source list to verify a source landed after an
+        accepted-pending RPC error (code 3 or 9).
+
+        NotebookLM sometimes returns a structured gRPC error code 3
+        (INVALID_ARGUMENT) or code 9 (FAILED_PRECONDITION) in the wrb.fr
+        envelope even when the source was accepted for asynchronous processing.
+        Since the same code is used for genuine rejection, we cannot
+        distinguish them from the RPC response alone. This method polls the
+        notebook's source list to determine the actual outcome.
+
+        Args:
+            notebook_id:   Notebook to inspect.
+            match_fn:      Callable(source: dict) -> bool — returns True when
+                           the dict represents the source we just submitted.
+            poll_attempts: Maximum number of polls (default 3).
+            poll_delay:    Seconds to wait between polls (default 1.0).
+
+        Returns:
+            The matched source dict if found within the polling window,
+            otherwise None (caller should re-raise the original RPCError).
+        """
+        for attempt in range(poll_attempts):
+            if attempt > 0:
+                time.sleep(poll_delay)
+            try:
+                sources = self.get_notebook_sources_with_types(notebook_id)
+                for src in sources:
+                    if match_fn(src):
+                        return src
+            except Exception:
+                # If listing itself fails, don't mask the original error.
+                pass
+        return None
+
     def wait_for_source_ready(
         self,
         notebook_id: str,
@@ -337,7 +378,13 @@ class SourceMixin(BaseClient):
             elif version == "v1":
                 result = self._add_url_source_v1(notebook_id, url, source_path)
             else:
-                # First call — try v1, fallback to v2 on INVALID_ARGUMENT
+                # First call — try v1, fallback to v2 on INVALID_ARGUMENT.
+                # IMPORTANT: code 3 is ambiguous — it means both "accepted for
+                # async processing" (accepted-pending) and "truly rejected".
+                # Before falling through to v2, we reconcile by checking
+                # whether the source actually appeared in the notebook. This
+                # prevents false-negative errors AND avoids a double-submission
+                # that would occur if both v1 and v2 accepted the same URL.
                 try:
                     result = self._add_url_source_v1(notebook_id, url, source_path)
                     with self._state_lock:
@@ -345,7 +392,22 @@ class SourceMixin(BaseClient):
                             self._source_rpc_version = "v1"
                 except RPCError as e:
                     if e.error_code == 3:
-                        # Legacy RPC rejected — try the new endpoint
+                        # Check if v1 actually accepted it (accepted-pending)
+                        # before attempting v2.
+                        normalized_url = url.rstrip("/")
+                        reconciled = self._reconcile_source(
+                            notebook_id,
+                            match_fn=lambda src, u=normalized_url: (
+                                str(src.get("url") or "").rstrip("/") == u
+                            ),
+                        )
+                        if reconciled:
+                            # v1 accepted it — record v1 as working, skip v2.
+                            with self._state_lock:
+                                if self._source_rpc_version is None:
+                                    self._source_rpc_version = "v1"
+                            return {"id": reconciled["id"], "title": reconciled.get("title", "")}
+                        # v1 genuinely rejected — fall through to v2.
                         result = self._add_url_source_v2(notebook_id, url, source_path)
                         with self._state_lock:
                             if self._source_rpc_version is None:
@@ -603,6 +665,14 @@ class SourceMixin(BaseClient):
                 if e.error_code == 9 and text_payload != normalized_text:
                     time.sleep(0.25)
                     continue
+                if e.error_code in (3, 9):
+                    # Accepted-pending: poll to see if the source actually landed.
+                    reconciled = self._reconcile_source(
+                        notebook_id,
+                        match_fn=lambda src, t=title: src.get("title", "").strip() == t.strip(),
+                    )
+                    if reconciled:
+                        return {"id": reconciled["id"], "title": reconciled.get("title", title)}
                 raise
 
         source_result = None
@@ -670,6 +740,16 @@ class SourceMixin(BaseClient):
                 "status": "timeout",
                 "message": f"Operation timed out after {SOURCE_ADD_TIMEOUT}s.",
             }
+        except RPCError as e:
+            if e.error_code in (3, 9):
+                # Accepted-pending: poll to see if the Drive source actually landed.
+                reconciled = self._reconcile_source(
+                    notebook_id,
+                    match_fn=lambda src, did=document_id: src.get("drive_doc_id") == did,
+                )
+                if reconciled:
+                    return {"id": reconciled["id"], "title": reconciled.get("title", title)}
+            raise
 
         source_result = None
         if result and isinstance(result, list) and len(result) > 0:

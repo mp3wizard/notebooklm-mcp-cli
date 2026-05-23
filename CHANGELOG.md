@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.11] - 2026-05-22
+
+### Fixed
+
+- **False-negative errors on `source_add` and `research_import` (Issue #196)** — `source_add` (text, URL, Drive) and `research_import` were reporting `"Could not add ... source."` errors even when NotebookLM had successfully accepted the source for asynchronous processing. Root cause: NotebookLM uses the same gRPC error code `3` in the `wrb.fr` response envelope for both "accepted-pending" (async processing started) and "genuine rejection". Added a `_reconcile_source()` helper that polls `get_notebook_sources_with_types()` after a code 3 or 9 error to verify whether the source actually landed. If found → returns success. If not found after polling → re-raises the original error so genuine failures still surface. Also fixed a secondary double-submission bug where URL sources on accounts using the v1 (`izAoDd`) RPC would trigger a spurious v2 (`ozz5Z`) call when v1 returned an accepted-pending code 3 — reconciliation now short-circuits the fallback if v1 actually delivered. 12 new unit tests added (total: 875 tests). Thanks to **@mdshearer** for the detailed report and excellent root cause analysis!
+- **Snap Chromium profile directory (PR #195)** — On Ubuntu and other distros, Chromium installed as a Snap package is confined by AppArmor and can only write to `~/snap/<snap-name>/common/`. Launching with `--user-data-dir=~/.notebooklm-mcp-cli/` was failing with `Exit code 21: Failed to create a ProcessSingleton`. Snap browsers are now detected via `/snap/` in the resolved binary path and automatically redirected to `~/snap/chromium/common/notebooklm-mcp-cli/chrome-profiles/`. Profile lock, headless auth, and cache cleanup are all snap-aware. Thanks to **@ildella** for the contribution!
+- **Audio download 403 on cross-domain CDN (PR #193)** — Audio artifacts downloaded via `nlm download audio` were returning HTTP 403 from Google's CDN (`lh3.google.com`) because `_download_url` inherited `Sec-Fetch-Site: none` from the page fetch headers. Google's audio CDN treats that value as an unauthorized address-bar navigation and rejects the request regardless of valid cookies. The fix mirrors the header shape Chrome uses for `window.open()` — setting `Sec-Fetch-Site: cross-site` and `Referer: https://notebooklm.google.com/` on all cross-domain artifact downloads. Verified: same notebook that returned `"Download failed for audio."` now produces a complete 41.7 MB AAC file. Thanks to **@responsiblefleet** for the thorough root cause analysis and fix!
+
 ## [0.6.10] - 2026-05-15
 
 ### Fixed
