@@ -12,6 +12,21 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.11 — May 2026)
+- **False-negative errors on `source_add` / `research_import` fixed (Issue #196, @mdshearer)** — NotebookLM reuses gRPC error code `3` for both "accepted-pending" (async processing started) and genuine rejection. A new `_reconcile_source()` helper polls `get_notebook_sources_with_types()` after a code 3/9 error to verify whether the source actually landed — returns success if found, re-raises the original error if not. Also fixes a double-submission bug where v1 (`izAoDd`) URL sources triggered a spurious v2 (`ozz5Z`) call. 12 new unit tests (875 total upstream)
+- **Snap Chromium profile directory fixed (PR #195, @ildella)** — Snap-confined Chromium can only write to `~/snap/<name>/common/`; launching with the old `--user-data-dir` failed with `Exit code 21`. Snap browsers are now detected via `/snap/` in the resolved binary path and redirected to `~/snap/chromium/common/notebooklm-mcp-cli/chrome-profiles/`. Profile lock, headless auth, and cache cleanup are all snap-aware
+- **Audio download 403 on cross-domain CDN fixed (PR #193, @responsiblefleet)** — audio artifacts returned HTTP 403 from `lh3.google.com` because `_download_url` inherited `Sec-Fetch-Site: none`. The fix mirrors Chrome's `window.open()` header shape — `Sec-Fetch-Site: cross-site` + `Referer: https://notebooklm.google.com/` on cross-domain downloads
+- **Merge note** — conflict in `cleanup_chrome_profile_cache()` (`cdp.py`): adopted upstream's snap-aware `_clean_profile_dir()` helper while keeping local's stricter SEC-007 `_logger.debug(...)` logging instead of a silent `except: pass`
+
+### Security scan (May 2026 — v0.6.11)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner
+- **1 MEDIUM + 1 auth-bypass fixed** — `idna` 3.11 → **3.16** (CVE-2026-45409, CVSS 6.9: crafted input to `idna.encode()`); `starlette` 0.50.0 → **1.0.1** (PYSEC-2026-161 / GHSA-86qp-5c8j-p5mr: Host header not validated → auth bypass on path-based auth via MCP HTTP transport). Re-scan: clean
+- **5 Low (accepted, not fixed)** — Bandit B110 `try/except/pass` in `_reconcile_source` (`research.py:400`, `sources.py:104`, intentional re-raise of original error) + B607/B603/B110 on the Windows `taskkill` helper (`cdp.py:1038-1041`, controlled input)
+- **0 secrets** in git history (540 commits, 9.34 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 95 files / 191 rules)
+- **0 dependency vulnerabilities** after fixes (OSV-Scanner over 89 packages in `uv.lock`); verified by 862 passing tests
+- **Overall risk posture: Clean** after fixes (full report: `docs/security-scan-report-2026-05-23.md`)
+
 ### Upstream sync (v0.6.10 — May 2026)
 - **Windows CDP authentication reliability (PR #192, @jonathanzhan1975)** — unifies browser detection in `doctor.py` to match `cdp.py` (Edge supported), reduces CDP port scan timeout 2s → 1s to prevent Windows blocking, adds `CREATE_NEW_PROCESS_GROUP` flag for Windows process isolation, disables Edge Startup Boost via `--disable-features=msEdgeStartupBoost`, introduces `_kill_stale_nlm_browsers` to clean zombie CDP processes, and improves `_summarize_browser_startup_failure` to log exit codes
 - **Merge note** — kept local's `# nosec B603` justification on the `subprocess.Popen(args, **kwargs)` call in `cdp.py` while adopting upstream's new `kwargs` (Windows `creationflags`) form
