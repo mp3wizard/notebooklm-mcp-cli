@@ -137,3 +137,61 @@ def test_file_not_found():
     """Missing file raises AuthenticationError."""
     with pytest.raises(AuthenticationError, match="Cookie file not found"):
         parse_cookies_from_file("/tmp/nonexistent_cookie_file_xyz.txt")
+
+
+# --- Edge cases for Netscape parser (HttpOnly, Empty Values, Values with Tabs) ---
+
+
+def test_netscape_httponly_cookies():
+    """Lines starting with '#HttpOnly_' should be parsed, not skipped as comments."""
+    content = "#HttpOnly_.google.com\tTRUE\t/\tTRUE\t1812953356\t__Secure-1PSIDTS\tsecure-value-123\n"
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        f.write(content)
+        path = f.name
+    try:
+        result = parse_cookies_from_file(path)
+        assert result == {"__Secure-1PSIDTS": "secure-value-123"}
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
+def test_netscape_mixed_httponly_and_regular():
+    """Mix of regular lines and '#HttpOnly_' lines parses successfully."""
+    content = (
+        ".google.com\tTRUE\t/\tFALSE\t1812953356\tSID\tsid-value\n"
+        "#HttpOnly_.google.com\tTRUE\t/\tTRUE\t1812953356\t__Secure-3PSIDTS\tsecure-value\n"
+    )
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        f.write(content)
+        path = f.name
+    try:
+        result = parse_cookies_from_file(path)
+        assert result == {"SID": "sid-value", "__Secure-3PSIDTS": "secure-value"}
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
+def test_netscape_empty_value_cookie():
+    """Cookies with empty values should be parsed with an empty string value."""
+    content = ".google.com\tTRUE\t/\tFALSE\t1812953356\tEMPTY_COOKIE\t\n"
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        f.write(content)
+        path = f.name
+    try:
+        result = parse_cookies_from_file(path)
+        assert result == {"EMPTY_COOKIE": ""}
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
+def test_netscape_value_with_tabs():
+    """Cookie values that contain tabs internally are joined and parsed fully."""
+    content = ".google.com\tTRUE\t/\tFALSE\t1812953356\tTAB_COOKIE\tvalue\twith\ttabs\n"
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        f.write(content)
+        path = f.name
+    try:
+        result = parse_cookies_from_file(path)
+        assert result == {"TAB_COOKIE": "value\twith\ttabs"}
+    finally:
+        Path(path).unlink(missing_ok=True)
