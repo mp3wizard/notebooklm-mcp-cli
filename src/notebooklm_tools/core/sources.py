@@ -95,7 +95,7 @@ class SourceMixin(BaseClient):
         """
         for attempt in range(poll_attempts):
             if attempt > 0:
-                time.sleep(poll_delay)
+                time.sleep(min(poll_delay * (2 ** (attempt - 1)), 4.0))
             try:
                 sources = self.get_notebook_sources_with_types(notebook_id)
                 for src in sources:
@@ -942,7 +942,7 @@ class SourceMixin(BaseClient):
             FileValidationError: If file doesn't exist or is invalid
             FileUploadError: If upload fails
         """
-        file_path = Path(file_path)
+        file_path = Path(file_path).expanduser().resolve()
 
         # Validate file
         if not file_path.exists():

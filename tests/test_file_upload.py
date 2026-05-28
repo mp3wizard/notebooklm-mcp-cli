@@ -265,7 +265,7 @@ class TestAddFileIntegration:
             # Verify all three steps were called
             mock_register.assert_called_once_with("notebook-123", temp_path.name)
             mock_start.assert_called_once()
-            mock_upload.assert_called_once_with("https://upload.url/session", temp_path)
+            mock_upload.assert_called_once_with("https://upload.url/session", temp_path.resolve())
 
             # Verify result
             assert result["id"] == "source-id-123"
@@ -301,7 +301,7 @@ class TestAddFileIntegration:
 
             mock_register.assert_called_once_with("notebook-123", temp_path.name)
             mock_start.assert_called_once()
-            mock_upload.assert_called_once_with("https://upload.url/session", temp_path)
+            mock_upload.assert_called_once_with("https://upload.url/session", temp_path.resolve())
 
             assert result["id"] == "source-id-epub"
             assert result["title"] == temp_path.name

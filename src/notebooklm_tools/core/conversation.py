@@ -219,7 +219,6 @@ class ConversationMixin(BaseClient):
               cited_text (the actual passage text from the source)
             - turn_number: Which turn this is in the conversation (1 = first)
             - is_follow_up: Whether this was a follow-up query
-            - raw_response: The raw parsed response (for debugging)
         """
         import uuid
 
@@ -333,7 +332,6 @@ class ConversationMixin(BaseClient):
             "references": citation_data.get("references", []),
             "turn_number": turn_number,
             "is_follow_up": not is_new_conversation,
-            "raw_response": response.text[:1000] if response.text else "",
         }
 
     def _extract_source_ids_from_notebook(self, notebook_data: Any) -> list[str]:

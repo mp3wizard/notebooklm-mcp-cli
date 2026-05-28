@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.6.11"
+version: "0.6.13"
 description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", or any NotebookLM-related automation task."
 ---
 
@@ -170,7 +170,7 @@ nlm notebook delete <id> --confirm     # PERMANENT deletion
 Use `source_add` with these `source_type` values:
 - `url` - Web page or YouTube URL (`url` param)
 - `text` - Pasted content (`text` + `title` params)
-- `file` - Local file upload (`file_path` param)
+- `file` - Local file upload (`file_path` param). Supported extensions: `PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, JPEG, PNG, GIF, WEBP`. Note: Image-bearing sources (PDF / JPG / PNG / etc.) feed Studio video generation's visual-crop pipeline — charts, photos, and diagrams may be extracted as on-screen aids in Video Overviews.
 - `drive` - Google Drive doc (`document_id` + `doc_type` params)
 
 Other tools: `source_list_drive`, `source_describe`, `source_get_content`, `source_rename`, `source_sync_drive` (requires `confirm=True`), `source_delete` (requires `confirm=True`).
@@ -183,6 +183,7 @@ nlm source add <nb-id> --url "https://youtube.com/..." # YouTube video
 nlm source add <nb-id> --text "content" --title "X"  # Pasted text
 nlm source add <nb-id> --drive <doc-id>              # Drive doc (auto-detect type)
 nlm source add <nb-id> --drive <doc-id> --type slides # Explicit type
+nlm source add <nb-id> --file "/path/to/diagram.png" --wait # Local file upload (images, PDFs, documents, audio, video)
 
 # Listing and viewing
 nlm source list <nb-id>                # Table of sources

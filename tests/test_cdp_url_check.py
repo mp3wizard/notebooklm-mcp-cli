@@ -12,7 +12,8 @@ The fix parses the URL hostname instead of substring-matching the full URL.
 
 import pytest
 
-from notebooklm_tools.utils.cdp import is_logged_in
+from notebooklm_tools.utils import cdp
+from notebooklm_tools.utils.cdp import _is_notebooklm_url, is_logged_in
 
 
 @pytest.mark.parametrize(
@@ -50,3 +51,53 @@ from notebooklm_tools.utils.cdp import is_logged_in
 )
 def test_is_logged_in(url: str, expected: bool) -> None:
     assert is_logged_in(url) is expected
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://notebooklm.google.com/", True),
+        ("https://notebooklm.cloud.google.com/notebook/abc", True),
+        (
+            "https://accounts.google.com/v3/signin/identifier"
+            "?continue=https%3A%2F%2Fnotebooklm.google.com%2F",
+            False,
+        ),
+        ("https://example.com/?next=https://notebooklm.google.com/", False),
+        ("", False),
+    ],
+)
+def test_is_notebooklm_url_checks_hostname_only(url: str, expected: bool) -> None:
+    assert _is_notebooklm_url(url) is expected
+
+
+def test_find_or_create_notebooklm_page_ignores_accounts_continue_url(monkeypatch) -> None:
+    pages = [
+        {
+            "type": "page",
+            "url": (
+                "https://accounts.google.com/v3/signin/identifier"
+                "?continue=https%3A%2F%2Fnotebooklm.google.com%2F"
+            ),
+            "webSocketDebuggerUrl": "ws://127.0.0.1:9223/devtools/page/signin",
+        }
+    ]
+
+    class Response:
+        status_code = 200
+        text = '{"url":"https://notebooklm.google.com/"}'
+
+        @staticmethod
+        def json() -> dict[str, str]:
+            return {
+                "url": "https://notebooklm.google.com/",
+                "webSocketDebuggerUrl": "ws://127.0.0.1:9223/devtools/page/new",
+            }
+
+    monkeypatch.setattr(cdp, "get_pages_by_cdp_url", lambda _: pages)
+    monkeypatch.setattr(cdp.httpx_client, "put", lambda *_, **__: Response())
+
+    page = cdp.find_or_create_notebooklm_page_by_cdp_url("http://127.0.0.1:9223")
+
+    assert page is not None
+    assert page["url"] == "https://notebooklm.google.com/"

@@ -20,6 +20,8 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
     - Raw cookie header string (Cookie: name=value; name2=value2)
     - cURL command (copy as cURL from DevTools)
     - JSON object with cookies
+    - Netscape/Mozilla cookie file format (tab-separated, as exported by
+      browser extensions like "Get cookies.txt LOCALLY")
 
     Args:
         file_path: Path to the file containing cookies.
@@ -38,7 +40,7 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
             hint="Create the file with cookies copied from browser DevTools.",
         )
 
-    content = path.read_text(encoding="utf-8").strip()
+    content = path.read_text(encoding="utf-8").strip("\r\n")
 
     # Try to parse as JSON first
     try:
@@ -55,6 +57,13 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
                 return cookies
     except json.JSONDecodeError:
         pass
+
+    # Try Netscape/Mozilla cookie file format
+    # Format: domain  flag  path  secure  expires  name  value  (tab-separated)
+    # Lines starting with '#' are comments
+    netscape_cookies = _try_parse_netscape_cookies(content)
+    if netscape_cookies:
+        return netscape_cookies
 
     # Try to extract from cURL command
     curl_match = re.search(r"-H\s+['\"]Cookie:\s*([^'\"]+)['\"]", content, re.IGNORECASE)
@@ -83,6 +92,46 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
         )
 
     return cookies
+
+
+def _try_parse_netscape_cookies(content: str) -> dict[str, str] | None:
+    """
+    Try to parse Netscape/Mozilla cookie file format.
+
+    Format is tab-separated:
+        domain  flag  path  secure  expires  name  value
+
+    Lines starting with '#' are comments, except '#HttpOnly_' which marks
+    an HttpOnly cookie. Returns None if the content doesn't appear to be
+    Netscape format.
+    """
+    cookies: dict[str, str] = {}
+    valid_lines = 0
+
+    for line in content.splitlines():
+        # Keep trailing tabs so empty value cookies are not truncated by line.strip()
+        line = line.rstrip("\r\n")
+        stripped = line.strip()
+        # Skip blank lines
+        if not stripped:
+            continue
+        # Support #HttpOnly_ cookies (commonly written by exporters)
+        if stripped.startswith("#HttpOnly_"):
+            line = line.replace("#HttpOnly_", "", 1)
+        elif stripped.startswith("#"):
+            continue
+
+        # Netscape format: 7 tab-separated fields
+        parts = line.split("\t")
+        if len(parts) >= 7:
+            name = parts[5].strip()
+            # Join remaining parts in case the value itself contains tabs
+            value = "\t".join(parts[6:]).strip()
+            if name:
+                cookies[name] = value
+                valid_lines += 1
+
+    return cookies if valid_lines > 0 else None
 
 
 def cookies_to_header(cookies: dict[str, str]) -> str:

@@ -214,8 +214,9 @@ Examples:
     # Run server with appropriate transport
     # show_banner=False prevents Rich box-drawing output that can corrupt
     # the JSON-RPC protocol on Windows (especially with non-English locales)
+    import sys
+
     if args.transport == "stdio":
-        import sys
 
         class _StdoutToStderrWrapper:
             """Redirects sys.stdout.write to sys.stderr, but preserves original buffer.
@@ -241,32 +242,42 @@ Examples:
         sys.stdout = _StdoutToStderrWrapper(sys.stdout)
 
         mcp.run(show_banner=False)
-    elif args.transport == "http":
+    elif args.transport in ("http", "sse"):
         _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
         if args.host not in _LOOPBACK_HOSTS:
+            if not _env_bool("NOTEBOOKLM_ALLOW_EXTERNAL_BIND"):
+                print(
+                    f"SECURITY ERROR: Refusing to bind to non-loopback address '{args.host}'.\n"
+                    "There is no built-in authentication — binding externally exposes\n"
+                    "your Google cookies to anyone on the network.\n\n"
+                    "To override, set: NOTEBOOKLM_ALLOW_EXTERNAL_BIND=1",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
             import warnings
 
             warnings.warn(
-                "SECURITY WARNING: HTTP transport is bound to a non-loopback address "
-                f"('{args.host}'). There is no built-in authentication. "
-                "Do not expose this port to untrusted networks.",
+                f"SECURITY WARNING: {args.transport.upper()} transport is bound to a "
+                f"non-loopback address ('{args.host}'). There is no built-in "
+                "authentication. Do not expose this port to untrusted networks.",
                 stacklevel=2,
             )
-        mcp.run(
-            transport="streamable-http",
-            host=args.host,
-            port=args.port,
-            path=args.path,
-            stateless_http=args.stateless,
-            show_banner=False,
-        )
-    elif args.transport == "sse":
-        mcp.run(
-            transport="sse",
-            host=args.host,
-            port=args.port,
-            show_banner=False,
-        )
+        if args.transport == "http":
+            mcp.run(
+                transport="streamable-http",
+                host=args.host,
+                port=args.port,
+                path=args.path,
+                stateless_http=args.stateless,
+                show_banner=False,
+            )
+        else:
+            mcp.run(
+                transport="sse",
+                host=args.host,
+                port=args.port,
+                show_banner=False,
+            )
 
 
 if __name__ == "__main__":

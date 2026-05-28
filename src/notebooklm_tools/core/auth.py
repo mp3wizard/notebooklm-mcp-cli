@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -144,12 +144,17 @@ def save_tokens_to_cache(tokens: AuthTokens, silent: bool = False) -> None:
     import stat
 
     cache_path = get_cache_path()
-    # SEC-002: Restrict the parent directory and file to owner-only access
+    # SEC-002: Restrict the parent directory to owner-only access
     cache_path.parent.chmod(stat.S_IRWXU)  # 0o700
-    with open(cache_path, "w", encoding="utf-8") as f:
+    # TOCTOU-safe: create the file with 0o600 from the start (PR #205)
+    fd = os.open(str(cache_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        f = os.fdopen(fd, "w", encoding="utf-8")
+    except BaseException:
+        os.close(fd)
+        raise
+    with f:
         json.dump(tokens.to_dict(), f, indent=2)
-    with contextlib.suppress(OSError):
-        os.chmod(cache_path, 0o600)
 
     # Also update the default profile so load_cached_tokens() (which
     # checks profiles first) picks up the same tokens.
@@ -440,13 +445,17 @@ class AuthManager:
         # Set restrictive permissions on the directory
         self.profile_dir.chmod(0o700)
 
-        # Save cookies
-        self.cookies_file.write_text(
-            json.dumps(cookies, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-        self.cookies_file.chmod(0o600)
+        # Save cookies with restrictive permissions from creation
+        fd = os.open(str(self.cookies_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except BaseException:
+            os.close(fd)
+            raise
+        with f:
+            json.dump(cookies, f, indent=2, ensure_ascii=False)
 
-        # Save metadata
+        # Save metadata with restrictive permissions from creation
         metadata = {
             "csrf_token": csrf_token,
             "session_id": session_id,
@@ -454,10 +463,14 @@ class AuthManager:
             "build_label": build_label,
             "last_validated": datetime.now().isoformat(),
         }
-        self.metadata_file.write_text(
-            json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-        self.metadata_file.chmod(0o600)
+        fd = os.open(str(self.metadata_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except BaseException:
+            os.close(fd)
+            raise
+        with f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
 
         self._profile = Profile(
             name=self.profile_name,
@@ -516,6 +529,10 @@ class AuthManager:
             headers["X-Goog-Csrf-Token"] = profile.csrf_token
         return headers
 
+    def check_validity(self, *, live: bool = True, timeout: float = 12.0) -> "AuthCheckResult":
+        """Check the validity of the current profile's credentials."""
+        return check_auth(profile=self.profile_name, live=live, timeout=timeout)
+
     @staticmethod
     def list_profiles() -> list[str]:
         """List all available profiles."""
@@ -553,3 +570,181 @@ def get_auth_manager(profile: str | None = None) -> AuthManager:
         profile = get_config().auth.default_profile
 
     return AuthManager(profile)
+
+
+# =============================================================================
+# Elegant Unified Auth Validity Check (the single source of truth)
+# =============================================================================
+
+
+@dataclass
+class AuthCheckResult:
+    """Result of an authentication validity check.
+
+    This is the canonical return type for all "am I still logged in?"
+    questions in the system (CLI --check, MCP server_info, doctor, etc.).
+    """
+
+    valid: bool
+    reason: str | None = None  # "no_tokens", "expired", "network_error", etc.
+    checked_at: float = field(default_factory=time.time)
+    live: bool = True
+    profile: str = "default"
+    details: dict[str, Any] | None = None  # e.g. extracted csrf on success
+
+
+def _fetch_notebooklm_homepage(
+    cookies: dict[str, str] | list[dict],
+    *,
+    timeout: float = 12.0,
+    base_url: str | None = None,
+):
+    """Minimal, isolated homepage fetch used for the live auth check.
+
+    Returns the final response after redirects. Callers decide what the
+    final URL / status means.
+    """
+    import httpx
+
+    from notebooklm_tools.utils.browser import cookies_to_header
+
+    if isinstance(cookies, list):
+        cookie_dict = {c["name"]: c["value"] for c in cookies if "name" in c and "value" in c}
+    else:
+        cookie_dict = cookies
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+
+    cookie_header = cookies_to_header(cookie_dict)
+    if cookie_header:
+        headers["Cookie"] = cookie_header
+
+    url = base_url or get_base_url()
+
+    with httpx.Client(follow_redirects=True, timeout=timeout, headers=headers) as client:
+        return client.get(f"{url}/")
+
+
+def check_auth(
+    profile: str | None = None,
+    *,
+    live: bool = True,
+    timeout: float = 12.0,
+) -> AuthCheckResult:
+    """Single source of truth for whether NotebookLM credentials are valid.
+
+    This is the elegant root fix for the long-standing inconsistency between
+    `nlm login --check` (live) and `server_info` (pure heuristic).
+
+    live=True  → performs the authoritative minimal network check (homepage
+                 fetch + Google login redirect detection). This is what
+                 users and the MCP should trust.
+    live=False → fast path based only on on-disk metadata (last_validated /
+                 extracted_at). Useful for very hot paths.
+
+    Returns an AuthCheckResult that both CLI and MCP code can render.
+    """
+    if profile is None:
+        from notebooklm_tools.utils.config import get_config
+
+        profile = get_config().auth.default_profile
+
+    manager = AuthManager(profile)
+
+    # Fast path: no profile at all
+    if not manager.profile_exists():
+        return AuthCheckResult(
+            valid=False,
+            reason="no_tokens",
+            live=live,
+            profile=profile,
+        )
+
+    try:
+        p = manager.load_profile()
+    except Exception as e:
+        return AuthCheckResult(
+            valid=False,
+            reason=f"load_error: {e}",
+            live=live,
+            profile=profile,
+        )
+
+    # Convert to simple dict for the fetch helper
+    if isinstance(p.cookies, list):
+        cookie_dict = {c["name"]: c["value"] for c in p.cookies if "name" in c and "value" in c}
+    else:
+        cookie_dict = p.cookies
+
+    if not cookie_dict:
+        return AuthCheckResult(valid=False, reason="no_tokens", live=live, profile=profile)
+
+    if not live:
+        # Pure heuristic based on last successful validation
+        if p.last_validated:
+            # Consider anything validated in the last 7 days as good for the
+            # non-live path (same spirit as the old 168h rule).
+            age = (time.time() - p.last_validated.timestamp()) / 3600
+            if age <= 168:
+                return AuthCheckResult(
+                    valid=True, live=False, profile=profile, checked_at=p.last_validated.timestamp()
+                )
+        return AuthCheckResult(valid=False, reason="stale_heuristic", live=False, profile=profile)
+
+    # === Live authoritative path ===
+    try:
+        resp = _fetch_notebooklm_homepage(cookie_dict, timeout=timeout)
+
+        final_url = str(resp.url)
+
+        if "accounts.google.com" in final_url:
+            return AuthCheckResult(
+                valid=False,
+                reason="expired",
+                live=True,
+                profile=profile,
+                details={"final_url": final_url},
+            )
+
+        if resp.status_code != 200:
+            return AuthCheckResult(
+                valid=False,
+                reason=f"http_{resp.status_code}",
+                live=True,
+                profile=profile,
+            )
+
+        # Try to extract fresh CSRF while we're here (nice side-effect)
+        csrf = extract_csrf_from_page_source(resp.text) or ""
+
+        # Update last_validated so that future non-live checks are accurate
+        manager.save_profile(
+            cookies=p.cookies,
+            csrf_token=csrf or p.csrf_token,
+            session_id=p.session_id,
+            email=p.email,
+            build_label=p.build_label,
+        )
+
+        return AuthCheckResult(
+            valid=True,
+            reason=None,
+            live=True,
+            profile=profile,
+            details={"csrf_token": csrf} if csrf else None,
+        )
+
+    except Exception as exc:
+        # Network / timeout / etc. — be conservative but do not lie.
+        # We still have the cookies on disk; caller can decide.
+        return AuthCheckResult(
+            valid=False,
+            reason=f"network_error: {type(exc).__name__}",
+            live=True,
+            profile=profile,
+            details={"exception": str(exc)},
+        )

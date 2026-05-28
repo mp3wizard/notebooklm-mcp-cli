@@ -229,6 +229,7 @@ class TestCDPStartupHandling:
         from notebooklm_tools.utils.cdp import extract_cookies_via_cdp
 
         with (
+            patch("notebooklm_tools.utils.cdp._kill_stale_nlm_browsers"),
             patch("notebooklm_tools.utils.cdp.find_existing_nlm_chrome", return_value=(None, None)),
             patch(
                 "notebooklm_tools.utils.cdp.find_any_existing_cdp_browser",
@@ -251,17 +252,27 @@ class TestCDPStartupHandling:
 
         mock_get_debugger_url.assert_called_once_with(9222, tries=30)
 
-    def test_extract_cookies_reuses_single_existing_cdp_browser(self):
-        """A single reachable existing CDP browser should be reused."""
+    def test_extract_cookies_does_not_reuse_unmapped_cdp_browser(self):
+        """Default login should not attach to an unrelated CDP browser."""
         from notebooklm_tools.utils.cdp import extract_cookies_via_cdp
 
         with (
+            patch("notebooklm_tools.utils.cdp._kill_stale_nlm_browsers"),
             patch("notebooklm_tools.utils.cdp.find_existing_nlm_chrome", return_value=(None, None)),
             patch(
                 "notebooklm_tools.utils.cdp.find_any_existing_cdp_browser",
                 return_value=(9222, "ws://127.0.0.1:9222/devtools/browser/test"),
+            ) as mock_find_any,
+            patch("notebooklm_tools.utils.cdp.is_profile_locked", return_value=False),
+            patch("notebooklm_tools.utils.cdp.get_chrome_path", return_value="chromium"),
+            patch("notebooklm_tools.utils.cdp.find_available_port", return_value=9223),
+            patch(
+                "notebooklm_tools.utils.cdp.launch_chrome", return_value=True
+            ) as mock_launch_chrome,
+            patch(
+                "notebooklm_tools.utils.cdp.get_debugger_url",
+                return_value="ws://127.0.0.1:9223/devtools/browser/test",
             ),
-            patch("notebooklm_tools.utils.cdp.launch_chrome") as mock_launch_chrome,
             patch(
                 "notebooklm_tools.utils.cdp.extract_cookies_from_page",
                 return_value={"cookies": [], "csrf_token": "", "session_id": "", "email": ""},
@@ -269,9 +280,10 @@ class TestCDPStartupHandling:
         ):
             result = extract_cookies_via_cdp()
 
-        mock_launch_chrome.assert_not_called()
-        mock_extract.assert_called_once_with("http://127.0.0.1:9222", True, 300)
-        assert result["reused_existing"] is True
+        mock_find_any.assert_not_called()
+        mock_launch_chrome.assert_called_once_with(9223, profile_name="default")
+        mock_extract.assert_called_once_with("http://127.0.0.1:9223", True, 300)
+        assert result["reused_existing"] is False
 
     # ------------------------------------------------------------------
     # get_chrome_path — macOS

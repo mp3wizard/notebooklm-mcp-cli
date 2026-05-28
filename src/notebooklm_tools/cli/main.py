@@ -2,6 +2,7 @@
 
 import contextlib
 import logging
+from typing import Any
 
 import typer
 
@@ -85,6 +86,37 @@ profile_app = typer.Typer(
     rich_markup_mode="rich",
     no_args_is_help=True,
 )
+
+
+def _validate_saved_profile(auth: Any) -> tuple[Any, int]:
+    """Validate saved credentials by making a real NotebookLM API call."""
+    from notebooklm_tools.core.client import NotebookLMClient
+
+    p = auth.load_profile()
+    with NotebookLMClient(
+        cookies=p.cookies,
+        csrf_token=p.csrf_token or "",
+        session_id=p.session_id or "",
+        build_label=p.build_label or "",
+    ) as client:
+        notebooks = client.list_notebooks()
+
+    auth.save_profile(
+        cookies=p.cookies,
+        csrf_token=p.csrf_token,
+        session_id=p.session_id,
+        email=p.email,
+        build_label=p.build_label,
+    )
+    return p, len(notebooks)
+
+
+def _print_auth_valid(profile: Any, notebook_count: int) -> None:
+    console.print("[green]✓[/green] Authentication valid!")
+    console.print(f"  Profile: {profile.name}")
+    console.print(f"  Notebooks found: {notebook_count}")
+    if profile.email:
+        console.print(f"  Account: {profile.email}")
 
 
 @login_app.callback(invoke_without_command=True)
@@ -176,34 +208,9 @@ def login_callback(
     if check:
         # Check existing auth by making a real API call
         try:
-            from notebooklm_tools.core.client import NotebookLMClient
-
-            p = auth.load_profile()
+            p, notebook_count = _validate_saved_profile(auth)
             console.print(f"[dim]Checking credentials for profile: {p.name}...[/dim]")
-
-            # Actually test the API using profile's credentials
-            with NotebookLMClient(
-                cookies=p.cookies,
-                csrf_token=p.csrf_token or "",
-                session_id=p.session_id or "",
-                build_label=p.build_label or "",
-            ) as client:
-                notebooks = client.list_notebooks()
-
-            # Success! Update last validated
-            auth.save_profile(
-                cookies=p.cookies,
-                csrf_token=p.csrf_token,
-                session_id=p.session_id,
-                email=p.email,
-                build_label=p.build_label,
-            )
-
-            console.print("[green]✓[/green] Authentication valid!")
-            console.print(f"  Profile: {p.name}")
-            console.print(f"  Notebooks found: {len(notebooks)}")
-            if p.email:
-                console.print(f"  Account: {p.email}")
+            _print_auth_valid(p, notebook_count)
         except NLMError as e:
             console.print(f"[red]✗[/red] Authentication failed: {e.message}")
             if e.hint:
@@ -235,6 +242,14 @@ def login_callback(
         console.print(f"[red]Error:[/red] Unsupported provider '{provider}'")
         console.print("[dim]Supported values: builtin, openclaw[/dim]")
         raise typer.Exit(1)
+
+    if not force:
+        try:
+            p, notebook_count = _validate_saved_profile(auth)
+            _print_auth_valid(p, notebook_count)
+            return
+        except NLMError:
+            pass
 
     try:
         from notebooklm_tools.utils.cdp import (

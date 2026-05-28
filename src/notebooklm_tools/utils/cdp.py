@@ -10,6 +10,7 @@ Usage:
 """
 
 import json
+import os
 import platform
 import re
 import shutil
@@ -156,11 +157,17 @@ def _read_port_map() -> dict[str, dict]:
 
 
 def _save_port_map(data: dict[str, dict]) -> None:
-    """Write port map to disk."""
+    """Write port map to disk with restrictive permissions from creation."""
     map_file = _get_port_map_file()
-    try:  # noqa: SIM105
-        map_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        map_file.chmod(0o600)
+    try:
+        fd = os.open(str(map_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except BaseException:
+            os.close(fd)
+            raise
+        with f:
+            json.dump(data, f, indent=2)
     except OSError:
         pass  # Best-effort
 
@@ -684,12 +691,13 @@ def terminate_chrome(process: subprocess.Popen | None = None, port: int | None =
         return False
 
     # Attempt graceful shutdown via CDP to prevent "Restore Pages" warnings on next launch
+    ws_to_close = _cached_ws
     try:
         if port or _cached_ws_url:
             execute_cdp_command(_cached_ws_url or get_debugger_url(_chrome_port), "Browser.close")
-            _cached_ws.close()
+            if ws_to_close:
+                ws_to_close.close()
         else:
-            # No fast path, use slow path
             process.terminate()
     except Exception as _e:
         # SEC-007: log instead of silently swallowing — connection drops during close are expected
@@ -959,8 +967,18 @@ def navigate_to_url(ws_url: str, url: str) -> None:
 
 
 def _is_notebooklm_url(url: str) -> bool:
-    """Check if a URL belongs to any NotebookLM domain (personal or enterprise)."""
-    return "notebooklm.google.com" in url or "notebooklm.cloud.google.com" in url
+    """Check if a URL belongs to a NotebookLM host.
+
+    This must inspect only the hostname. Google sign-in URLs often contain
+    ``continue=https://notebooklm.google.com/...`` in the query string, but
+    those pages are still accounts.google.com pages and should not be treated
+    as NotebookLM tabs.
+    """
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except Exception:
+        return False
+    return host in {"notebooklm.google.com", "notebooklm.cloud.google.com"}
 
 
 def is_logged_in(url: str) -> bool:
@@ -1104,8 +1122,6 @@ def extract_cookies_via_cdp(
     existing_port, debugger_url = None, None
     if not clear_profile:
         existing_port, debugger_url = find_existing_nlm_chrome(profile_name=profile_name)
-        if not debugger_url:
-            existing_port, debugger_url = find_any_existing_cdp_browser()
 
     if existing_port:
         port = existing_port
