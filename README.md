@@ -12,6 +12,32 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.13 — May 2026)
+- **TOCTOU-safe credential file creation (PR #205, @Amy-Ra-lph)** — credential files (`auth.json`, `cookies.json`, `metadata.json`, port map) were previously created with default permissions then `chmod`'d to `0o600`, leaving a brief window where they were world-readable. Now use `os.open()` + `os.fdopen()` so the descriptor is created with `0o600` from the start
+- **Debug log cookie redaction (PR #206)** — sensitive cookie values are redacted from debug log output, preventing accidental token disclosure when `--debug` is enabled
+- **GitHub Actions pinned to full commit SHAs (PR #207, @Amy-Ra-lph)** — all four workflow files now pin `actions/checkout`, `astral-sh/setup-uv`, `pypa/gh-action-pypi-publish`, and `softprops/action-gh-release` to 40-character SHAs, preventing tag-drift supply chain attacks
+- **HTTP/SSE external-bind enforcement** — `notebooklm-mcp --transport http --host 0.0.0.0` (and `sse`) now refuse to start unless `NOTEBOOKLM_ALLOW_EXTERNAL_BIND=1` is set, preventing accidental cookie exposure on untrusted networks
+- **Auth check consistency (PR #203, @derekszen)** — unified MCP and CLI auth status paths under a single `check_auth()` function with a typed `AuthCheckResult` (TDD refactor)
+- **`terminate_chrome()` null-safety + cookie key whitespace handling (PR #205)** — `_cached_ws` reference captured before try block; `.strip()` added to cookie key parsing in `save_auth_tokens`
+- **Exponential backoff for source reconciliation polling** — `_reconcile_source()` now uses 1s → 2s → 4s backoff (capped at 4s) instead of fixed 1s
+- **File path canonicalization for uploads** — `add_file()` now calls `.expanduser().resolve()` so `~/Documents/file.pdf` and symlinks work correctly
+- **`raw_response` removed from `query()` return** — unused field that would otherwise leak raw API response text into future log aggregators
+- **Merge note** — conflict in `save_tokens_to_cache()` (`core/auth.py`): kept local's stricter `cache_path.parent.chmod(0o700)` (SEC-002) **and** adopted upstream's TOCTOU-safe `os.open(..., 0o600)` for the file itself — strictest possible combination
+
+### Upstream sync (v0.6.12 — May 2026)
+- **Netscape cookie parser fixes (PR #199, @pan-long)** — `nlm login --manual` cookie parser fixed: `#HttpOnly_` lines are no longer treated as comments and silently dropped (which dropped `__Secure-1PSIDTS` / `__Secure-3PSIDTS` and caused 401s), empty-value cookies are now parsed as `""` instead of skipped, and tab-containing values are joined defensively. 4 regression tests added
+- **MCP `source_add` docs alignment (PR #197, @Premshay)** — `source_add` tool docstring and global `SKILL.md` now list all 18 supported file types (`PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, JPEG, PNG, GIF, WEBP`); also documents image-source ingestion for the Studio video visual-crop pipeline
+
+### Security scan (May 2026 — v0.6.13)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **0 HIGH / 0 MEDIUM** in target repo — no fixes required
+- **0 secrets** in git history (553 commits, 9.39 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 100 files / 342 rules across configs)
+- **0 dependency vulnerabilities** (Trivy + OSV-Scanner over 89 packages in `uv.lock`)
+- **5 Low (accepted, not fixed)** — Bandit B603/B110 patterns in `utils/cdp.py` (Windows `taskkill` cleanup, hardcoded args, intentional best-effort `except: pass`)
+- **mcp-exfil-scan** — all 11 reported hits are in `~/.claude/skills/*` (user's global Claude config, out of scope per APTS scope-enforcement); 0 findings in target repo
+- **Overall risk posture: Clean** — recent merge actively reduces attack surface (TOCTOU fix, GHA SHA-pinning, external-bind guard, cookie redaction)
+
 ### Upstream sync (v0.6.11 — May 2026)
 - **False-negative errors on `source_add` / `research_import` fixed (Issue #196, @mdshearer)** — NotebookLM reuses gRPC error code `3` for both "accepted-pending" (async processing started) and genuine rejection. A new `_reconcile_source()` helper polls `get_notebook_sources_with_types()` after a code 3/9 error to verify whether the source actually landed — returns success if found, re-raises the original error if not. Also fixes a double-submission bug where v1 (`izAoDd`) URL sources triggered a spurious v2 (`ozz5Z`) call. 12 new unit tests (875 total upstream)
 - **Snap Chromium profile directory fixed (PR #195, @ildella)** — Snap-confined Chromium can only write to `~/snap/<name>/common/`; launching with the old `--user-data-dir` failed with `Exit code 21`. Snap browsers are now detected via `/snap/` in the resolved binary path and redirected to `~/snap/chromium/common/notebooklm-mcp-cli/chrome-profiles/`. Profile lock, headless auth, and cache cleanup are all snap-aware
