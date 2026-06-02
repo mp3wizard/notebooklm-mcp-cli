@@ -15,6 +15,7 @@ import re
 import secrets
 import threading
 import urllib.parse
+from collections import OrderedDict
 from typing import Any
 
 import httpx
@@ -36,6 +37,27 @@ from .utils import (
 # Configure logger (API internals only logged at DEBUG level, usually disabled)
 logger = logging.getLogger("notebooklm_mcp.api")
 logger.setLevel(logging.WARNING)  # Suppress internal API logs by default
+
+
+def _safe_int_env(name: str, default: int) -> int:
+    """Read an integer env var, falling back to `default` if missing or unparseable.
+
+    A value of 0 (or negative, clamped here) means "no cap" for cache-size knobs.
+    Negative values are clamped to 0 and logged so a stray `-1` doesn't silently
+    disable a cap the user thought they had set.
+    """
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("Invalid %s=%r; falling back to default %d", name, raw, default)
+        return default
+    if value < 0:
+        logger.warning("%s=%d is negative; clamping to 0 (no cap)", name, value)
+        return 0
+    return value
 
 
 def _extract_user_message(detail_data: Any, _depth: int = 0) -> str:
@@ -320,9 +342,21 @@ class BaseClient:
         self._bl = build_label
         self._created_at: float = _time.time()
 
-        # Conversation cache for follow-up queries
-        # Key: conversation_id, Value: list of ConversationTurn objects
-        self._conversation_cache: dict[str, list[ConversationTurn]] = {}
+        # Conversation cache for follow-up queries.
+        # Key: conversation_id, Value: list of ConversationTurn objects.
+        #
+        # Bounded to prevent unbounded memory growth in long-lived MCP server
+        # processes (Issue #213). The dict itself is an OrderedDict for LRU
+        # eviction; per-conversation turn lists are FIFO-trimmed. See
+        # `_cache_conversation_turn` for the actual caps and eviction logic.
+        self._max_turns_per_conversation = _safe_int_env(
+            "NOTEBOOKLM_CONVERSATION_MAX_TURNS", default=50
+        )
+        self._max_conversations = _safe_int_env("NOTEBOOKLM_CONVERSATION_MAX_CONVS", default=500)
+        self._max_chars_per_turn = _safe_int_env(
+            "NOTEBOOKLM_CONVERSATION_MAX_CHARS_PER_TURN", default=100_000
+        )
+        self._conversation_cache: OrderedDict[str, list[ConversationTurn]] = OrderedDict()
 
         # Request counter for _reqid parameter (required for query endpoint)
         # SEC-006: Use secrets module instead of random for unpredictable counter seed

@@ -10,8 +10,8 @@ import typer
 from rich.console import Console
 
 from notebooklm_tools import __version__
-from notebooklm_tools.core.auth import AuthManager
 from notebooklm_tools.core.client import NotebookLMClient
+from notebooklm_tools.services.auth import AuthManager
 from notebooklm_tools.utils.config import get_config, get_storage_dir
 
 

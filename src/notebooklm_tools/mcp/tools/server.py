@@ -49,10 +49,10 @@ def _check_auth_status() -> str:
     """Return the classic string status used by server_info.
 
     This is now a trivial, elegant wrapper around the single source of truth
-    (`check_auth` in core/auth.py). All the real logic + tests live there.
+    (`check_auth` in services/auth.py). All the real logic + tests live there.
     """
     try:
-        from notebooklm_tools.core.auth import check_auth
+        from notebooklm_tools.services.auth import check_auth
 
         res = check_auth(live=True)
 

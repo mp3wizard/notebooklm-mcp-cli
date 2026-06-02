@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.15] - 2026-06-01
+
+### Fixed
+
+- **Auth-guard stale-TTL window when tokens change on disk during the cached period** — The 60s auth-guard introduced in 0.6.14 cached the "auth is valid" result for 60s. If you ran `nlm login` (or any flow that rewrote the auth file) during that window, the guard would still report valid and your server would use the stale tokens until the TTL elapsed. Fixed by `services.auth.get_active_auth_mtime()`: the guard now records the latest mtime of the active auth storage (the legacy `auth.json` plus every `cookies.json` under `profiles/`) and invalidates the cache when any of them changes. A write to ANY profile's file invalidates the guard, regardless of which profile the CLI/MCP session is using. 5 new tests cover modern profile layout, legacy fallback, mid-migration (both files exist), fresh install (no files), and config-error defensiveness.
+
+- **Auth-guard mtime check was watching the wrong file (caught by live testing)** — The first iteration of the mtime fix only watched the config's `default_profile`'s `cookies.json`. But the active profile for a CLI/MCP session can be overridden with `--profile`, while the config-level `default_profile` stays put. If you ran `nlm login --profile <other>` externally, the active profile's `cookies.json` would be rewritten but the guard never saw it. The fix above resolves this by globbing all `profiles/*/cookies.json` files. Live testing against a real Chrome login + real NotebookLM API confirmed the fix.
+
+### Changed
+
+- **`services/auth.py` is now a full shim, not a single-symbol re-export** — The 0.6.14 release added `services/auth.py` to route `check_auth` through the services layer. This release extends it to cover all 6 auth symbols that the cli/ and mcp/ layers were importing directly from `core/`: `check_auth`, `load_cached_tokens`, `save_tokens_to_cache`, `get_cache_path`, `validate_cookies`, plus the two class symbols `AuthTokens` and `AuthManager` via PEP 562 `__getattr__`. The shim is a thin layer with no business logic of its own; behavior is unchanged. The only remaining direct `core.auth` import in cli/ or mcp/ is in `utils/cdp.py`, which has a circular-import guard and is explicitly outside the layering rule's scope.
+
+## [0.6.14] - 2026-06-01
+
+### Fixed
+
+- **`nlm login` crash on fully expired auth (PR #211 / Issue #210)** — When the stored Google session/cookies were fully expired, `_validate_saved_profile()` raised `ClientAuthenticationError`, which does **not** inherit from `NLMError`. The `except NLMError:` clause in `login_callback` missed it, so the exception bubbled up to `cli_main()` and exited the process before ever launching Chrome for interactive sign-in. Users had to manually delete all profiles as a workaround. Fixed by also catching `ClientAuthenticationError` in the validation catch. Thanks to **@insane66613** for the fix!
+- **MCP silent auth/studio failures (PR #212)** — Three related silent-failure bugs in the MCP server under stale/expired auth:
+    1. `refresh_auth()` returned `status: "success"` after reloading dead tokens from disk. A disk reload is not a successful re-auth — now runs `check_auth(live=True)` after the reload and returns `status: "expired"` with an actionable `nlm login` hint if tokens are dead.
+    2. `studio_create()` had no pre-flight auth check, so it returned `status: "success"` with an `artifact_id` that failed seconds later — sending agents into pointless polling loops. Now runs `check_auth(live=True)` after the network-free confirmation preview and artifact-type validation; invalid auth returns `status: "error"` with an `nlm login` hint before any doomed request is fired.
+    3. `studio_status()` surfaced `status: "failed"` artifacts with every other field `null` and no reason, so callers had no way to know why. The raw gRPC payload carries no error string, so `get_studio_status()` now synthesizes a non-null `error_reason` for failed artifacts while preferring any real `error_reason` / `failure_reason` / `failure_code` / `error` key if a future API version exposes one. 12 new tests cover the full matrix (one is parametrized with 4 cases). Thanks to **@idankatz64-commits** for the comprehensive PR and tests!
+    - The pre-flight `check_auth(live=True)` adds ~1 homepage fetch on the `confirm=True` path of `studio_create` and on every `refresh_auth`. A network-free preview path is preserved for `confirm=False`.
+
+### Changed
+
+- **`ArtifactInfo` gains an optional `error_reason` field** — Returned by the MCP `studio_status` tool. `None` for healthy artifacts; a synthesized string for failed artifacts (with a hint to re-check auth); verbatim from the API if a real `error_reason`/`failure_reason`/`failure_code`/`error` key is present. Backward-compatible: existing callers that only inspect `status` are unaffected.
+- **Bounded in-process conversation history cache (Issue #213)** — The in-process cache of conversation history used to grow without bound, so a long-lived MCP server (typical for an always-on assistant) eventually OOM'd the host. The cache is now bounded by three new env-var knobs (set any to `0` to disable that specific cap):
+    - `NOTEBOOKLM_CONVERSATION_MAX_TURNS` (default `50`) — max turns kept per conversation. Older turns are FIFO-dropped; survivors are renumbered `1..N` so `turn_number` stays a stable 1-indexed position in the current list.
+    - `NOTEBOOKLM_CONVERSATION_MAX_CONVS` (default `500`) — max distinct conversations cached. On overflow, the least-recently-used conversation is evicted. Writes and reads both promote to MRU.
+    - `NOTEBOOKLM_CONVERSATION_MAX_CHARS_PER_TURN` (default `100000`) — per-turn answer character cap as a safety net against pathological payloads. Queries are user input and not truncated.
+    - Public introspection: `get_conversation_cache_stats()` returns `{conversations, total_turns, max_turns_per_conversation, max_conversations, max_chars_per_turn}`.
+    - 13 new tests cover defaults, env-var overrides, invalid-fallback, `0`=unlimited, negative-clamp-to-zero, FIFO trim with renumber, LRU eviction on insert, LRU promotion on read, LRU promotion on write, LRU promotion when migrating to a pre-existing key, answer truncation, stats accuracy, and clear compatibility.
+    - The `--stateless` flag and `NOTEBOOKLM_MCP_STATELESS` env var continue to control the MCP HTTP transport layer only — they do not affect this cache.
+
 ## [0.6.13] - 2026-05-27
 
 ### Security

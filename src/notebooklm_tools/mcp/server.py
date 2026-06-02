@@ -167,7 +167,13 @@ Examples:
         "--stateless",
         action=argparse.BooleanOptionalAction,
         default=_env_bool("NOTEBOOKLM_MCP_STATELESS", default=True),
-        help="Stateless HTTP sessions (default: true). Avoids MCP SDK double-response crash (python-sdk#2416)",
+        help=(
+            "Stateless HTTP sessions (default: true). Avoids MCP SDK double-response crash "
+            "(python-sdk#2416). NOTE: this affects the MCP HTTP transport layer only — "
+            "it does NOT control the in-process conversation history cache. To bound the "
+            "conversation cache (e.g. for long-lived servers), set "
+            "NOTEBOOKLM_CONVERSATION_MAX_TURNS / NOTEBOOKLM_CONVERSATION_MAX_CONVS."
+        ),
     )
     parser.add_argument(
         "--debug",

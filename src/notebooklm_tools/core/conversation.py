@@ -83,7 +83,12 @@ class ConversationMixin(BaseClient):
             List in Chrome's expected format, or None if no history exists
         """
         with self._state_lock:
-            turns = list(self._conversation_cache.get(conversation_id, []))
+            if conversation_id in self._conversation_cache:
+                # Mark as recently used for LRU eviction.
+                self._conversation_cache.move_to_end(conversation_id)
+                turns = list(self._conversation_cache[conversation_id])
+            else:
+                turns = []
         if not turns:
             return None
 
@@ -97,14 +102,59 @@ class ConversationMixin(BaseClient):
         return history if history else None
 
     def _cache_conversation_turn(self, conversation_id: str, query: str, answer: str) -> None:
-        """Cache a conversation turn for future follow-up queries."""
+        """Cache a conversation turn for future follow-up queries.
+
+        The cache is bounded (Issue #213) so long-lived MCP server processes don't
+        grow without bound:
+        - Each conversation keeps only the last `_max_turns_per_conversation` turns
+          (FIFO; oldest dropped first). Turn numbers are preserved from the
+          original sequence, so the surviving turns keep their original indices.
+        - The whole dict is LRU-bounded to `_max_conversations` conversations. On
+          overflow, the least-recently-used conversation is evicted.
+        - Each turn's answer is truncated to `_max_chars_per_turn` characters as a
+          safety net against pathological payloads.
+
+        Set any knob to 0 in the constructor's env vars to disable that specific
+        cap (useful for tests).
+        """
         with self._state_lock:
+            # Per-turn answer truncation (safety net; queries are user input and
+            # not truncated).
+            if self._max_chars_per_turn > 0 and len(answer) > self._max_chars_per_turn:
+                answer = answer[: self._max_chars_per_turn]
+
             if conversation_id not in self._conversation_cache:
+                # New conversation — evict LRU first if at capacity.
+                if (
+                    self._max_conversations > 0
+                    and len(self._conversation_cache) >= self._max_conversations
+                ):
+                    self._conversation_cache.popitem(last=False)
                 self._conversation_cache[conversation_id] = []
+            else:
+                # Existing conversation — mark as recently used.
+                self._conversation_cache.move_to_end(conversation_id)
 
             turn_number = len(self._conversation_cache[conversation_id]) + 1
             turn = ConversationTurn(query=query, answer=answer, turn_number=turn_number)
             self._conversation_cache[conversation_id].append(turn)
+
+            # Per-conversation turn list trim (FIFO from the front). Renumber
+            # survivors so `turn_number` always means "1-indexed position in the
+            # current list" (matches the original unbounded-cache semantics from
+            # the caller's perspective).
+            if (
+                self._max_turns_per_conversation > 0
+                and len(self._conversation_cache[conversation_id])
+                > self._max_turns_per_conversation
+            ):
+                kept = self._conversation_cache[conversation_id][
+                    -self._max_turns_per_conversation :
+                ]
+                self._conversation_cache[conversation_id] = [
+                    ConversationTurn(query=t.query, answer=t.answer, turn_number=i)
+                    for i, t in enumerate(kept, start=1)
+                ]
 
     def clear_conversation(self, conversation_id: str) -> bool:
         """Clear the conversation cache for a specific conversation."""
@@ -117,11 +167,35 @@ class ConversationMixin(BaseClient):
     def get_conversation_history(self, conversation_id: str) -> list[dict[str, str | int]] | None:
         """Get the conversation history for a specific conversation."""
         with self._state_lock:
-            turns = list(self._conversation_cache.get(conversation_id, []))
+            if conversation_id in self._conversation_cache:
+                self._conversation_cache.move_to_end(conversation_id)
+                turns = list(self._conversation_cache[conversation_id])
+            else:
+                turns = []
         if not turns:
             return None
 
         return [{"turn": t.turn_number, "query": t.query, "answer": t.answer} for t in turns]
+
+    def get_conversation_cache_stats(self) -> dict[str, int]:
+        """Return introspection stats about the bounded conversation cache.
+
+        Useful for debugging, tests, and exposing memory pressure via tooling.
+
+        Note: `conversations` and `total_turns` are captured under the lock; the
+        cap fields are immutable post-init, so the small window between release
+        and dict construction is harmless.
+        """
+        with self._state_lock:
+            conv_count = len(self._conversation_cache)
+            total_turns = sum(len(turns) for turns in self._conversation_cache.values())
+        return {
+            "conversations": conv_count,
+            "total_turns": total_turns,
+            "max_turns_per_conversation": self._max_turns_per_conversation,
+            "max_conversations": self._max_conversations,
+            "max_chars_per_turn": self._max_chars_per_turn,
+        }
 
     def get_conversation_id(self, notebook_id: str) -> str | None:
         """Fetch the persistent conversation ID for a notebook from the server.
@@ -308,11 +382,15 @@ class ConversationMixin(BaseClient):
         # returns its own conversation ID which tracks the chat across sessions.
         if server_conv_id and server_conv_id != conversation_id:
             with self._state_lock:
-                # Migrate local cache to the server-assigned ID
+                # Migrate local cache to the server-assigned ID. Use
+                # move_to_end unconditionally so the migrated key is at MRU
+                # even if server_conv_id was already in the cache (in which
+                # case the assignment doesn't reorder it on its own).
                 if conversation_id in self._conversation_cache:
                     self._conversation_cache[server_conv_id] = self._conversation_cache.pop(
                         conversation_id
                     )
+                self._conversation_cache.move_to_end(server_conv_id)
             conversation_id = server_conv_id
 
         # Cache this turn for future follow-ups (only if we got an answer)

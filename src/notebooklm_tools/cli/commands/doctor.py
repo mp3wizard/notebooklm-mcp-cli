@@ -101,7 +101,7 @@ def _check_authentication(verbose: bool) -> bool:
     console.print("[bold]Authentication[/bold]")
     ok = True
 
-    from notebooklm_tools.core.auth import AuthManager
+    from notebooklm_tools.services.auth import AuthManager
     from notebooklm_tools.utils.config import get_config
 
     config = get_config()

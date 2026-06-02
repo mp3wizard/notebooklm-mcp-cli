@@ -262,12 +262,165 @@ class TestConversationMixinMethods:
         assert result == []
 
     def test_extract_source_ids_from_notebook_handles_empty_list(self):
-        """Test that _extract_source_ids_from_notebook handles empty list."""
+        """Test that _extract_source_ids_from_notebook handles empty list input."""
         mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
 
         result = mixin._extract_source_ids_from_notebook([])
 
         assert result == []
+
+
+class TestBoundedConversationCache:
+    """Issue #213: bounded cache to prevent OOM in long-lived MCP server processes."""
+
+    def test_defaults_applied(self):
+        """Defaults match the design (50/500/100k)."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        stats = mixin.get_conversation_cache_stats()
+        assert stats["max_turns_per_conversation"] == 50
+        assert stats["max_conversations"] == 500
+        assert stats["max_chars_per_turn"] == 100_000
+        assert stats["conversations"] == 0
+        assert stats["total_turns"] == 0
+
+    def test_env_var_overrides(self, monkeypatch):
+        """Each env var overrides the default and is exposed in stats."""
+        monkeypatch.setenv("NOTEBOOKLM_CONVERSATION_MAX_TURNS", "7")
+        monkeypatch.setenv("NOTEBOOKLM_CONVERSATION_MAX_CONVS", "3")
+        monkeypatch.setenv("NOTEBOOKLM_CONVERSATION_MAX_CHARS_PER_TURN", "42")
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        stats = mixin.get_conversation_cache_stats()
+        assert stats["max_turns_per_conversation"] == 7
+        assert stats["max_conversations"] == 3
+        assert stats["max_chars_per_turn"] == 42
+
+    def test_invalid_env_falls_back_to_default(self, monkeypatch, caplog):
+        """Unparseable env values fall back to the default and warn."""
+        monkeypatch.setenv("NOTEBOOKLM_CONVERSATION_MAX_TURNS", "not-a-number")
+        with caplog.at_level("WARNING", logger="notebooklm_mcp.api"):
+            mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        assert mixin._max_turns_per_conversation == 50
+        assert "NOTEBOOKLM_CONVERSATION_MAX_TURNS" in caplog.text
+
+    def test_zero_disables_cap(self, monkeypatch):
+        """0 means 'unlimited' for any cap."""
+        monkeypatch.setenv("NOTEBOOKLM_CONVERSATION_MAX_TURNS", "0")
+        monkeypatch.setenv("NOTEBOOKLM_CONVERSATION_MAX_CONVS", "0")
+        monkeypatch.setenv("NOTEBOOKLM_CONVERSATION_MAX_CHARS_PER_TURN", "0")
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        for i in range(100):
+            mixin._cache_conversation_turn("c1", query=f"q{i}", answer=f"a{i}")
+        assert len(mixin._conversation_cache["c1"]) == 100
+        # And a giant answer is not truncated.
+        mixin._cache_conversation_turn("c2", query="q", answer="x" * 1_000_000)
+        assert len(mixin._conversation_cache["c2"][-1].answer) == 1_000_000
+
+    def test_per_conversation_turn_cap_trims_fifo(self):
+        """Per-conv list is FIFO-trimmed from the front when over cap, and
+        survivors are renumbered 1..N so `turn_number` stays a stable
+        1-indexed position in the current list."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._max_turns_per_conversation = 3
+        for i in range(5):
+            mixin._cache_conversation_turn("c1", query=f"q{i}", answer=f"a{i}")
+        turns = mixin._conversation_cache["c1"]
+        assert len(turns) == 3
+        # Survivors are the LAST 3 inserts: q2, q3, q4. turn_number is
+        # renumbered to 1..N after trim.
+        assert [t.query for t in turns] == ["q2", "q3", "q4"]
+        assert [t.turn_number for t in turns] == [1, 2, 3]
+
+    def test_global_conversation_cap_evicts_lru(self):
+        """When the dict is at cap, inserting a new conv evicts the LRU one."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._max_conversations = 2
+        mixin._cache_conversation_turn("a", query="qa", answer="aa")
+        mixin._cache_conversation_turn("b", query="qb", answer="ab")
+        # Touch 'a' to make it MRU; 'b' is now LRU.
+        mixin.get_conversation_history("a")
+        mixin._cache_conversation_turn("c", query="qc", answer="ac")
+        assert set(mixin._conversation_cache.keys()) == {"a", "c"}
+        assert mixin._conversation_cache["c"][-1].query == "qc"
+
+    def test_lru_promotes_on_cache_write(self):
+        """Writing a new turn to an existing conv promotes it to MRU."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._max_conversations = 2
+        mixin._cache_conversation_turn("a", query="qa", answer="aa")
+        mixin._cache_conversation_turn("b", query="qb", answer="ab")
+        # Write to 'a' — should promote it, making 'b' LRU.
+        mixin._cache_conversation_turn("a", query="qa2", answer="aa2")
+        mixin._cache_conversation_turn("c", query="qc", answer="ac")
+        assert set(mixin._conversation_cache.keys()) == {"a", "c"}
+        assert mixin._conversation_cache["a"][-1].query == "qa2"
+
+    def test_lru_promotes_on_read(self):
+        """Reading a conversation via _build_conversation_history promotes it."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._max_conversations = 2
+        mixin._cache_conversation_turn("a", query="qa", answer="aa")
+        mixin._cache_conversation_turn("b", query="qb", answer="ab")
+        # Read 'a' — should promote it; 'b' becomes LRU.
+        mixin._build_conversation_history("a")
+        mixin._cache_conversation_turn("c", query="qc", answer="ac")
+        assert set(mixin._conversation_cache.keys()) == {"a", "c"}
+
+    def test_answer_truncated_when_over_char_cap(self):
+        """Long answers are truncated to max_chars_per_turn."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._max_chars_per_turn = 10
+        mixin._cache_conversation_turn("c1", query="q", answer="x" * 1_000)
+        assert mixin._conversation_cache["c1"][-1].answer == "x" * 10
+        # Query is never truncated.
+        assert mixin._conversation_cache["c1"][-1].query == "q"
+
+    def test_stats_reflect_cache_contents(self):
+        """Stats count conversations and total turns accurately."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._max_turns_per_conversation = 5
+        mixin._max_conversations = 5
+        for cid in ("a", "b", "c"):
+            for i in range(2):
+                mixin._cache_conversation_turn(cid, query=f"q{i}", answer=f"a{i}")
+        stats = mixin.get_conversation_cache_stats()
+        assert stats["conversations"] == 3
+        assert stats["total_turns"] == 6
+
+    def test_clear_conversation_still_works(self):
+        """Clearing a conversation is independent of the new caps."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._cache_conversation_turn("c1", query="q", answer="a")
+        assert mixin.clear_conversation("c1") is True
+        assert "c1" not in mixin._conversation_cache
+        assert mixin.get_conversation_cache_stats()["conversations"] == 0
+
+    def test_negative_env_clamps_to_zero(self, monkeypatch, caplog):
+        """A negative env value is clamped to 0 and warned about, so a stray
+        -1 doesn't silently disable a cap the user thought they had set."""
+        monkeypatch.setenv("NOTEBOOKLM_CONVERSATION_MAX_TURNS", "-7")
+        with caplog.at_level("WARNING", logger="notebooklm_mcp.api"):
+            mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        assert mixin._max_turns_per_conversation == 0
+        assert "clamping to 0" in caplog.text
+
+    def test_query_migrates_lru_when_target_already_exists(self, monkeypatch):
+        """When the server returns a conv_id already in the cache, the migrated
+        entry is promoted to MRU — not left at its old LRU position from the
+        previous use of that key."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._max_conversations = 2
+        # Pre-populate with two convs; "old" is LRU because "new" was inserted last.
+        mixin._cache_conversation_turn("old", query="qo", answer="ao")
+        mixin._cache_conversation_turn("new", query="qn", answer="an")
+        assert list(mixin._conversation_cache.keys()) == ["old", "new"]
+
+        # Simulate the migration: the local id gets moved to "new" which
+        # already exists. After move_to_end, "new" must be at MRU.
+        with mixin._state_lock:
+            if "old" in mixin._conversation_cache:
+                mixin._conversation_cache["new"] = mixin._conversation_cache.pop("old")
+            mixin._conversation_cache.move_to_end("new")
+        assert list(mixin._conversation_cache.keys()) == ["new"]
 
 
 class TestErrorDetection:
