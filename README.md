@@ -12,6 +12,25 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.6.15 — June 2026)
+- **`nlm login` crash on expired auth fixed (PR #211, @insane66613)** — when stored Google session was fully expired, `_validate_saved_profile()` raised `ClientAuthenticationError` (not `NLMError`), which bypassed the `except NLMError:` clause and exited before Chrome could launch for interactive sign-in. Fixed by also catching `ClientAuthenticationError` in `login_callback`
+- **MCP silent auth/studio failures fixed (PR #212, @idankatz64-commits)** — three related silent-failure bugs under stale auth: (1) `refresh_auth()` returned `status: "success"` after reloading dead tokens (now runs live check + returns `"expired"` with `nlm login` hint); (2) `studio_create()` had no pre-flight auth check, returned `status: "success"` with a doomed artifact_id (now checks auth before firing); (3) `studio_status()` surfaced `status: "failed"` with all fields null (now synthesizes a non-null `error_reason`). 12 new tests
+- **Bounded in-process conversation history cache (Issue #213)** — long-lived MCP servers would OOM due to unbounded conversation cache. Now bounded by three env-var knobs: `NOTEBOOKLM_CONVERSATION_MAX_TURNS` (default 50), `NOTEBOOKLM_CONVERSATION_MAX_CONVS` (default 500), `NOTEBOOKLM_CONVERSATION_MAX_CHARS_PER_TURN` (default 100k). FIFO trim with renumber, LRU eviction. 13 new tests
+- **Auth-guard stale-TTL window fixed** — auth-guard now records mtime of all `profiles/*/cookies.json` files and invalidates the 60s cache when any of them changes (not just the config-default profile). Fixes stale auth when `nlm login --profile <other>` is run externally. 5 new tests
+- **Services layer is now a full auth shim** — all 6 auth symbols (`check_auth`, `load_cached_tokens`, `save_tokens_to_cache`, `get_cache_path`, `validate_cookies`, `AuthTokens`, `AuthManager`) route through `services/auth.py` shim; cli/ and mcp/ no longer import directly from `core/`
+- **`ArtifactInfo` gains `error_reason` field** — `None` for healthy artifacts; synthesized string for failed artifacts; verbatim from API if future API version exposes one. Backward-compatible
+- **Auth check cache in studio** — `studio_create()` caches the auth check result to avoid per-call HTTP roundtrip overhead
+
+### Security scan (June 2026 — v0.6.15)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **0 HIGH / 0 MEDIUM** in project source — no fixes required
+- **0 secrets** in git history (567 commits, 9.48 MB; Gitleaks + TruffleHog verified, 0 verified/unverified)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 101–149 files / 342 rules)
+- **0 dependency vulnerabilities** (Trivy + OSV-Scanner over 89 packages in `uv.lock`)
+- **Bandit High findings**: all 22 in `.venv/` third-party libs (authlib, cryptography, dns, requests) — not project source
+- **mcp-exfil-scan / mcps-audit / config-audit**: all flagged findings are false positives — self-referential patterns in security scanner tools or user's global Claude config (out of project scope per APTS)
+- **Overall risk posture: Clean** ✅
+
 ### Upstream sync (v0.6.13 — May 2026)
 - **TOCTOU-safe credential file creation (PR #205, @Amy-Ra-lph)** — credential files (`auth.json`, `cookies.json`, `metadata.json`, port map) were previously created with default permissions then `chmod`'d to `0o600`, leaving a brief window where they were world-readable. Now use `os.open()` + `os.fdopen()` so the descriptor is created with `0o600` from the start
 - **Debug log cookie redaction (PR #206)** — sensitive cookie values are redacted from debug log output, preventing accidental token disclosure when `--debug` is enabled
