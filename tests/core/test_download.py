@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Tests for DownloadMixin."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
 import pytest
 
 from notebooklm_tools.core.base import BaseClient
 from notebooklm_tools.core.download import DownloadMixin
+from notebooklm_tools.core.errors import ArtifactDownloadError
 
 
 class TestDownloadMixinImport:
@@ -66,6 +68,34 @@ class TestDownloadMixinImport:
 
 class TestDownloadMixinMethods:
     """Test DownloadMixin method behavior."""
+
+    def _audio_artifact(self, url: str) -> list:
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        return [
+            "art-1",
+            "Audio",
+            mixin.STUDIO_TYPE_AUDIO,
+            [],
+            2,
+            None,
+            [
+                None,
+                ["", 2, None, [["src-1"]], "en", True, 1],
+                "https://example.com/thumb",
+                "https://example.com/thumb-dv",
+                None,
+                [[url, 4, "audio/mp4"]],
+                [],
+            ],
+        ]
+
+    def _download_error(self, status_code: int, final_url: str) -> ArtifactDownloadError:
+        request = httpx.Request("GET", final_url)
+        response = httpx.Response(status_code, request=request)
+        cause = httpx.HTTPStatusError("download failed", request=request, response=response)
+        error = ArtifactDownloadError("file", details="HTTP error")
+        error.__cause__ = cause
+        return error
 
     def test_extract_cell_text_handles_none(self):
         """Test that _extract_cell_text handles None input."""
@@ -171,6 +201,72 @@ class TestDownloadMixinMethods:
             "/tmp/audio.m4a",
             None,
         )
+
+    @pytest.mark.asyncio
+    async def test_download_audio_retries_transient_google_media_404(self):
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        first_url = "https://lh3.googleusercontent.com/notebooklm/audio=m140-dv"
+        second_url = "https://lh3.googleusercontent.com/notebooklm/audio2=m140-dv"
+        retryable_error = self._download_error(
+            404,
+            "https://lh3.googleusercontent.com/rd-notebooklm/audio=s512-m140-dv",
+        )
+
+        mixin._list_raw = Mock(
+            side_effect=[
+                [self._audio_artifact(first_url)],
+                [self._audio_artifact(second_url)],
+            ]
+        )
+        mixin._download_url = AsyncMock(side_effect=[retryable_error, "/tmp/audio.m4a"])
+        mixin._AUDIO_DOWNLOAD_RETRY_DELAYS = (0,)
+
+        result = await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")
+
+        assert result == "/tmp/audio.m4a"
+        assert mixin._list_raw.call_count == 2
+        mixin._download_url.assert_any_await(first_url, "/tmp/audio.m4a", None)
+        mixin._download_url.assert_any_await(second_url, "/tmp/audio.m4a", None)
+
+    @pytest.mark.asyncio
+    async def test_download_audio_does_not_retry_unrelated_404(self):
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        url = "https://lh3.googleusercontent.com/notebooklm/audio=m140-dv"
+        non_retryable_error = self._download_error(
+            404,
+            "https://example.com/not-found",
+        )
+
+        mixin._list_raw = Mock(return_value=[self._audio_artifact(url)])
+        mixin._download_url = AsyncMock(side_effect=non_retryable_error)
+        mixin._AUDIO_DOWNLOAD_RETRY_DELAYS = (0,)
+
+        with pytest.raises(ArtifactDownloadError) as exc_info:
+            await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")
+
+        assert exc_info.value is non_retryable_error
+        assert mixin._list_raw.call_count == 1
+        mixin._download_url.assert_awaited_once_with(url, "/tmp/audio.m4a", None)
+
+    @pytest.mark.asyncio
+    async def test_download_audio_reports_propagation_after_retry_exhaustion(self):
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        url = "https://lh3.googleusercontent.com/notebooklm/audio=m140-dv"
+        retryable_error = self._download_error(
+            404,
+            "https://lh3.googleusercontent.com/rd-notebooklm/audio=s512-m140-dv",
+        )
+
+        mixin._list_raw = Mock(return_value=[self._audio_artifact(url)])
+        mixin._download_url = AsyncMock(side_effect=retryable_error)
+        mixin._AUDIO_DOWNLOAD_RETRY_DELAYS = (0,)
+
+        with pytest.raises(ArtifactDownloadError) as exc_info:
+            await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")
+
+        assert "still propagating" in exc_info.value.details
+        assert mixin._list_raw.call_count == 2
+        assert mixin._download_url.await_count == 2
 
 
 class TestDownloadUrlCookies:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Download operations mixin for NotebookLM client."""
 
+import asyncio
 import csv
 import html as html_module
 import json
@@ -8,6 +9,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -37,6 +39,9 @@ class DownloadMixin(BaseClient):
     - Quiz (JSON/Markdown/HTML)
     - Flashcards (JSON/Markdown/HTML)
     """
+
+    _AUDIO_DOWNLOAD_RETRY_DELAYS = (5, 10, 20, 30, 45, 60, 60)
+    _GOOGLE_MEDIA_DOWNLOAD_HOSTS = {"lh3.googleusercontent.com", "lh3.google.com"}
 
     # =========================================================================
     # Core Download Infrastructure
@@ -79,6 +84,21 @@ class DownloadMixin(BaseClient):
         status_code = artifact[4]
         return status_code == 3 or (
             status_code == 2 and self._audio_artifact_has_media_urls(artifact)
+        )
+
+    def _is_transient_audio_media_404(self, url: str, error: ArtifactDownloadError) -> bool:
+        cause = error.__cause__
+        if not isinstance(cause, httpx.HTTPStatusError):
+            return False
+        if cause.response.status_code != 404:
+            return False
+
+        original_host = urlparse(url).hostname
+        final_url = urlparse(str(cause.response.url))
+        return (
+            original_host in self._GOOGLE_MEDIA_DOWNLOAD_HOSTS
+            and final_url.hostname in self._GOOGLE_MEDIA_DOWNLOAD_HOSTS
+            and final_url.path.startswith("/rd-notebooklm/")
         )
 
     async def _download_url(
@@ -261,61 +281,88 @@ class DownloadMixin(BaseClient):
         Returns:
             The output path.
         """
-        artifacts = self._list_raw(notebook_id)
-
-        # Filter for ready audio artifacts. Some completed audio payloads use
-        # status code 2 while already exposing media URLs.
-        candidates = [a for a in artifacts if self._is_audio_artifact_ready(a)]
-
-        if not candidates:
-            raise ArtifactNotReadyError("audio")
-
-        target = None
-        if artifact_id:
-            target = next((a for a in candidates if a[0] == artifact_id), None)
-            if not target:
-                raise ArtifactNotReadyError("audio", artifact_id)
-        else:
-            target = candidates[0]
-
-        # Extract URL from metadata[6][5]
         try:
-            metadata = target[6]
-            if not isinstance(metadata, list) or len(metadata) <= 5:
-                raise ArtifactParseError("audio", details="Invalid audio metadata structure")
 
-            media_list = metadata[5]
-            if not isinstance(media_list, list) or len(media_list) == 0:
-                raise ArtifactParseError("audio", details="No media URLs found in metadata")
+            def select_target() -> list[Any]:
+                artifacts = self._list_raw(notebook_id)
 
-            # Look for a downloadable audio/mp4 URL.
-            # Google's media list contains multiple entries:
-            #   =m140-dv  (priority 4, "download variant" — fast CDN via drum.usercontent.google.com)
-            #   =m140     (priority 1, streaming transcode — slow CDN via googlevideo.com)
-            # Prefer the "-dv" variant which is the intended download endpoint.
-            url = None
-            for item in media_list:
-                if isinstance(item, list) and len(item) > 2 and item[2] == "audio/mp4":
-                    candidate = item[0]
-                    if isinstance(candidate, str) and candidate.endswith("-dv"):
-                        url = candidate
-                        break
+                # Filter for ready audio artifacts. Some completed audio payloads use
+                # status code 2 while already exposing media URLs.
+                candidates = [a for a in artifacts if self._is_audio_artifact_ready(a)]
 
-            # Fallback: any audio/mp4 URL
-            if not url:
+                if not candidates:
+                    raise ArtifactNotReadyError("audio")
+
+                if artifact_id:
+                    target = next((a for a in candidates if a[0] == artifact_id), None)
+                    if not target:
+                        raise ArtifactNotReadyError("audio", artifact_id)
+                    return target
+                return candidates[0]
+
+            def select_url(target: list[Any]) -> str:
+                # Extract URL from metadata[6][5]
+                metadata = target[6]
+                if not isinstance(metadata, list) or len(metadata) <= 5:
+                    raise ArtifactParseError("audio", details="Invalid audio metadata structure")
+
+                media_list = metadata[5]
+                if not isinstance(media_list, list) or len(media_list) == 0:
+                    raise ArtifactParseError("audio", details="No media URLs found in metadata")
+
+                # Look for a downloadable audio/mp4 URL.
+                # Google's media list contains multiple entries:
+                #   =m140-dv  (priority 4, "download variant" — fast CDN via drum.usercontent.google.com)
+                #   =m140     (priority 1, streaming transcode — slow CDN via googlevideo.com)
+                # Prefer the "-dv" variant which is the intended download endpoint.
+                url = None
                 for item in media_list:
                     if isinstance(item, list) and len(item) > 2 and item[2] == "audio/mp4":
-                        url = item[0]
-                        break
+                        candidate = item[0]
+                        if isinstance(candidate, str) and candidate.endswith("-dv"):
+                            url = candidate
+                            break
 
-            # Last resort: first URL regardless of type
-            if not url and len(media_list) > 0 and isinstance(media_list[0], list):
-                url = media_list[0][0]
+                # Fallback: any audio/mp4 URL
+                if not url:
+                    for item in media_list:
+                        if isinstance(item, list) and len(item) > 2 and item[2] == "audio/mp4":
+                            url = item[0]
+                            break
 
-            if not url:
-                raise ArtifactDownloadError("audio", details="No download URL found")
+                # Last resort: first URL regardless of type
+                if not url and len(media_list) > 0 and isinstance(media_list[0], list):
+                    url = media_list[0][0]
 
-            return await self._download_url(url, output_path, progress_callback)
+                if not url:
+                    raise ArtifactDownloadError("audio", details="No download URL found")
+                return url
+
+            target = select_target()
+            url = select_url(target)
+
+            for attempt in range(len(self._AUDIO_DOWNLOAD_RETRY_DELAYS) + 1):
+                try:
+                    return await self._download_url(url, output_path, progress_callback)
+                except ArtifactDownloadError as e:
+                    if not self._is_transient_audio_media_404(url, e):
+                        raise
+                    if attempt == len(self._AUDIO_DOWNLOAD_RETRY_DELAYS):
+                        raise ArtifactDownloadError(
+                            "audio",
+                            details="media download URL is still propagating; retry in a few minutes",
+                        ) from e
+
+                    delay = self._AUDIO_DOWNLOAD_RETRY_DELAYS[attempt]
+                    logger.warning(
+                        f"Audio media URL returned 404 while propagating; "
+                        f"retrying in {delay:.0f}s..."
+                    )
+                    await asyncio.sleep(delay)
+                    target = select_target()
+                    url = select_url(target)
+
+            raise ArtifactDownloadError("audio", details="No download URL found")
 
         except (IndexError, TypeError, AttributeError) as e:
             raise ArtifactParseError("audio", details=str(e)) from e

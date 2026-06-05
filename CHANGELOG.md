@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.7.0] - 2026-06-03
+
+### Added
+
+- **Studio prompting guide and fast-track agent behavior** — AI agents using the MCP skill now follow a fast-track prompting model: infer format, style, and prompt from context, emit a one-line notice, and generate immediately — no multi-question intake questionnaires. A guided preview mode (show settings + full prompt before generating) kicks in only for vague requests, high-stakes content (e.g. cinematic video), or when the user explicitly asks. Two new reference documents ship with the skill: `references/studio-prompting-guide.md` (per-artifact decision trees, prompt parameters) and `references/studio-prompt-examples.md` (copy-paste templates). SKILL.md and `workflows.md` updated throughout.
+- **Cinematic video format** — `video_format=cinematic` is now documented and supported in the skill, CLI, and MCP guide. Cinematic videos take the full creative brief via `focus_prompt` / `--focus`; `--style` is not applicable.
+
+### Fixed
+
+- **Query returns thinking step instead of short answer (Issue #214)** — When the AI's final answer was under 20 characters, for example `ANSWER: C` from a multiple-choice prompt, `nlm` discarded it and returned the longest thinking chunk instead. The 20-char guard in `_extract_answer_from_chunk` (both the list-form and string-form branches) was redundant with the existing type indicator at `first_elem[4][-1]` (1 = answer, 2 = thinking), which is the authoritative discriminator. Removed both guards. The type indicator still routes short thinking chunks to the thinking bucket, so behavior for normal answers is unchanged. 4 new regression tests in `TestShortAnswerRegression` cover: short answer wins over a longer thinking chunk, single-character answers, short thinking chunks still filtered as thinking, and the string-form first_elem path.
+- **`nlm notebook create` missing `--json` (Issue #215)** — Every other notebook verb (`list`, `get`, `describe`, `query`) already supported `--json`, but `create` did not. This was a real friction point for agent workflows that need to capture the new notebook ID reliably. Added the flag; the output is the same `notebook_id` / `title` / `url` / `message` dict that other verbs return, so scripting just works. Thanks to **@SimonMallas** for the report and end-to-end test in the issue!
+- **`auth_status = "stale"` was misleading (Issue #215)** — The MCP `server_info` tool (and `nlm login --check`) reported `"stale"` for any non-`configured` / non-`not_configured` outcome, which silently grouped three very different conditions together: (a) credentials are actually expired and operations will fail, (b) the live check hit a network error/timeout/non-200 and cached creds may still work, and (c) the saved profile failed to load. The new state machine splits this into two distinct values: `"stale"` is reserved for cases (a) and (c) where the user genuinely needs to `nlm login`, and a new `"unverified"` reports case (b) so agents don't pester users to re-auth on transient network blips. Unknown future reasons stay conservative (`"stale"`). No raw `AuthCheckResult.reason` strings are exposed; only the 5 stable status values. The new `Understanding auth_status` section in `docs/AUTHENTICATION.md` documents each state and what to do.
+- **`format_item` silently discarded plain-dict results** — All three formatter classes (`TableFormatter`, `JsonFormatter`, `CompactFormatter`) checked for `model_dump` / `__dict__` before `isinstance(item, dict)`. Because `TypedDict` instances are plain `dict` at runtime (no `model_dump`, no per-instance `__dict__` in CPython), they fell through to the worst-case path: `JsonFormatter` wrapped the payload as `{"value": {...}}` instead of printing it flat, and `CompactFormatter` emitted `str(item)` (the raw dict repr) instead of the notebook ID. Fixed by adding `isinstance(item, dict)` as the first branch in all three `format_item` methods. `nlm notebook create --json` and pipe capture now work correctly.
+- **HTTP 401/403 misclassified as `"unverified"` in `server_info`** — The `reason.startswith("http_")` catch-all in `_check_auth_status` mapped every non-200 response — including definitive credential-rejection codes 401 and 403 — to `"unverified"` ("cached credentials may still work, do not prompt re-auth"). Added explicit `http_401` / `http_403` → `"stale"` guards before the general `http_` branch so agents correctly prompt re-authentication when cookies are genuinely rejected by NotebookLM.
+
+### Documentation
+
+- **New `docs/GETTING_STARTED.md` guide** — First-time setup, agent registration, and a full 5-step migration path from a browser-automation–based NotebookLM MCP (the kind of setup reported in Issue #215). The migration section explicitly calls out removing any legacy `notebooklm` server config as the #1 cause of "Hermes picked the wrong tool" symptoms. README is no longer carrying the migration content; the docs index now points at the new guide. (Issue #215, items 3 and 5)
+- **`MCP_GUIDE.md` server-naming note** — Recommends the default `notebooklm-mcp` server name and warns against generic names that collide with legacy MCPs. (Issue #215, item 5)
+
 ## [0.6.15] - 2026-06-01
 
 ### Fixed

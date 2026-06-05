@@ -46,11 +46,7 @@ def _compare_versions(current: str, latest: str) -> bool:
 
 
 def _check_auth_status() -> str:
-    """Return the classic string status used by server_info.
-
-    This is now a trivial, elegant wrapper around the single source of truth
-    (`check_auth` in services/auth.py). All the real logic + tests live there.
-    """
+    """Map AuthCheckResult.reason to the stable status strings documented in server_info."""
     try:
         from notebooklm_tools.services.auth import check_auth
 
@@ -60,7 +56,15 @@ def _check_auth_status() -> str:
             return "configured"
         if res.reason == "no_tokens":
             return "not_configured"
-        # expired, network_error, stale_heuristic, http_*, etc. → treat as unusable
+        reason = res.reason or ""
+        if reason in ("expired", "stale_heuristic") or reason.startswith("load_error"):
+            return "stale"
+        # 401/403 are definitive credential rejections, not transient network issues.
+        if reason in ("http_401", "http_403"):
+            return "stale"
+        if reason.startswith("network_error") or reason.startswith("http_"):
+            return "unverified"
+        # Unknown reason — be conservative.
         return "stale"
     except Exception:
         return "error"
@@ -78,12 +82,24 @@ def server_info() -> dict[str, Any]:
     This makes the reported status consistent with actual usability instead
     of relying only on a local age heuristic.
 
+    auth_status meanings:
+    - "configured"     — live check passed; credentials are good.
+    - "not_configured" — no credentials are stored (first-time setup).
+    - "stale"          — credentials are known-bad (expired or past the
+                         7-day heuristic). Operations will fail; ask the
+                         user to run `nlm login` to refresh.
+    - "unverified"     — the live check could not be completed (network
+                         error, timeout, non-200 response). Cached
+                         credentials may still work for actual API calls,
+                         so do not assume the user needs to re-auth.
+    - "error"          — unexpected exception inside the check itself.
+
     Returns:
         dict with version info:
         - version: Current installed version
         - latest_version: Latest version on PyPI (or None if check failed)
-        - update_available: True if a newer version exists
-        - auth_status: configured | stale | not_configured | error
+        - update_available: True if a newer version is available
+        - auth_status: configured | stale | unverified | not_configured | error
         - update_command: Command to run to update
     """
     latest = _get_latest_pypi_version()

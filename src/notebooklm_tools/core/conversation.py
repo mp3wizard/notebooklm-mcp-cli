@@ -619,7 +619,7 @@ class ConversationMixin(BaseClient):
                 first_elem = inner_data[0]
                 if isinstance(first_elem, list) and len(first_elem) > 0:
                     answer_text = first_elem[0]
-                    if isinstance(answer_text, str) and len(answer_text) > 20:
+                    if isinstance(answer_text, str):
                         is_answer = False
                         citation_data: dict[str, Any] = {}
                         server_conv_id: str | None = None
@@ -638,7 +638,7 @@ class ConversationMixin(BaseClient):
                             if is_answer:
                                 citation_data = self._extract_citation_data(type_info)
                         return answer_text, is_answer, citation_data, server_conv_id
-                elif isinstance(first_elem, str) and len(first_elem) > 20:
+                elif isinstance(first_elem, str):
                     return first_elem, False, {}, None
 
         return None, False, {}, None

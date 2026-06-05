@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.6.15"
+version: "0.7.0"
 description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", or any NotebookLM-related automation task."
 ---
 
@@ -59,6 +59,7 @@ nlm --version           # Check installed version
 9. **DO NOT launch REPL**: Never use `nlm chat start` - it opens an interactive REPL that AI tools cannot control. Use `nlm notebook query` for one-shot Q&A instead.
 10. **Choose output format wisely**: Default output (no flags) is compact and token-efficient—use it for status checks. Use `--quiet` to capture IDs for piping. Only use `--json` when you need to parse specific fields programmatically.
 11. **Use `--help` when unsure**: Run `nlm <command> --help` to see available options and flags for any command.
+12. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
 
 ## Workflow Decision Tree
 
@@ -77,7 +78,7 @@ User wants to...
 │   ├─► From Google Drive → nlm source add <nb-id> --drive <doc-id> --type doc
 │   └─► Discover new sources → nlm research start "query" --notebook-id <nb-id>
 │
-├─► Generate content from sources
+├─► Generate content from sources (→ Studio Prompting for optimal focus_prompt)
 │   ├─► Podcast/Audio → nlm audio create <nb-id> --confirm
 │   ├─► Written summary → nlm report create <nb-id> --confirm
 │   ├─► Study materials → nlm quiz/flashcards create <nb-id> --confirm
@@ -254,7 +255,7 @@ Use `studio_create` with `artifact_type` and type-specific options. All require 
 | artifact_type | Key Options |
 |--------------|-------------|
 | `audio` | `audio_format`: deep_dive/brief/critique/debate, `audio_length`: short/default/long |
-| `video` | `video_format`: explainer/brief, `visual_style`: auto_select/classic/whiteboard/kawaii/anime/watercolor/retro_print/heritage/paper_craft |
+| `video` | `video_format`: explainer/brief/cinematic, `visual_style`: auto_select/classic/whiteboard/kawaii/anime/watercolor/retro_print/heritage/paper_craft (not for cinematic), `video_style_prompt` |
 | `report` | `report_format`: Briefing Doc/Study Guide/Blog Post/Create Your Own, `custom_prompt` |
 | `quiz` | `question_count`, `difficulty`: easy/medium/hard |
 | `flashcards` | `difficulty`: easy/medium/hard |
@@ -330,13 +331,52 @@ nlm infographic create <id> --orientation portrait --detail detailed --style pro
 # Video
 nlm video create <id> --confirm
 nlm video create <id> --format brief --style whiteboard --confirm
-# Formats: explainer, brief
+nlm video create <id> --format cinematic --focus "Full creative brief..." --confirm
+# Formats: explainer, brief, cinematic (English, 18+, quota-limited)
 # Styles: auto_select, classic, whiteboard, kawaii, anime, watercolor, retro_print, heritage, paper_craft
+# Cinematic: put full brief in --focus; --style-prompt merges into --focus
 
 # Data Table
 nlm data-table create <id> "Extract all dates and events" --confirm
 # DESCRIPTION is required as second argument
 ```
+
+#### Studio Prompting (Read Before Generating)
+
+**Full guides:** [studio-prompting-guide.md](references/studio-prompting-guide.md) | [studio-prompt-examples.md](references/studio-prompt-examples.md)
+
+**Fast track (default):** Silently infer (user message → notebook title → `notebook_describe` if needed) → **minimal** 1–3 sentence prompt with grounding anchor → one-line notice → `studio_create(confirm=True)`. Never run multi-question intake.
+
+**Guided preview (exception):** Vague request, **any cinematic video**, high-stakes deliverable, empty notebook, or user asks → show settings + **full** prompt → one optional refine → generate.
+
+**Grounding anchor (every prompt):** `Use only uploaded sources. Do not invent statistics, quotes, or examples not in the sources.`
+
+**Iterate only on failure or user dissatisfaction** — do not proactively offer regen on success. Slides: use `studio_revise` for targeted fixes.
+
+**Prompt parameters by artifact:**
+
+| Artifact | Prompt field | CLI flag |
+|----------|--------------|----------|
+| audio, video, infographic, slide_deck, quiz, flashcards | `focus_prompt` | `--focus` |
+| report (Create Your Own) | `custom_prompt` | `--prompt` |
+| data_table | `description` | positional arg (required) |
+
+**Quick format picks:**
+
+| User intent | Default |
+|-------------|---------|
+| Podcast / learn | audio: `deep_dive`, `default` |
+| Quick audio recap | audio: `brief`, `short` |
+| Teach / explain | video: `explainer` |
+| Exec video summary | video: `brief` |
+| Narrative / launch video | video: `cinematic` + full brief in focus |
+| Shareable slides | slide_deck: `detailed_deck` |
+| Live presentation | slide_deck: `presenter_slides` |
+| LinkedIn visual | infographic: `square`, `concise`, `bento_grid` |
+| Custom report | report: `Create Your Own` + `custom_prompt` |
+| Structured extraction | data_table: explicit column schema in `description` |
+
+**After generation:** Poll `studio_status`. Revise slides with `studio_revise`. Reuse successful prompts from `custom_instructions` in status output.
 
 ### 6. Studio (Artifact Management)
 
@@ -752,6 +792,8 @@ Wait between operations to avoid rate limits:
 ## Advanced Reference
 
 For detailed information, see:
+- **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**: Studio prompt best practices, fast vs guided modes, per-artifact decision trees
+- **[references/studio-prompt-examples.md](references/studio-prompt-examples.md)**: Copy-paste prompt templates and command examples
 - **[references/command_reference.md](references/command_reference.md)**: Complete command signatures
 - **[references/troubleshooting.md](references/troubleshooting.md)**: Detailed error handling
 - **[references/workflows.md](references/workflows.md)**: End-to-end task sequences

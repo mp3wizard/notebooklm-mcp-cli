@@ -744,6 +744,82 @@ class TestCitationExtraction:
         assert result == {}
 
 
+class TestShortAnswerRegression:
+    """Regression tests for issue #214: short answer chunks must not be discarded.
+
+    Bug: _extract_answer_from_chunk previously required len(answer_text) > 20,
+    silently dropping legitimate short answers (e.g. "ANSWER: C") and falling
+    back to the longest thinking chunk instead. The type indicator at
+    first_elem[4][-1] is the authoritative answer/thinking discriminator.
+    """
+
+    def _make_mixin(self):
+        return ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+    @staticmethod
+    def _build_raw_response(*chunks: str) -> str:
+        prefix = ")]}'\n"
+        parts = [prefix]
+        for chunk in chunks:
+            parts.append(str(len(chunk)))
+            parts.append(chunk)
+        return "\n".join(parts)
+
+    @staticmethod
+    def _build_inner(answer_text: str, type_code: int) -> str:
+        return json.dumps([[answer_text, None, ["conv-id", "hash", 12345], None, [type_code]]])
+
+    def test_short_answer_wins_over_longer_thinking(self):
+        """Short type=1 answer is returned even when a longer type=2 thinking chunk exists."""
+        mixin = self._make_mixin()
+        short_answer = "ANSWER: C"
+        thinking = (
+            "**Analyzing the Malaria Vector**\n\n"
+            "This is a long thinking step that goes on and on with details."
+        )
+        answer_chunk = json.dumps([["wrb.fr", None, self._build_inner(short_answer, 1)]])
+        thinking_chunk = json.dumps([["wrb.fr", None, self._build_inner(thinking, 2)]])
+        raw = self._build_raw_response(answer_chunk, thinking_chunk)
+
+        answer, _, _ = mixin._parse_query_response(raw)
+
+        assert answer == short_answer
+
+    def test_single_letter_answer_returned(self):
+        """A 1-character answer (e.g. multiple-choice letter) is returned."""
+        mixin = self._make_mixin()
+        inner = self._build_inner("C", 1)
+        chunk = json.dumps([["wrb.fr", None, inner]])
+        raw = self._build_raw_response(chunk)
+
+        answer, _, _ = mixin._parse_query_response(raw)
+
+        assert answer == "C"
+
+    def test_short_thinking_chunk_not_returned_as_answer(self):
+        """A short type=2 thinking chunk is filtered as thinking, not promoted to answer."""
+        mixin = self._make_mixin()
+        inner = self._build_inner("brief thought", 2)
+        chunk = json.dumps([["wrb.fr", None, inner]])
+        raw = self._build_raw_response(chunk)
+
+        # No type=1 chunks exist, so we fall back to thinking (preserved behavior).
+        answer, _, _ = mixin._parse_query_response(raw)
+
+        assert answer == "brief thought"
+
+    def test_short_answer_chunk_via_string_first_elem(self):
+        """Short answer in the alternative string-first-elem branch (line 641 path) is returned."""
+        mixin = self._make_mixin()
+        chunk = json.dumps([["wrb.fr", None, json.dumps(["ANSWER: C"])]])
+
+        text, is_answer, cdata, _ = mixin._extract_answer_from_chunk(chunk)
+
+        assert text == "ANSWER: C"
+        assert is_answer is False
+        assert cdata == {}
+
+
 class TestCitedTextParsing:
     """Test _extract_cited_text with direct segments, wrapped segments, and tables."""
 

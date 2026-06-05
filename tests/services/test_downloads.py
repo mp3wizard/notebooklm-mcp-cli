@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from notebooklm_tools.core.errors import ArtifactDownloadError
 from notebooklm_tools.services.downloads import (
     VALID_ARTIFACT_TYPES,
     VALID_OUTPUT_FORMATS,
@@ -182,6 +183,19 @@ class TestDownloadAsync:
         mock_client.download_audio = AsyncMock(side_effect=RuntimeError("fail"))
         with pytest.raises(ServiceError, match="Failed to download"):
             await download_async(mock_client, "nb-1", "audio", "/tmp/out")
+
+    @pytest.mark.asyncio
+    async def test_audio_propagation_error_has_specific_user_message(self, mock_client):
+        error = ArtifactDownloadError(
+            "audio",
+            details="media download URL is still propagating; retry in a few minutes",
+        )
+        mock_client.download_audio = AsyncMock(side_effect=error)
+
+        with pytest.raises(ServiceError) as exc_info:
+            await download_async(mock_client, "nb-1", "audio", "/tmp/out.m4a")
+
+        assert "still propagating" in exc_info.value.user_message
 
     @pytest.mark.asyncio
     async def test_falsy_path_raises_service_error(self, mock_client):

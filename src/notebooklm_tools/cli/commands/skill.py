@@ -331,6 +331,8 @@ def install_skill_md(install_path: Path, frontmatter_extras: dict[str, str] | No
 
     console.print(f"[green]✓[/green] Installed SKILL.md (v{__version__}) to {install_path}")
     console.print("  [dim]• SKILL.md")
+    console.print("  [dim]• references/studio-prompting-guide.md")
+    console.print("  [dim]• references/studio-prompt-examples.md")
     console.print("  [dim]• references/command_reference.md")
     console.print("  [dim]• references/troubleshooting.md")
     console.print("  [dim]• references/workflows.md")

@@ -273,7 +273,9 @@ class TableFormatter(Formatter):
         if title:
             self.console.print(f"[bold]{title}[/bold]")
 
-        if hasattr(item, "model_dump"):
+        if isinstance(item, dict):
+            data = item
+        elif hasattr(item, "model_dump"):
             data = item.model_dump(exclude_none=True)
         elif hasattr(item, "__dict__"):
             data = {k: v for k, v in item.__dict__.items() if not k.startswith("_")}
@@ -406,7 +408,9 @@ class JsonFormatter(Formatter):
         print_json(data)
 
     def format_item(self, item: Any, title: str = "") -> None:
-        if hasattr(item, "model_dump"):
+        if isinstance(item, dict):
+            data = item
+        elif hasattr(item, "model_dump"):
             data = item.model_dump(exclude_none=True)
         elif hasattr(item, "__dict__"):
             data = {k: v for k, v in item.__dict__.items() if not k.startswith("_")}
@@ -462,7 +466,9 @@ class CompactFormatter(Formatter):
                 print(art.id)
 
     def format_item(self, item: Any, title: str = "") -> None:
-        if hasattr(item, "id"):
+        if isinstance(item, dict):
+            print(item.get("id") or item.get("notebook_id") or str(item))
+        elif hasattr(item, "id"):
             print(item.id)
         else:
             print(str(item))

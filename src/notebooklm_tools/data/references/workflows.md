@@ -29,6 +29,14 @@ Do you want me to proceed with deletion?"
 
 ---
 
+## Studio Generation (Prompting)
+
+For optimal Studio output, follow the agent playbook in **[studio-prompting-guide.md](studio-prompting-guide.md)**. Copy-paste templates live in **[studio-prompt-examples.md](studio-prompt-examples.md)**.
+
+**Default behavior:** Fast track — infer format and minimal prompt (1–3 sentences), one-line notice, generate. Guided preview for vague, high-stakes, **cinematic video**, or when user requests it. Iterate only on failure or dissatisfaction.
+
+---
+
 ## Workflow 1: First-Time Setup
 
 ### Goal: Authenticate and create first notebook

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from ..core.client import NotebookLMClient
+from ..core.errors import ArtifactDownloadError
 from ._compat import TypedDict
 from .errors import ServiceError, ValidationError
 
@@ -268,6 +269,19 @@ async def download_async(
         )
     except (ValidationError, ServiceError):
         raise
+    except ArtifactDownloadError as e:
+        if artifact_type == "audio" and "still propagating" in e.details:
+            raise ServiceError(
+                f"Failed to download {artifact_type}: {e}",
+                user_message=(
+                    "Audio is complete, but its media download URL is still propagating. "
+                    "Try again in a few minutes."
+                ),
+            ) from e
+        raise ServiceError(
+            f"Failed to download {artifact_type}: {e}",
+            user_message=f"Download failed for {artifact_type}.",
+        ) from e
     except Exception as e:
         raise ServiceError(
             f"Failed to download {artifact_type}: {e}",
