@@ -12,6 +12,26 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.7.0 — June 2026)
+- **Studio fast-track 2-step pipeline** — `studio_create()` now supports a direct fast-track flow for agents, reducing round-trips for audio and video artifact creation
+- **Cinematic video artifact type** — new `artifact_type=video` support in `studio_create()`
+- **Short answer fix** — conversation `type=1` response chunks were silently dropped, causing one-word or incomplete answers from `notebook_query`. Now correctly captured and appended
+- **Audio download retry propagation fix (PR by @responsiblefleet area)** — retry logic in `core/download.py` now correctly propagates through `services/downloads.py`; failed downloads with retryable errors no longer swallow the retry signal
+- **`--json` output fix for `format_item`** — `cli/formatters.py` `format_item()` now handles `dict` values correctly; `nlm notebook list --json` no longer crashes on notebooks with metadata fields
+- **MCP HTTP 401/403 → "stale" not "unverified"** — `mcp/tools/server.py` auth status mapping tightened; HTTP 401/403 from NotebookLM API now surfaces as `status: "stale"` with a `nlm login` hint instead of the misleading `"unverified"`
+- **New `docs/GETTING_STARTED.md`** — migration guide for users coming from the old split packages
+- **8 new contributors** added to README credits
+- **Studio prompting guides** — `data/references/studio-prompt-examples.md` and `studio-prompting-guide.md` added (786 lines of prompting patterns)
+
+### Security scan (June 2026 — v0.7.0)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **1 HIGH fixed** — pyjwt 2.12.1 → **2.13.0** (4 CVEs: PYSEC-2026-175/176/177/178/179, max CVSS 7.4); `pyproject.toml` minimum bumped to `>=2.13.0`
+- **0 NEW HIGH / 0 MEDIUM** in project source after fix
+- **0 secrets** in git history (Gitleaks + TruffleHog verified)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets)
+- **5 Low (accepted, not fixed)** — Bandit B603/B607/B110 in `utils/cdp.py` (Chrome subprocess launch, intentional best-effort teardown)
+- **Overall risk posture: Clean** ✅ (full report: `docs/security-scan-report-2026-06-05.md`)
+
 ### Upstream sync (v0.6.15 — June 2026)
 - **`nlm login` crash on expired auth fixed (PR #211, @insane66613)** — when stored Google session was fully expired, `_validate_saved_profile()` raised `ClientAuthenticationError` (not `NLMError`), which bypassed the `except NLMError:` clause and exited before Chrome could launch for interactive sign-in. Fixed by also catching `ClientAuthenticationError` in `login_callback`
 - **MCP silent auth/studio failures fixed (PR #212, @idankatz64-commits)** — three related silent-failure bugs under stale auth: (1) `refresh_auth()` returned `status: "success"` after reloading dead tokens (now runs live check + returns `"expired"` with `nlm login` hint); (2) `studio_create()` had no pre-flight auth check, returned `status: "success"` with a doomed artifact_id (now checks auth before firing); (3) `studio_status()` surfaced `status: "failed"` with all fields null (now synthesizes a non-null `error_reason`). 12 new tests
