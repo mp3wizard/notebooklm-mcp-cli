@@ -63,11 +63,13 @@ def refresh_auth() -> ResultDict:
                 "message": "Auth tokens reloaded from disk cache and validated.",
             }
 
-        # Try headless auth if Chrome profile exists
+        # Try headless auth if the configured default Chrome profile exists
         try:
-            from notebooklm_tools.utils.cdp import run_headless_auth
+            from notebooklm_tools.utils.auth_browser import run_headless_auth
+            from notebooklm_tools.utils.config import get_config
 
-            tokens = run_headless_auth()
+            profile_name = get_config().auth.default_profile
+            tokens = run_headless_auth(profile_name=profile_name)
             if tokens:
                 reset_client()
                 get_client()
