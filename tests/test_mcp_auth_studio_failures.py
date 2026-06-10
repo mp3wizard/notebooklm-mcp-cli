@@ -17,6 +17,7 @@ import pytest
 auth_tools = importlib.import_module("notebooklm_tools.mcp.tools.auth")
 studio_tools = importlib.import_module("notebooklm_tools.mcp.tools.studio")
 core_auth = importlib.import_module("notebooklm_tools.core.auth")
+services_auth = importlib.import_module("notebooklm_tools.services.auth")
 
 
 # --------------------------------------------------------------------------- #
@@ -25,6 +26,15 @@ core_auth = importlib.import_module("notebooklm_tools.core.auth")
 def _auth_result(valid, reason=None):
     """Build a real AuthCheckResult so we exercise the production type."""
     return core_auth.AuthCheckResult(valid=valid, reason=reason, live=True, profile="default")
+
+
+def _patch_credentials_usable(monkeypatch, usable, status="stale", detail=None):
+    monkeypatch.setattr(
+        services_auth,
+        "credentials_are_usable",
+        lambda **kw: (usable, "configured" if usable else status, detail),
+        raising=True,
+    )
 
 
 class _FakeClient:
@@ -50,10 +60,8 @@ def test_refresh_auth_does_not_claim_success_when_tokens_are_expired(monkeypatch
         lambda: core_auth.AuthTokens(cookies={"SID": "x"}, extracted_at=0.0),
         raising=True,
     )
-    # ...but a live check reports them expired.
-    monkeypatch.setattr(
-        core_auth, "check_auth", lambda **kw: _auth_result(False, "expired"), raising=True
-    )
+    # ...but auth probes report stale even though this test expects failure.
+    _patch_credentials_usable(monkeypatch, usable=False, status="stale")
     monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
 
     result = auth_tools.refresh_auth()
@@ -104,11 +112,29 @@ def test_refresh_auth_reports_success_when_tokens_are_valid(monkeypatch):
         lambda: core_auth.AuthTokens(cookies={"SID": "x"}, extracted_at=0.0),
         raising=True,
     )
-    monkeypatch.setattr(core_auth, "check_auth", lambda **kw: _auth_result(True), raising=True)
+    _patch_credentials_usable(monkeypatch, usable=True)
     monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
 
     result = auth_tools.refresh_auth()
     assert result.get("status") == "success", f"Valid tokens should refresh OK, got: {result}"
+
+
+def test_refresh_auth_succeeds_when_probes_stale_but_api_works(monkeypatch):
+    """Semi-stale cookies: AuthHealthChecker may say stale while RPC still works.
+    refresh_auth must not block agents when the API confirmation succeeds."""
+    monkeypatch.setattr(auth_tools, "get_client", lambda: _FakeClient(), raising=True)
+    monkeypatch.setattr(auth_tools, "reset_client", lambda: None, raising=True)
+    monkeypatch.setattr(
+        core_auth,
+        "load_cached_tokens",
+        lambda: core_auth.AuthTokens(cookies={"SID": "x"}, extracted_at=0.0),
+        raising=True,
+    )
+    _patch_credentials_usable(monkeypatch, usable=True)
+    monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
+
+    result = auth_tools.refresh_auth()
+    assert result.get("status") == "success", f"API-confirmed auth should refresh OK, got: {result}"
 
 
 # --------------------------------------------------------------------------- #
@@ -119,9 +145,7 @@ def test_studio_create_fails_loudly_on_stale_auth(monkeypatch):
     — not status:"success" with an artifact_id that immediately fails.
     """
     studio_tools._auth_guard_expires = 0.0  # force guard expired so auth is re-checked
-    monkeypatch.setattr(
-        core_auth, "check_auth", lambda **kw: _auth_result(False, "expired"), raising=True
-    )
+    _patch_credentials_usable(monkeypatch, usable=False, status="stale")
 
     # If the code wrongly proceeds, make the client call explode so the test can't pass by luck.
     def _boom():
@@ -147,7 +171,7 @@ def test_studio_create_fails_loudly_on_stale_auth(monkeypatch):
 def test_studio_create_proceeds_when_auth_valid(monkeypatch):
     """With valid auth, studio_create() must still create the artifact normally."""
     studio_tools._auth_guard_expires = 0.0  # force guard expired so auth is re-checked
-    monkeypatch.setattr(core_auth, "check_auth", lambda **kw: _auth_result(True), raising=True)
+    _patch_credentials_usable(monkeypatch, usable=True)
     monkeypatch.setattr(studio_tools, "get_client", lambda: _FakeClient(), raising=True)
     monkeypatch.setattr(
         studio_tools.studio_service,
@@ -163,6 +187,26 @@ def test_studio_create_proceeds_when_auth_valid(monkeypatch):
     )
     assert result.get("status") == "success", f"Valid auth should create artifact, got: {result}"
     assert result.get("artifact_id") == "art-1"
+
+
+def test_studio_create_proceeds_when_probes_stale_but_api_works(monkeypatch):
+    """Issue #224 class: server_info/AuthHealthChecker may say stale while RPC works."""
+    studio_tools._auth_guard_expires = 0.0
+    _patch_credentials_usable(monkeypatch, usable=True)
+    monkeypatch.setattr(studio_tools, "get_client", lambda: _FakeClient(), raising=True)
+    monkeypatch.setattr(
+        studio_tools.studio_service,
+        "create_artifact",
+        lambda *a, **k: {"artifact_id": "art-semi", "status": "in_progress"},
+        raising=True,
+    )
+
+    result = studio_tools.studio_create(
+        notebook_id="nb-123",
+        artifact_type="audio",
+        confirm=True,
+    )
+    assert result.get("status") == "success", f"Semi-stale API auth should create, got: {result}"
 
 
 # --------------------------------------------------------------------------- #
@@ -254,9 +298,7 @@ def test_studio_create_e2e_per_auth_state(monkeypatch, auth_state, valid, reason
     status:"error" (never a fake success).
     """
     studio_tools._auth_guard_expires = 0.0  # force guard expired so auth is re-checked
-    monkeypatch.setattr(
-        core_auth, "check_auth", lambda **kw: _auth_result(valid, reason), raising=True
-    )
+    _patch_credentials_usable(monkeypatch, usable=valid, status=reason or "stale")
     monkeypatch.setattr(studio_tools, "get_client", lambda: _FakeClient(), raising=True)
     monkeypatch.setattr(
         studio_tools.studio_service,
@@ -300,9 +342,7 @@ def test_studio_create_resets_auth_guard_on_invalid_auth(monkeypatch):
     the TTL has already expired and we just detected the invalid auth: we
     should not let a future-valid guard leak forward to the next call.
     """
-    monkeypatch.setattr(
-        core_auth, "check_auth", lambda **kw: _auth_result(False, "expired"), raising=True
-    )
+    _patch_credentials_usable(monkeypatch, usable=False, status="stale")
     monkeypatch.setattr(studio_tools, "get_client", lambda: _FakeClient(), raising=True)
 
     # Pre-seed the guard with a future timestamp, simulating "auth was valid
@@ -332,13 +372,15 @@ def test_studio_create_invalidates_auth_guard_when_auth_file_changes(monkeypatch
     """
     check_call_count = {"n": 0}
 
-    def _counting_check_auth(**_kw):
+    def _counting_credentials(**_kw):
         check_call_count["n"] += 1
-        return _auth_result(True)
+        return True, "configured", None
 
     # First call: mtime=N. Guard populated with mtime=N.
     monkeypatch.setattr(studio_tools, "_get_auth_file_mtime", lambda: 1000.0, raising=True)
-    monkeypatch.setattr(core_auth, "check_auth", _counting_check_auth, raising=True)
+    monkeypatch.setattr(
+        services_auth, "credentials_are_usable", _counting_credentials, raising=True
+    )
     monkeypatch.setattr(studio_tools, "get_client", lambda: _FakeClient(), raising=True)
     monkeypatch.setattr(
         studio_tools.studio_service,
@@ -376,13 +418,15 @@ def test_studio_create_invalidates_auth_guard_when_auth_file_appears(monkeypatch
     """
     check_call_count = {"n": 0}
 
-    def _counting_check_auth(**_kw):
+    def _counting_credentials(**_kw):
         check_call_count["n"] += 1
-        return _auth_result(True)
+        return True, "configured", None
 
     # First call: file does not exist (mtime=0.0). Guard populated with mtime=0.0.
     monkeypatch.setattr(studio_tools, "_get_auth_file_mtime", lambda: 0.0, raising=True)
-    monkeypatch.setattr(core_auth, "check_auth", _counting_check_auth, raising=True)
+    monkeypatch.setattr(
+        services_auth, "credentials_are_usable", _counting_credentials, raising=True
+    )
     monkeypatch.setattr(studio_tools, "get_client", lambda: _FakeClient(), raising=True)
     monkeypatch.setattr(
         studio_tools.studio_service,

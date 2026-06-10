@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-06-09
+
+### Added
+
+- **Scripting & Automation section in CLI_GUIDE.md (PR #226)** — Documents how to reliably parse `--json` output in automation scripts using a JSON parser rather than string splitting. Thanks to **@JanaGK2** for the first contribution!
+
+### Fixed
+
+- **Reverted ChatGPT file bridge (PR #220)** — The ChatGPT file upload/download bridge introduced an SSRF vulnerability (no hostname validation on downloaded URLs), a disk leak (every `source_get_content` call wrote files to disk with no cleanup), and unintended behavioral changes to `source_get_content` and `download_artifact` for all users. The feature has been reverted. A future release will re-introduce the polling improvements (`wait`/`poll_interval`) cleanly, and the ChatGPT integration may return in a hardened form.
+- **Tightened `no_proxy` sanitization** — The v0.7.2 sanitizer stripped all `no_proxy` entries containing `:`, incorrectly removing legitimate IPv6 loopback addresses (`::1`) and `host:port` entries. The fix now targets only CIDR-style IPv6 entries (e.g., `fe11::/16`) that crash httpx's URL parser, preserving all other valid entries.
+
+## [0.7.2] - 2026-06-08
+
+### Fixed
+
+- **Modern Chrome Cookie DB path detection (PR #222)** — Improved the SQLite cookie database location search logic for Google Chrome to work correctly with modern Chrome setups. Thanks to **@insane66613**!
+- **Profile-aware headless refresh (PR #223)** — Fixed headless login refresh to use the default/active profile configured in the CLI configuration file instead of falling back. Thanks to **@insane66613**!
+- **`AuthHealthChecker` API fallback passed wrong cookie format, causing false `stale` on semi-stale sessions (PR #225)** — The API fallback flattened `profile.cookies` to a dict, dropping domain-specific duplicates and omitting `session_id` / `build_label`. The API probe now passes `profile.cookies` unchanged with all session fields, matching `nlm login --check`. Thanks to **@insane66613**!
+- **`server_info`, `refresh_auth`, and `studio_create` disagreed on semi-stale auth (PR #225, Fixes #224)** — These three MCP paths each ran independent auth checks, so `server_info` could report `stale` and `studio_create` refuse to run while `notebook_list` and CLI tools worked fine. All MCP auth gates now share `credentials_are_usable()` (`AuthHealthChecker` + live API confirmation), eliminating split-brain results. Thanks to **@insane66613**!
+- **Sanitize `no_proxy` environment variable (PR #221)** — Fixed package import crashes on Windows systems caused by CIDR-style IPv6 entries in `no_proxy` that httpx cannot parse. Thanks to **@insane66613**!
+
+## [0.7.1] - 2026-06-06
+
+### Fixed
+
+- **`server_info` reported `"stale"` for valid semi-stale cookies (PR #219)** — Google enforces different session lifecycles for the NotebookLM homepage (a navigation endpoint) and the RPC API endpoints. Cookies that are "semi-stale" — rejected by the homepage with a redirect to `accounts.google.com`, but still 100% accepted by the RPC API — were causing the MCP `server_info` tool (and `nlm login --check`) to falsely report `"stale"` even though every actual API tool would work fine. The new `AuthHealthChecker` runs a homepage probe first and, on `expired` / `http_401` / `http_403`, falls back to a live `NotebookLMClient.list_notebooks()` call before deciding. The homepage headers were also upgraded to use the full browser-like `_PAGE_FETCH_HEADERS` (including `Sec-Fetch-Dest` / `Sec-Fetch-Mode` / `Sec-Fetch-Site` / `Sec-Fetch-User`) — without them Google was bot-detecting the homepage check and redirecting even fresh cookies, producing false `"stale"` reports on first probe. Results are cached for 30 seconds with mtime-based bypass, so an external `nlm login` is reflected without waiting for the TTL. The CLI and MCP now share the cache via the `get_auth_health_checker()` singleton in `services/auth.py`. Thanks to **@SERDAR-AKIN** for the original multi-probe design and PR #219!
+
+### Changed
+
+- **`AuthHealthChecker` lives in `services/auth.py`, not `core/auth.py`** — the multi-probe orchestration, 30-second cache, and verdict aggregation are business logic and belong in the services layer per the layering rule in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`. `core/auth.py` stays focused on the low-level auth primitives (`AuthManager`, `AuthTokens`, `check_auth`, `save_tokens_to_cache`, `load_cached_tokens`, `_fetch_notebooklm_homepage`).
+- **`server_info` docstring no longer calls `auth_status` a "live check"** — it is cached for 30 seconds with mtime-based bypass. `docs/AUTHENTICATION.md` documents the same contract for `nlm login --check` (always live) vs `server_info` (cached).
+- **`AuthHealthReport.valid` is now `verdict == "configured"` (was `!=`)** — the field was inverted: it returned `True` for `stale` / `unverified` / `not_configured` reports. Pinned by `TestReportValid` in `tests/services/test_auth_health.py`.
+- **API-probe exceptions are classified as transport errors when they are** — `_probe_api` now catches `httpx.TimeoutException` and `httpx.RequestError` explicitly and emits the `"network_error:"` prefix so `_determine_verdict` can route them to `"unverified"`. Previously all exceptions emitted `f"{type(e).__name__}: {e}"`, which meant a real transport error on the API path was misclassified as an auth failure (`"stale"`). Pinned by `TestProbeApiErrorClassification` in `tests/services/test_auth_health.py`.
+
 ## [0.7.0] - 2026-06-03
 
 ### Added

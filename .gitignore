@@ -83,6 +83,9 @@ notebooklm-mcp-*.mcpb
 # GitHub CLI temp files
 .gh_comment_body.md
 
+# Local ad-hoc test scripts
+scratch/
+
 # PR diff/patch scratch files
 *.diff
 *.patch

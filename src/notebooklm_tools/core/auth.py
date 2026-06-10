@@ -95,9 +95,10 @@ def load_cached_tokens() -> AuthTokens | None:
                 cookies=profile.cookies,
                 csrf_token=profile.csrf_token or "",
                 session_id=profile.session_id or "",
-                extracted_at=profile.last_validated.timestamp()
-                if profile.last_validated
-                else time.time(),
+                build_label=profile.build_label or "",
+                extracted_at=(
+                    profile.last_validated.timestamp() if profile.last_validated else time.time()
+                ),
             )
     except Exception as e:
         logger.debug(f"Failed to load default profile: {e}")
@@ -316,7 +317,7 @@ class Profile:
             "session_id": self.session_id,
             "email": self.email,
             "build_label": self.build_label,
-            "last_validated": self.last_validated.isoformat() if self.last_validated else None,
+            "last_validated": (self.last_validated.isoformat() if self.last_validated else None),
         }
 
     @classmethod
@@ -331,9 +332,11 @@ class Profile:
 
         return cls(
             name=data.get("name", "default"),
-            cookies=data.get("cookies", [])
-            if isinstance(data.get("cookies"), list)
-            else data.get("cookies", {}),
+            cookies=(
+                data.get("cookies", [])
+                if isinstance(data.get("cookies"), list)
+                else data.get("cookies", {})
+            ),
             csrf_token=data.get("csrf_token"),
             session_id=data.get("session_id"),
             email=data.get("email"),
@@ -373,7 +376,10 @@ class AuthManager:
         """Load the current profile from disk."""
         from datetime import datetime
 
-        from notebooklm_tools.core.exceptions import AuthenticationError, ProfileNotFoundError
+        from notebooklm_tools.core.exceptions import (
+            AuthenticationError,
+            ProfileNotFoundError,
+        )
 
         if self._profile is not None and not force_reload:
             return self._profile
@@ -393,9 +399,11 @@ class AuthManager:
                 csrf_token=metadata.get("csrf_token"),
                 session_id=metadata.get("session_id"),
                 email=metadata.get("email"),
-                last_validated=datetime.fromisoformat(metadata["last_validated"])
-                if metadata.get("last_validated")
-                else None,
+                last_validated=(
+                    datetime.fromisoformat(metadata["last_validated"])
+                    if metadata.get("last_validated")
+                    else None
+                ),
                 build_label=metadata.get("build_label"),
             )
             return self._profile
@@ -593,6 +601,21 @@ class AuthCheckResult:
     details: dict[str, Any] | None = None  # e.g. extracted csrf on success
 
 
+# Browser-like headers required for the NotebookLM homepage fetch.
+# These match _PAGE_FETCH_HEADERS in BaseClient (core/base.py).
+# The Sec-Fetch-* headers are critical: without them Google may redirect
+# even valid cookies to the login page, causing false "expired" results.
+_PAGE_FETCH_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+}
+
+
 def _fetch_notebooklm_homepage(
     cookies: dict[str, str] | list[dict],
     *,
@@ -603,6 +626,9 @@ def _fetch_notebooklm_homepage(
 
     Returns the final response after redirects. Callers decide what the
     final URL / status means.
+
+    Note: uses proper browser-like _PAGE_FETCH_HEADERS (including Sec-Fetch-*)
+    to avoid false redirects to Google login that occur with minimal headers.
     """
     import httpx
 
@@ -613,11 +639,7 @@ def _fetch_notebooklm_homepage(
     else:
         cookie_dict = cookies
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
+    headers = _PAGE_FETCH_HEADERS.copy()
 
     cookie_header = cookies_to_header(cookie_dict)
     if cookie_header:
@@ -691,7 +713,10 @@ def check_auth(
             age = (time.time() - p.last_validated.timestamp()) / 3600
             if age <= 168:
                 return AuthCheckResult(
-                    valid=True, live=False, profile=profile, checked_at=p.last_validated.timestamp()
+                    valid=True,
+                    live=False,
+                    profile=profile,
+                    checked_at=p.last_validated.timestamp(),
                 )
         return AuthCheckResult(valid=False, reason="stale_heuristic", live=False, profile=profile)
 
@@ -748,3 +773,10 @@ def check_auth(
             profile=profile,
             details={"exception": str(exc)},
         )
+
+
+# Note: AuthHealthChecker, AuthProbeResult, AuthHealthReport live in
+# notebooklm_tools.services.auth — they are business logic (multi-probe
+# orchestration, caching, verdict aggregation) and belong in the services
+# layer, not here. The thin re-export shim in services.auth makes them
+# available to cli/ and mcp/ without breaking the layering rule.

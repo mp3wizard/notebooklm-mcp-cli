@@ -940,11 +940,13 @@ class BaseClient:
                 self._session_id = ""  # Force re-extraction of session ID
             return True
 
-        # Try headless auth if Chrome profile exists
+        # Try headless auth if the configured default Chrome profile exists.
         try:
-            from notebooklm_tools.utils.cdp import run_headless_auth
+            from notebooklm_tools.utils.auth_browser import run_headless_auth
+            from notebooklm_tools.utils.config import get_config
 
-            tokens = run_headless_auth()
+            profile_name = get_config().auth.default_profile
+            tokens = run_headless_auth(profile_name=profile_name)
             if tokens:
                 with self._state_lock:
                     self.cookies = tokens.cookies

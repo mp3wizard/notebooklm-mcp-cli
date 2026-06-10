@@ -7,8 +7,7 @@
 [![Total downloads](https://static.pepy.tech/badge/notebooklm-mcp-cli)](https://pepy.tech/projects/notebooklm-mcp-cli)
 [![Python](https://img.shields.io/pypi/pyversions/notebooklm-mcp-cli)](https://pypi.org/project/notebooklm-mcp-cli/)
 [![License](https://img.shields.io/pypi/l/notebooklm-mcp-cli)](https://github.com/jacob-bd/notebooklm-mcp-cli/blob/main/LICENSE)
-
-> 🎉 **January 2026 — Major Update!** This project has been completely refactored to unify **NotebookLM-MCP** and **NotebookLM-CLI** into a single, powerful package. One install gives you both the CLI (`nlm`) and MCP server (`notebooklm-mcp`). See the [CLI Guide](docs/CLI_GUIDE.md) and [MCP Guide](docs/MCP_GUIDE.md) for full documentation.
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jacobbd)
 
 ## What's New (mp3wizard fork)
 
@@ -849,6 +848,7 @@ Special thanks to:
 - **JumpLao** ([@JumpLao](https://github.com/JumpLao)) for extended audio, video, and image format support (PR #82).
 - **cbruyndoncx** ([@cbruyndoncx](https://github.com/cbruyndoncx)) for including `cited_text` passages in query output (PR #81).
 - **zxyasfas** ([@zxyasfas](https://github.com/zxyasfas)) for cited-only research import (PR #188).
+- **Serdar Akın** ([@SERDAR-AKIN](https://github.com/SERDAR-AKIN)) for the multi-probe `AuthHealthChecker` that fixes false `"stale"` reports for semi-stale cookies (PR #219).
 
 
 ## Star History

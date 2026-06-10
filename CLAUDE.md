@@ -11,6 +11,9 @@ Tested with personal/free tier accounts. May work with Google Workspace accounts
 ## Development Commands
 
 ```bash
+# Fetch latest from remote (run before git operations)
+git fetch
+
 # Install dependencies
 uv tool install .
 

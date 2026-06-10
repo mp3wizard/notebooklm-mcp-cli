@@ -39,6 +39,21 @@ def _get_auth_file_mtime() -> float:
     return get_active_auth_mtime()
 
 
+def _studio_auth_is_valid() -> tuple[bool, str | None, str | None]:
+    """Validate NotebookLM auth for studio_create pre-flight checks.
+
+    Uses ``AuthHealthChecker`` (homepage + API fallback) and, when probes
+    are inconclusive or falsely negative, confirms with the same live API
+    path as ``nlm login --check``.
+    """
+    from ...services.auth import credentials_are_usable
+
+    usable, status, detail = credentials_are_usable()
+    if usable:
+        return True, None, None
+    return False, status, detail
+
+
 def _normalize_studio_validation_error(message: str) -> str:
     """Preserve historical MCP wire wording for invalid artifact_type."""
     if message.startswith("Unknown artifact type "):
@@ -190,19 +205,17 @@ def studio_create(
     _now = _time.monotonic()
     _current_mtime = _get_auth_file_mtime()
     if _now >= _auth_guard_expires or _current_mtime != _auth_guard_mtime:
-        from ...services.auth import check_auth
-
-        auth = check_auth(live=True)
-        if not auth.valid:
+        auth_valid, auth_reason, auth_error = _studio_auth_is_valid()
+        if not auth_valid:
             _auth_guard_expires = 0.0
             _auth_guard_mtime = 0.0
             return error_result(
-                f"Cannot create {artifact_type}: NotebookLM auth is not valid "
-                f"(reason: {auth.reason}). Run `nlm login` in a terminal to "
-                "re-authenticate, then retry. `refresh_auth()` will NOT help if the "
-                "tokens are expired — it only reloads them from disk.",
+                f"Cannot create {artifact_type}: NotebookLM auth is not valid. "
+                "Run `nlm login` in a terminal to re-authenticate, then retry. "
+                "`refresh_auth()` will NOT help if the tokens are expired — it only reloads them from disk.",
                 hint="nlm login",
-                reason=auth.reason,
+                reason=auth_reason,
+                details=auth_error,
             )
         _auth_guard_expires = _now + _AUTH_GUARD_TTL
         _auth_guard_mtime = _current_mtime
