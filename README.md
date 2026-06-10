@@ -11,6 +11,23 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.7.3 — June 2026)
+- **Robust multi-probe AuthHealthChecker (#219)** — `AuthHealthChecker` now runs multiple parallel probes and aggregates results; header fix prevents false-stale auth on valid cookies
+- **`no_proxy` sanitization on import** — prevents httpx crash on Windows when `no_proxy` env var contains invalid values
+- **Profile-aware headless auth refresh (#223)** — headless authentication refresh now uses the configured profile instead of always defaulting to the system default
+- **Modern Chrome profile DB path detection (#222)** — automatically detects the current Chrome profile database path format, fixing auth on newer Chrome versions
+- **Unified MCP auth gates for semi-stale cookies (#224, #225)** — auth checking logic unified across all MCP tools; semi-stale cookies no longer cause inconsistent behavior between `studio_create`, `refresh_auth`, and other tools
+- **CLI Scripting & Automation guide** — `docs/CLI_GUIDE.md` gains a new Scripting & Automation section with pipeline patterns
+
+### Security scan (June 2026 — v0.7.3)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, mcp-exfil-scan
+- **0 HIGH / 0 MEDIUM** in project source — no fixes required
+- **0 secrets** in git history (595 commits, 9.97 MB; Gitleaks + TruffleHog verified, 0 verified/unverified)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 97 files / 341 rules)
+- **0 dependency vulnerabilities** (Trivy + OSV-Scanner over 89 packages in `uv.lock`)
+- **Bandit Medium findings in tests only**: 74 B108 (hardcoded `/tmp/` in test fixtures) — accepted; 1 B102 exec in test — false positive import check
+- **Overall risk posture: Clean** ✅ (full report: `docs/security-scan-report-2026-06-10.md`)
+
 ### Upstream sync (v0.7.0 — June 2026)
 - **Studio fast-track 2-step pipeline** — `studio_create()` now supports a direct fast-track flow for agents, reducing round-trips for audio and video artifact creation
 - **Cinematic video artifact type** — new `artifact_type=video` support in `studio_create()`
