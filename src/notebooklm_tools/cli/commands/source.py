@@ -38,9 +38,14 @@ def list_sources(
         with get_client(profile) as client:
             if drive:
                 sources = client.get_notebook_sources_with_types(notebook_id)
-                if not skip_freshness:
-                    for src in sources:
+                for src in sources:
+                    if skip_freshness:
+                        src["is_stale"] = None
+                    else:
                         src["is_fresh"] = client.check_source_freshness(src["id"])
+                        src["is_stale"] = (
+                            not src["is_fresh"] if src["is_fresh"] is not None else None
+                        )
             else:
                 sources = client.get_notebook_sources_with_types(notebook_id)
 

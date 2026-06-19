@@ -188,6 +188,7 @@ Add a file to notebook [notebook_id]:
 ### Test 2.5 - List Sources with Drive Status
 **Tool:** `source_list_drive`
 **CLI:** `nlm source list [notebook_id] --drive`
+**CLI (fast list):** `nlm source list [notebook_id] --drive --skip-freshness`
 
 **Prompt:**
 ```
@@ -195,6 +196,10 @@ List all sources in notebook [notebook_id] and check their Drive freshness statu
 ```
 
 **Expected:** List showing sources by type, Drive sources show freshness.
+
+**Large notebook variant:** Call `source_list_drive` with `skip_freshness=True`, or use
+`nlm source list [notebook_id] --drive --skip-freshness`. Expected: sources are listed
+without per-source freshness checks; stale status may be unknown.
 
 **Save:** Note a `source_id` for next tests.
 

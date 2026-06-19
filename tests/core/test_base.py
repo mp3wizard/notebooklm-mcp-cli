@@ -422,3 +422,18 @@ class TestBuildLabelPriority:
                 build_label="test_bl_value",
             )
         assert client._bl == "test_bl_value"
+
+
+def test_extract_present_rpc_ids():
+    """_extract_present_rpc_ids returns every rpc_id present in a parsed response."""
+    from notebooklm_tools.core.base import BaseClient
+
+    with patch.object(BaseClient, "_refresh_auth_tokens"):
+        client = BaseClient(cookies={}, csrf_token="t")
+
+    parsed = [
+        [["wrb.fr", "abc123", "[1,2]", None, None, None, "generic"]],
+        [["wrb.fr", "def456", "[]", None, None, None, "generic"]],
+        [["di", 42]],  # non-wrb.fr noise must be ignored
+    ]
+    assert client._extract_present_rpc_ids(parsed) == ["abc123", "def456"]

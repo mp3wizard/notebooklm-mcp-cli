@@ -121,6 +121,9 @@ tag(action="select", query="ai research")
 # Check which sources need syncing
 sources = source_list_drive(notebook_id)
 
+# For very large notebooks, skip freshness checks when you only need the source list
+sources = source_list_drive(notebook_id, skip_freshness=True)
+
 # Sync stale sources (after user confirmation)
 source_sync_drive(source_ids=["id1", "id2"], confirm=True)
 ```
@@ -1397,6 +1400,9 @@ NotebookLM doesn't auto-update Google Drive sources when the underlying document
 
 ### Solution
 The `source_list_drive` and `source_sync_drive` tools automate this process.
+For very large notebooks, `source_list_drive(notebook_id, skip_freshness=True)` skips
+the per-source freshness RPCs and returns the source list faster, with stale status
+reported as unknown.
 
 ### Source Metadata Structure (from `rLM1Ne` response)
 

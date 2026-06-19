@@ -58,11 +58,19 @@ nlm login
 | Tool | Description |
 |------|-------------|
 | `source_add` | **Unified** - Add URL, text, file, or Drive source |
-| `source_list_drive` | List sources with Drive freshness status |
+| `source_list_drive` | List sources with Drive freshness status; use `skip_freshness=True` for large notebooks when freshness is not needed |
 | `source_sync_drive` | Sync stale Drive sources |
 | `source_delete` | Delete source (requires `confirm=True`) |
 | `source_describe` | Get AI summary with keywords |
 | `source_get_content` | Get raw text content |
+
+**`source_list_drive` parameters:**
+```python
+source_list_drive(
+    notebook_id="...",
+    skip_freshness=False,  # True skips per-source freshness API calls for faster listing
+)
+```
 
 **`source_add` parameters:**
 ```python
@@ -224,8 +232,10 @@ tag(action="select", query="ai research")  # Find notebooks by tag match
 
 ```
 1. research_start(query="AI trends 2026", mode="deep")
-2. research_status(notebook_id, max_wait=300)  # wait for completion
-3. research_import(notebook_id, task_id, cited_only=True, timeout=600)  # optional cited subset
+2. research_status(notebook_id, auto_import=True)  # waits up to 15 min, imports automatically
+# Or review sources first, then import manually:
+2a. research_status(notebook_id)  # waits up to 15 min, returns next_action hint
+2b. research_import(notebook_id, task_id, cited_only=True, timeout=600)  # optional cited subset
 4. studio_create(notebook_id, artifact_type="audio", confirm=True)
 5. studio_status(notebook_id)  # poll until complete
 6. download_artifact(notebook_id, artifact_type="audio", output_path="podcast.mp3")

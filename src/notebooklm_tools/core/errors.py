@@ -142,3 +142,30 @@ class ResourceExhaustedError(RPCError):
 
     def __init__(self, message: str, detail_type: str = "", detail_data=None):
         super().__init__(message, error_code=8, detail_type=detail_type, detail_data=detail_data)
+
+
+class RPCDriftError(NotebookLMError):
+    """Raised when the response contains other RPC IDs but not the one requested.
+
+    The usual cause is Google rotating the batchexecute method ID. The message
+    names the missing id, lists the ids the server *did* return, and points the
+    user at NOTEBOOKLM_RPC_OVERRIDES to hot-patch it without a release.
+
+    Deliberately extends NotebookLMError directly, NOT RPCError: drift must
+    bypass the service-layer ``except RPCError`` handlers so its actionable
+    NOTEBOOKLM_RPC_OVERRIDES guidance reaches the user verbatim instead of
+    being reformatted into a generic service error. (Contrast with
+    ResourceExhaustedError, which subclasses RPCError on purpose so existing
+    handlers still catch it.)
+    """
+
+    def __init__(self, rpc_id: str, present_ids: list[str] | None = None):
+        present = ", ".join(present_ids) if present_ids else "(none)"
+        super().__init__(
+            f"No result for RPC '{rpc_id}' — the method ID may have been rotated by Google. "
+            f"RPC IDs present in the response: {present}. "
+            f'Hot-patch it by setting NOTEBOOKLM_RPC_OVERRIDES=\'{{"<ATTR_NAME>": "<new_id>"}}\' '
+            f"(run with --debug to inspect the response)."
+        )
+        self.rpc_id = rpc_id
+        self.present_ids = present_ids or []

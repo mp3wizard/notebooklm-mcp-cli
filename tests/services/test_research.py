@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from notebooklm_tools.core.errors import RPCError
+from notebooklm_tools.core.errors import RPCDriftError, RPCError
 from notebooklm_tools.services.errors import ServiceError, ValidationError
 from notebooklm_tools.services.research import (
     annotate_cited_sources,
@@ -102,6 +102,14 @@ class TestStartResearch:
 
         # Should mention method-specific error code, not generic "Failed to start research"
         assert "error code 3" in str(exc_info.value)
+
+    def test_drift_error_propagates_verbatim(self, mock_client):
+        """RPCDriftError must be wrapped in ServiceError but preserve its message."""
+        mock_client.start_research.side_effect = RPCDriftError("Ljjv0c", ["QA9ei"])
+        with pytest.raises(ServiceError) as exc_info:
+            start_research(mock_client, "nb-1", "query")
+        assert "Ljjv0c" in exc_info.value.user_message
+        assert "NOTEBOOKLM_RPC_OVERRIDES" in exc_info.value.user_message
 
     def test_drive_fast_works(self, mock_client):
         mock_client.start_research.return_value = {"task_id": "t-1"}
@@ -281,6 +289,82 @@ class TestPollResearch:
         assert result["status"] == "no_research"
         assert mock_client.poll_research.call_count == 1
         mock_time.sleep.assert_not_called()
+
+    def test_completed_status_includes_next_action(self, mock_client):
+        """When status is completed, the response includes a next_action hint
+        telling the caller exactly which tool to invoke next. Critical for
+        LLM agents so they don't leave the notebook empty.
+        """
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-xyz",
+            "sources": [{"title": "A"}],
+            "report": "Done",
+        }
+
+        result = poll_research(mock_client, "nb-1")
+
+        assert result["status"] == "completed"
+        assert result.get("next_action") is not None
+        assert "research_import" in result["next_action"]
+        assert "task-xyz" in result["next_action"]
+
+    def test_in_progress_status_has_no_next_action(self, mock_client):
+        """next_action is only set when research is complete."""
+        mock_client.poll_research.return_value = {
+            "status": "in_progress",
+            "task_id": "task-1",
+            "sources": [],
+            "report": "",
+        }
+
+        result = poll_research(mock_client, "nb-1")
+
+        assert result["status"] == "in_progress"
+        assert result.get("next_action") is None
+
+    def test_auto_import_calls_import_when_completed(self, mock_client):
+        """auto_import=True triggers import_research automatically on completion."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-xyz",
+            "sources": [{"title": "A", "url": "https://a.com", "result_type": 1}],
+            "report": "Done",
+        }
+        mock_client.import_research_sources.return_value = [{"title": "A"}]
+
+        result = poll_research(mock_client, "nb-1", auto_import=True)
+
+        assert result["status"] == "completed"
+        assert result.get("imported") is True
+        mock_client.import_research_sources.assert_called_once()
+
+    def test_auto_import_false_does_not_import(self, mock_client):
+        """auto_import=False (default) never calls import."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-xyz",
+            "sources": [{"title": "A"}],
+            "report": "Done",
+        }
+
+        poll_research(mock_client, "nb-1", auto_import=False)
+
+        mock_client.import_research_sources.assert_not_called()
+
+    def test_auto_import_skipped_when_not_completed(self, mock_client):
+        """auto_import=True does not import if research is still in_progress."""
+        mock_client.poll_research.return_value = {
+            "status": "in_progress",
+            "task_id": "task-1",
+            "sources": [],
+            "report": "",
+        }
+
+        result = poll_research(mock_client, "nb-1", auto_import=True)
+
+        assert result.get("imported") is not True
+        mock_client.import_research_sources.assert_not_called()
 
 
 class TestImportResearch:

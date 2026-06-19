@@ -141,15 +141,13 @@ def start_research(
             ) as progress:
                 progress.add_task("Gathering sources...", total=None)
 
-                # Use a larger timeout for deep mode
-                max_wait = 600 if mode == "deep" else 120
                 with get_client(profile) as import_client:
                     poll_res = research_service.poll_research(
                         import_client,
                         notebook_id,
                         task_id=result["task_id"],
-                        poll_interval=10,
-                        max_wait=max_wait,
+                        poll_interval=30,
+                        max_wait=900,
                     )
 
             _display_research_status(poll_res, compact=True)

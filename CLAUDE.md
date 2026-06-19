@@ -138,10 +138,20 @@ save_auth_tokens(
 | `NOTEBOOKLM_COOKIES` | Yes | Full cookie header from Chrome DevTools |
 | `NOTEBOOKLM_BL` | No | Override build label (auto-extracted from page) |
 | `NOTEBOOKLM_HL` | No | Interface language (default: `en`) |
+| `NOTEBOOKLM_RPC_OVERRIDES` | No | Hot-patch rotated batchexecute RPC method IDs without a release. JSON mapping `RPC_*` attribute names (from `core/base.py`) to new IDs, e.g. `{"RPC_LIST_NOTEBOOKS": "abc123"}` |
 
 `NOTEBOOKLM_CSRF_TOKEN` and `NOTEBOOKLM_SESSION_ID` are deprecated — auto-extracted now.
 
 When API calls fail with auth errors, re-extract fresh cookies from Chrome DevTools.
+
+### Resilience: rotated RPC IDs
+
+NotebookLM's internal API uses short RPC "method IDs" (e.g. `wXbhsf`) that Google rotates without notice. When one rotates, calls using the old ID fail. The client:
+
+- **Detects drift loudly** — raises `RPCDriftError` (wrapped as `ServiceError`) when the server responds with **other** `wrb.fr` RPC IDs than requested. Empty responses still return silently; use `--debug` to inspect.
+- **Discovers the new ID** — run with `--debug` to log `RPC IDs in response: [...]`.
+- **Hot-patches without a release** — set `NOTEBOOKLM_RPC_OVERRIDES` to override an ID for the session. **Restart the MCP server** for it to take effect (read once at client init); the `nlm` CLI picks it up on the next invocation.
+- **Auto-retries throttling** — `RESOURCE_EXHAUSTED` (RPC error code 8) responses are retried with exponential backoff.
 
 ## MCP Tools
 
@@ -169,6 +179,14 @@ When adding new features:
 5. Add thin wrappers in `mcp/tools/*.py` and `cli/commands/*.py`
 6. Write unit tests in `tests/services/`
 7. Add test cases to `docs/MCP_CLI_TEST_PLAN.md`
+
+**Bumping the version:** the `Version Alignment Check` workflow (`.github/workflows/version-check.yml`) requires the **same** version in all 5 of these files — bump them together or CI fails:
+
+- `pyproject.toml` → `version = "X.Y.Z"`
+- `src/notebooklm_tools/__init__.py` → `__version__ = "X.Y.Z"`
+- `src/notebooklm_tools/data/SKILL.md` → `version: "X.Y.Z"`
+- `src/notebooklm_tools/data/AGENTS_SECTION.md` → `<!-- nlm-version: X.Y.Z -->`
+- `desktop-extension/manifest.json` → `"version": "X.Y.Z"`
 
 ## Documentation
 

@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-06-16
+
+### Added
+
+- **Skip Drive freshness checks for large notebooks** — `source_list_drive` now accepts `skip_freshness=True`, and `nlm source list <notebook-id> --drive --skip-freshness` returns the source list without making one freshness API call per Drive source. This gives users with very large notebooks a fast listing path when freshness status is not needed. Skipped freshness is reported as unknown (`stale: null` / `is_stale: null`), not fresh.
+
+### Changed
+
+- **Release publish workflow now gates PyPI publishing** — The publish workflow now runs version alignment, ruff lint/format checks, and the non-E2E pytest suite before building and publishing. This catches release-blocking failures inside the publishing workflow before uploading to PyPI.
+
+## [0.7.5] - 2026-06-15
+
+### Fixed
+
+- **Layering violation on RPCDriftError** — The `RPCDriftError` was bypassing the service layer error wrapping, exposing raw exception types instead of the friendly `ServiceError` payload. It is now correctly wrapped while perfectly preserving the actionable `NOTEBOOKLM_RPC_OVERRIDES` hot-patch instructions for the user.
+
+### Community
+
+- **Version alignment & PR #233 follow-ups (PR #235)** — Brought version strings back into alignment and silenced a noisy RPC override warning in the logs by dropping it to `INFO` level. Thanks to **@Grobiou** for the cleanups!
+
+## [0.7.4] - 2026-06-15
+
+### Added
+
+- **`research_status`: `auto_import` parameter** — Pass `auto_import=True` and the tool automatically imports discovered sources on completion. No separate `research_import` call needed. When `False` (default), the response includes a `next_action` hint pointing you to the exact `research_import` call to make. Fixes the empty-notebook-shell problem reported in #231.
+
+### Fixed
+
+- **`source_list_drive` timeouts on large notebooks (Fixes #232)** — Drive-source freshness checks were made one at a time, in sequence. A notebook with 50 Drive sources took ~30 seconds and routinely hit the 30-second timeout. Freshness checks now run in parallel (8 workers). Measured on a live 44-source notebook: 29s sequential → 3.1s parallel, zero rate-limit errors. If one source's freshness check fails, that source reports `stale: null` instead of failing the whole list.
+- **`research_status` default timeout too short for deep research** — The MCP default was 5 minutes; deep research frequently runs longer. Default `max_wait` bumped to 15 minutes (900s), poll interval stays 30s. The CLI `--auto-import` flow is now consistent: same 15-minute / 30-second cadence instead of the old mode-specific 10-minute / 10-second split.
+- **RPC drift detection silent on empty responses (PR #233, follow-up)** — The `RPCDriftError` doc said "instead of returning silently" but the code still returned `None` silently when the response had no `wrb.fr` chunks to compare against. Clarified the behavior in `CLAUDE.md` and added the MCP server restart requirement to the `NOTEBOOKLM_RPC_OVERRIDES` hot-patch instructions.
+
+### Community
+
+- **RPC resilience (PR #233)** — Runtime RPC-ID overrides via `NOTEBOOKLM_RPC_OVERRIDES`, loud `RPCDriftError` on rotation detection, and exponential-backoff retry for `RESOURCE_EXHAUSTED` (code 8) throttling. Thanks to **@Grobiou** for the contribution!
+
 ## [0.7.3] - 2026-06-09
 
 ### Added

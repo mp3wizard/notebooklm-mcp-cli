@@ -17,12 +17,51 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
       
       - name: Install uv
-        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f  # v4
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
         with:
           version: "latest"
       
       - name: Set up Python
         run: uv python install 3.11
+
+      - name: Verify release version alignment
+        run: |
+          set -euo pipefail
+
+          TOML_VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          INIT_VERSION=$(grep '^__version__' src/notebooklm_tools/__init__.py | head -1 | sed 's/__version__ = "\(.*\)"/\1/')
+          SKILL_VERSION=$(grep '^version:' src/notebooklm_tools/data/SKILL.md | head -1 | sed 's/version: "\(.*\)"/\1/')
+          AGENTS_VERSION=$(grep 'nlm-version:' src/notebooklm_tools/data/AGENTS_SECTION.md | head -1 | sed 's/.*nlm-version: \(.*\) -->/\1/')
+          MANIFEST_VERSION=$(grep '"version"' desktop-extension/manifest.json | head -1 | sed 's/.*"version": "\(.*\)".*/\1/')
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+
+          echo "Git tag: $TAG_VERSION"
+          echo "pyproject.toml: $TOML_VERSION"
+          echo "__init__.py: $INIT_VERSION"
+          echo "SKILL.md: $SKILL_VERSION"
+          echo "AGENTS_SECTION.md: $AGENTS_VERSION"
+          echo "manifest.json: $MANIFEST_VERSION"
+
+          for VERSION in "$INIT_VERSION" "$SKILL_VERSION" "$AGENTS_VERSION" "$MANIFEST_VERSION"; do
+            if [ "$TOML_VERSION" != "$VERSION" ]; then
+              echo "Version files are not aligned with pyproject.toml"
+              exit 1
+            fi
+          done
+
+          if [ "$TAG_VERSION" != "$TOML_VERSION" ]; then
+            echo "Tag v$TAG_VERSION does not match package version $TOML_VERSION"
+            exit 1
+          fi
+
+      - name: Run ruff linting
+        run: uv run --dev ruff check . --output-format=github
+
+      - name: Run ruff format check
+        run: uv run --dev ruff format --check .
+
+      - name: Run tests
+        run: uv run --dev --with pytest-github-actions-annotate-failures --with pytest-asyncio pytest -v --tb=short -m "not e2e"
       
       - name: Build package
         run: uv build

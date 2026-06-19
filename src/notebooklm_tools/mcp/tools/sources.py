@@ -101,17 +101,22 @@ def source_add(
 
 
 @logged_tool()
-def source_list_drive(notebook_id: str) -> ResultDict:
+def source_list_drive(notebook_id: str, skip_freshness: bool = False) -> ResultDict:
     """List sources with types and Drive freshness status.
 
     Use before source_sync_drive to identify stale sources.
 
     Args:
         notebook_id: Notebook UUID
+        skip_freshness: If True, skip per-source freshness checks for faster listing
     """
     try:
         client = get_client()
-        result = sources_service.list_drive_sources(client, notebook_id)
+        result = sources_service.list_drive_sources(
+            client,
+            notebook_id,
+            skip_freshness=skip_freshness,
+        )
         return {"status": "success", "notebook_id": notebook_id, **result}
     except ServiceError as e:
         return error_result(e.user_message, hint=e.hint)

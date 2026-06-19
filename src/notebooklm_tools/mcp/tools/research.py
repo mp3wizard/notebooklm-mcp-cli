@@ -56,22 +56,25 @@ def research_start(
 def research_status(
     notebook_id: str,
     poll_interval: int = 30,
-    max_wait: int = 300,
+    max_wait: int = 900,
     compact: bool = True,
     task_id: str | None = None,
     query: str | None = None,
+    auto_import: bool = False,
 ) -> ResultDict:
     """Poll research progress. Blocks until complete or timeout.
 
     Args:
         notebook_id: Notebook UUID
         poll_interval: Seconds between polls (default: 30)
-        max_wait: Max seconds to wait (default: 300, 0=single poll)
+        max_wait: Max seconds to wait (default: 900, 0=single poll)
         compact: If True (default), truncate report and limit sources shown to save tokens.
                 Use compact=False to get full details.
         task_id: Optional Task ID to poll for a specific research task.
         query: Optional query text for fallback matching when task_id changes (deep research).
             Contributed by @saitrogen (PR #15).
+        auto_import: If True, automatically import sources when research completes.
+                    If False (default), returns next_action hint to call research_import manually.
     """
     try:
         client = get_client()
@@ -83,6 +86,7 @@ def research_status(
             compact=compact,
             poll_interval=poll_interval,
             max_wait=max_wait,
+            auto_import=auto_import,
         )
         return dict(result)
     except ServiceError as e:
