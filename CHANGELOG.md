@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-06-19
+
+### Fixed
+
+- **SOCKS proxy environments failed during HTTP client initialization (Fixes #237)** — The package now installs HTTPX with its SOCKS transport dependency. Environments that provide outbound access through `ALL_PROXY=socks5://...` or `socks5h://...` no longer fail with a missing `socksio` import before the first request. Sync and async client initialization are covered by regression tests and were verified through a live SOCKS5 proxy.
+
+### Documentation
+
+- **Remote MCP deployment guide (Issue #238)** — Added a dedicated guide explaining Claude web/mobile connector requirements, the separate MCP and Google authentication layers, external-bind security, single-account behavior, remote file limitations, supported deployment boundaries, and Claude Code Remote Control as the recommended mobile-access alternative.
+
 ## [0.7.6] - 2026-06-16
 
 ### Added

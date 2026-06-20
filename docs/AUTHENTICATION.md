@@ -2,6 +2,11 @@
 
 This guide explains how to authenticate with NotebookLM MCP and CLI.
 
+> For public HTTP deployment or Claude web/mobile connectors, see
+> [Remote MCP Deployment](REMOTE_MCP.md). Remote use introduces a separate MCP
+> endpoint authentication requirement in addition to the Google browser session
+> described here.
+
 ## Overview
 
 NotebookLM uses browser cookies for authentication (there is no official API). The CLI/MCP extracts these cookies automatically from a managed browser session:

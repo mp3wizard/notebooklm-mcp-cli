@@ -287,6 +287,11 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 ## Configuration
 
+> Planning to connect from Claude web/mobile or expose the server over a
+> network? Read [Remote MCP Deployment](REMOTE_MCP.md) first. HTTP transport
+> support does not provide HTTPS, caller authentication, per-user NotebookLM
+> accounts, or remote file transfer.
+
 ### MCP Server Options
 
 | Flag | Description | Default |
