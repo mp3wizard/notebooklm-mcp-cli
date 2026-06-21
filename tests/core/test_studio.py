@@ -145,6 +145,100 @@ class TestStudioMixinMethods:
 
         assert mixin._extract_audio_media_url(artifact_data) == "https://example.com/audio.m4a"
 
+    def test_extract_artifact_source_ids_reads_top_level_field_any_type(self):
+        """Top-level [3] is the documented, type-agnostic source field."""
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        artifact_data = [
+            "art-1",
+            "Report Artifact",
+            mixin.STUDIO_TYPE_REPORT,
+            [["uuid-x"], ["uuid-y"]],  # [3] Source IDs used
+            3,
+            None,
+        ]
+
+        assert mixin._extract_artifact_source_ids(artifact_data, mixin.STUDIO_TYPE_REPORT) == [
+            "uuid-x",
+            "uuid-y",
+        ]
+
+    def test_extract_artifact_source_ids_reads_live_triple_nested_shape(self):
+        """Poll responses wrap each source UUID in two single-element lists."""
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        artifact_data = [
+            "art-1",
+            "Video Artifact",
+            mixin.STUDIO_TYPE_VIDEO,
+            [[["uuid-x"]], [["uuid-y"]]],
+            3,
+            None,
+        ]
+
+        assert mixin._extract_artifact_source_ids(artifact_data, mixin.STUDIO_TYPE_VIDEO) == [
+            "uuid-x",
+            "uuid-y",
+        ]
+
+    def test_extract_artifact_source_ids_accepts_flat_string_entries(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        artifact_data = [
+            "art-1",
+            "Audio Artifact",
+            mixin.STUDIO_TYPE_AUDIO,
+            ["uuid-a", "uuid-b"],  # bare strings instead of single-element lists
+            2,
+            None,
+        ]
+
+        assert mixin._extract_artifact_source_ids(artifact_data, mixin.STUDIO_TYPE_AUDIO) == [
+            "uuid-a",
+            "uuid-b",
+        ]
+
+    def test_extract_artifact_source_ids_falls_back_to_audio_options(self):
+        """When the top-level field is empty, audio sources at [6][1][3] are used."""
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        artifact_data = [
+            "art-1",
+            "Audio Artifact",
+            mixin.STUDIO_TYPE_AUDIO,
+            [],  # empty top-level field -> forces the audio-options fallback
+            2,
+            None,
+            [
+                None,
+                ["", 2, None, [["uuid-aaa"], ["uuid-bbb"]], "en", True, 1],
+                "https://example.com/thumb",
+                "https://example.com/thumb-dv",
+                None,
+                [["https://example.com/audio.m4a", 1, "audio/mp4"]],
+                [],
+            ],
+        ]
+
+        assert mixin._extract_artifact_source_ids(artifact_data, mixin.STUDIO_TYPE_AUDIO) == [
+            "uuid-aaa",
+            "uuid-bbb",
+        ]
+
+    def test_extract_artifact_source_ids_returns_empty_for_malformed_payload(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+        artifact_data = [
+            "art-1",
+            "Audio Artifact",
+            mixin.STUDIO_TYPE_AUDIO,
+            [],
+            2,
+            None,
+        ]
+
+        assert mixin._extract_artifact_source_ids(artifact_data, mixin.STUDIO_TYPE_AUDIO) == []
+
     def test_poll_studio_status_uses_normalized_status_mapping(self):
         mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
         http_client = MagicMock()

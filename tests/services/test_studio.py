@@ -478,3 +478,26 @@ class TestDeleteArtifact:
         mock_client.delete_studio_artifact.side_effect = RuntimeError("fail")
         with pytest.raises(ServiceError, match="Failed to delete"):
             delete_artifact(mock_client, "art-1", "nb-1")
+
+
+class TestStudioStatusSourceIds:
+    """get_studio_status surfaces per-artifact source_ids from the client."""
+
+    def test_source_ids_propagate_to_artifact_info(self, mock_client):
+        mock_client.poll_studio_status.return_value = [
+            {
+                "artifact_id": "a1",
+                "type": "audio",
+                "status": "completed",
+                "source_ids": ["uuid-aaa", "uuid-bbb"],
+            },
+        ]
+        result = get_studio_status(mock_client, "nb-1")
+        assert result["artifacts"][0]["source_ids"] == ["uuid-aaa", "uuid-bbb"]
+
+    def test_source_ids_default_empty_when_absent(self, mock_client):
+        mock_client.poll_studio_status.return_value = [
+            {"artifact_id": "a1", "type": "report", "status": "completed"},
+        ]
+        result = get_studio_status(mock_client, "nb-1")
+        assert result["artifacts"][0]["source_ids"] == []

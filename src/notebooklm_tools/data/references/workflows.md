@@ -12,7 +12,7 @@ Commands requiring user confirmation before AI execution:
 - `nlm notebook delete <id> --confirm`
 - `nlm source delete <id> --confirm`
 - `nlm studio delete <notebook-id> <artifact-id> --confirm`
-- `nlm auth delete <profile> --confirm`
+- `nlm login profile delete <profile>`
 
 **Example AI behavior:**
 ```
@@ -50,7 +50,7 @@ nlm login --check
 # Expected: "Authentication valid! Notebooks found: N"
 
 # Step 3: Create a notebook
-nlm notebook create "My First Notebook"
+nlm notebook create "My First Notebook" --json
 # Output: Created notebook: <notebook-id>
 
 # Step 4: Set alias for convenience
@@ -100,7 +100,7 @@ nlm source list <notebook-id>
 
 ```bash
 # Step 1: Create dedicated notebook
-nlm notebook create "AI Trends Research 2026"
+nlm notebook create "AI Trends Research 2026" --json
 # Capture: NOTEBOOK_ID=<id>
 
 # Step 2: Set alias
@@ -111,7 +111,7 @@ nlm research start "agentic AI and autonomous systems trends 2026" --notebook-id
 # Capture: TASK_ID=<task_id>
 
 # Step 4: Monitor progress (polls until complete or timeout)
-nlm research status research --max-wait 300
+nlm research status research --max-wait 900
 
 # Step 5: View discovered sources
 nlm research status research --full
@@ -130,6 +130,9 @@ nlm studio status research
 
 # Step 9: Get podcast URL from studio status output
 ```
+
+For automation, `nlm research start ... --auto-import` combines polling and
+importing, using a 15-minute wait and 30-second polling cadence.
 
 ---
 
@@ -424,17 +427,9 @@ QUERY="latest AI news $(date +%Y-%m-%d)"
 # Ensure authenticated
 nlm login --check || nlm login
 
-# Start fast research
-nlm research start "$QUERY" --notebook-id $NOTEBOOK_ID --mode fast
-
-# Wait for completion
-nlm research status $NOTEBOOK_ID --max-wait 60
-
-# Get task ID from status
-TASK_ID=$(nlm research status $NOTEBOOK_ID --max-wait 0 2>&1 | grep -oE 'task_id=[^ ]+' | cut -d= -f2)
-
-# Import all sources
-nlm research import $NOTEBOOK_ID $TASK_ID
+# Research and import automatically. Use --json and a JSON parser when IDs or
+# fields must be captured; do not grep human-formatted output.
+nlm research start "$QUERY" --notebook-id $NOTEBOOK_ID --mode fast --auto-import
 
 # Generate brief audio summary
 nlm audio create $NOTEBOOK_ID --format brief --length short --confirm

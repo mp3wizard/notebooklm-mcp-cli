@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.8] - 2026-06-20
+
+### Added
+
+- **Studio artifact source provenance (PR #240)** — `studio_status` and `nlm studio status --json --full` now include each artifact's `source_ids`, allowing callers to trace generated podcasts, videos, reports, slide decks, infographics, quizzes, flashcards, and data tables back to their source documents. The parser handles the nested source-ID shapes returned by current NotebookLM responses. Thanks to **@tonhuu96** for identifying the missing capability and contributing the end-to-end implementation!
+
+### Fixed
+
+- **Actionable file-source upload errors** — File upload failures now preserve the concrete reason and received path instead of returning only `Could not add file source.` The hint clarifies that paths must be accessible on the machine running `nlm` or the MCP server, which makes different-host and remote MCP failures diagnosable.
+
+### Documentation
+
+- **Regional audio accent locales** — Documented the observed BCP-47 region behavior for Audio Overviews: `es`/`es-ES` selects Spain Spanish, while `es-US`/`es-419` selects Latin-American Spanish. The same regional locale can be supplied through `NOTEBOOKLM_HL`.
+- **Packaged skill capability audit** — Brought the installable NotebookLM skill and references in sync with the current 39-tool MCP surface and CLI. Updated authentication semantics, async query tools, research auto-import and 15-minute polling, labels, bulk source and sharing operations, artifact source provenance, server-local file paths, remote MCP security, RPC drift recovery, current command syntax, pipeline/batch examples, and consolidated tool contracts.
+
 ## [0.7.7] - 2026-06-19
 
 ### Fixed

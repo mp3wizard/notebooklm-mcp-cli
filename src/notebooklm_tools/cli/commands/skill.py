@@ -336,6 +336,7 @@ def install_skill_md(install_path: Path, frontmatter_extras: dict[str, str] | No
     console.print("  [dim]• references/command_reference.md")
     console.print("  [dim]• references/troubleshooting.md")
     console.print("  [dim]• references/workflows.md")
+    console.print("  [dim]• references/remote-mcp.md")
 
 
 def install_agents_md(install_path: Path) -> None:

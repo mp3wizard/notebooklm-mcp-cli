@@ -222,14 +222,22 @@ def add_source(
     except (ValidationError, ServiceError):
         raise
     except Exception as e:
-        hint = (
-            "Check the URL is accessible. For YouTube, ensure the video is public."
-            if source_type == "url"
-            else None
-        )
+        if source_type == "file" and file_path:
+            user_message = f"Could not add file source: {e}"
+            hint = (
+                "File paths must be accessible on the machine running nlm or the MCP server. "
+                f"Received path: {file_path}"
+            )
+        else:
+            user_message = f"Could not add {source_type} source."
+            hint = (
+                "Check the URL is accessible. For YouTube, ensure the video is public."
+                if source_type == "url"
+                else None
+            )
         raise ServiceError(
             f"Failed to add {source_type} source: {e}",
-            user_message=f"Could not add {source_type} source.",
+            user_message=user_message,
             hint=hint,
         ) from e
 

@@ -28,6 +28,17 @@ studio_create(notebook_id="<id>", artifact_type="audio", audio_format="deep_dive
               audio_length="default", focus_prompt="...", confirm=True)
 ```
 
+For a regional Spanish accent, set the locale explicitly:
+
+```python
+studio_create(notebook_id="<id>", artifact_type="audio", audio_format="deep_dive",
+              language="es-419", focus_prompt="...", confirm=True)
+```
+
+NotebookLM has been observed producing Spain Spanish for `es`/`es-ES` and
+Latin-American Spanish for `es-US`/`es-419`. Prompt wording does not reliably
+change the accent.
+
 ### Video (explainer/brief)
 ```
 Explainer for [audience]. Cover [2-3 key topics from sources]. Clear and concise.

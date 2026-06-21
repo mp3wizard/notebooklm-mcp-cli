@@ -1,6 +1,6 @@
 # MCP Guide
 
-Complete reference for the NotebookLM MCP server — **35 tools** for AI assistants.
+Complete reference for the NotebookLM MCP server — **39 tools** for AI assistants.
 
 ## Installation
 
@@ -254,7 +254,14 @@ source_add(notebook_id, source_type="url", url="https://...", wait=True)
 studio_create(notebook_id, artifact_type="quiz", question_count=10, confirm=True)
 studio_create(notebook_id, artifact_type="flashcards", difficulty="hard", confirm=True)
 studio_create(notebook_id, artifact_type="report", report_format="Study Guide", confirm=True)
+studio_create(notebook_id, artifact_type="audio", language="es-419", confirm=True)
 ```
+
+For Audio Overviews, NotebookLM has been observed using BCP-47 region
+subtags to select the voice accent. `es` and `es-ES` produce Spain Spanish,
+while `es-US` and `es-419` produce Latin-American Spanish. The generation
+prompt does not reliably override the accent. Treat this as observed behavior,
+not a guaranteed API contract.
 
 ### Tag, Batch & Cross-Notebook
 
@@ -307,7 +314,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 | `NOTEBOOKLM_MCP_TRANSPORT` | Transport type |
 | `NOTEBOOKLM_MCP_PORT` | HTTP/SSE port |
 | `NOTEBOOKLM_MCP_DEBUG` | Enable debug logging |
-| `NOTEBOOKLM_HL` | Interface language and default artifact language (default: en) |
+| `NOTEBOOKLM_HL` | Interface language and default artifact locale, including regional BCP-47 values such as `es-419` (default: en) |
 | `NOTEBOOKLM_QUERY_TIMEOUT` | Query timeout (seconds) |
 | `NOTEBOOKLM_BASE_URL` | Override base URL for Enterprise/Workspace (default: `https://notebooklm.google.com`) |
 
@@ -315,7 +322,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 ## Context Window Tips
 
-This MCP has **35 tools** which consume context. Best practices:
+This MCP has **39 tools** which consume context. Best practices:
 
 - **Disable when not using**: In Claude Code, use `@notebooklm-mcp` to toggle
 - **Use unified tools**: `source_add`, `studio_create`, `download_artifact` handle multiple operations each

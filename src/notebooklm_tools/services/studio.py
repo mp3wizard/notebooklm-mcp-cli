@@ -83,6 +83,7 @@ class ArtifactInfo(TypedDict, total=False):
     url: str | None
     custom_instructions: str | None
     visual_style_prompt: str | None
+    source_ids: list[str]
     audio_url: str | None
     video_url: str | None
     infographic_url: str | None
@@ -672,6 +673,9 @@ def get_studio_status(
             if isinstance(raw_artifact.get("duration_seconds"), int)
             or raw_artifact.get("duration_seconds") is None
             else None,
+            "source_ids": [
+                sid for sid in (raw_artifact.get("source_ids") or []) if isinstance(sid, str)
+            ],
         }
         artifact_id = raw_artifact.get("artifact_id")
         if isinstance(artifact_id, str):

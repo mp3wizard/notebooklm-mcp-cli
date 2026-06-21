@@ -131,6 +131,47 @@ class StudioMixin(BaseClient):
 
         return None
 
+    @staticmethod
+    def _coerce_source_ids(raw: Any) -> list[str]:
+        """Coerce a raw source list into UUID strings.
+
+        Entries appear as bare strings (``"uuid"``) or UUIDs wrapped in one
+        or more single-element lists; anything else is ignored.
+        """
+        if not isinstance(raw, list):
+            return []
+        ids: list[str] = []
+        for entry in raw:
+            while isinstance(entry, list) and len(entry) == 1:
+                entry = entry[0]
+            if isinstance(entry, str):
+                ids.append(entry)
+        return ids
+
+    def _extract_artifact_source_ids(self, artifact_data: list[Any], type_code: Any) -> list[str]:
+        """Source UUIDs an artifact was generated from.
+
+        Per the ``gArtLc`` poll response (see ``docs/API_REFERENCE.md``), the
+        source list is carried at the top-level index ``[3]`` for all artifact
+        types. Some audio payloads also nest it inside the options blob at
+        ``[6][1][3]``; fall back to that when the top-level field is empty.
+        """
+        # Top-level source field — documented, type-agnostic.
+        if len(artifact_data) > 3:
+            ids = self._coerce_source_ids(artifact_data[3])
+            if ids:
+                return ids
+
+        # Audio fallback: sources nested in the options blob at [6][1][3].
+        if type_code == self.STUDIO_TYPE_AUDIO and len(artifact_data) > 6:
+            options_data = artifact_data[6]
+            if isinstance(options_data, list) and len(options_data) > 1:
+                inner = options_data[1]
+                if isinstance(inner, list) and len(inner) > 3:
+                    return self._coerce_source_ids(inner[3])
+
+        return []
+
     def _normalize_studio_status(self, artifact_data: Any) -> str:
         """Map raw artifact status codes to stable CLI status labels.
 
@@ -447,6 +488,7 @@ class StudioMixin(BaseClient):
                 # - Quiz/Flashcards: artifact_data[9][1][1]
                 custom_instructions = None
                 visual_style_prompt = None
+                source_ids = self._extract_artifact_source_ids(artifact_data, type_code)
 
                 if type_code == self.STUDIO_TYPE_AUDIO and len(artifact_data) > 6:
                     options_data = artifact_data[6]
@@ -492,6 +534,7 @@ class StudioMixin(BaseClient):
                         "status": status,
                         "created_at": created_at,
                         "custom_instructions": custom_instructions,
+                        "source_ids": source_ids,
                         "visual_style_prompt": visual_style_prompt,
                         "audio_url": audio_url,
                         "video_url": video_url,

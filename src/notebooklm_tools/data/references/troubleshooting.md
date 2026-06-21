@@ -6,7 +6,8 @@ This document provides detailed solutions for common issues when using the `nlm`
 
 | Symptom | Likely Cause | Quick Fix |
 |---------|--------------|-----------|
-| "Cookies have expired" | Session timeout | `nlm login` |
+| "Cookies have expired" / auth status `stale` | Credentials rejected | `nlm login` |
+| Auth status `unverified` | Network/proxy probe failure | Check connectivity or try an API call |
 | "Notebook not found" | Invalid/stale ID | `nlm notebook list` |
 | "Source not found" | Invalid source ID | `nlm source list <nb-id>` |
 | Browser doesn't open | Port conflict | Close existing browser, retry |
@@ -26,7 +27,8 @@ Error: Cookies have expired. Please run 'nlm login' to re-authenticate.
 Error: authentication may have expired
 ```
 
-**Cause:** NotebookLM sessions last approximately 20 minutes.
+**Cause:** NotebookLM rejected the stored credentials. Cookies often remain
+usable for weeks, so do not re-authenticate solely because time has passed.
 
 **Solution:**
 ```bash
@@ -104,6 +106,30 @@ nlm login --check || nlm login
 
 ## Network Issues
 
+### Proxy Environments
+
+HTTP, HTTPS, and SOCKS proxy environment variables are supported. If a SOCKS
+environment fails with a missing `socksio` import, upgrade or reinstall
+`notebooklm-mcp-cli` 0.7.7 or newer. The client sanitizes only malformed
+CIDR-style `no_proxy` entries; valid IPv6 loopback and `host:port` entries are
+preserved.
+
+### RPC Method-ID Drift
+
+NotebookLM can rotate internal RPC method IDs without notice. When
+`RPCDriftError` identifies a replacement:
+
+1. Run the failing command with `--debug` and inspect the returned RPC IDs.
+2. Set the suggested override, for example:
+   ```bash
+   export NOTEBOOKLM_RPC_OVERRIDES='{"RPC_LIST_NOTEBOOKS":"newId"}'
+   ```
+3. Restart the MCP server. CLI commands read the environment on their next
+   invocation.
+
+An entirely empty response has no RPC IDs to compare and may still return
+without a drift diagnosis.
+
 ### Sandbox Environments
 
 **Symptom:**
@@ -161,6 +187,13 @@ Error: Rate limit exceeded
 ---
 
 ## Source Issues
+
+### File Not Found During Upload
+
+`source_add(source_type="file")` and `nlm source add --file` read files from
+the machine running the MCP server or CLI. A path on a phone, browser, or
+different agent host is not transferred automatically. Use a server-local
+path. Errors include the underlying file reason and the received path.
 
 ### Source Not Found
 
@@ -220,6 +253,9 @@ nlm source sync <notebook-id> --confirm
 nlm source sync <notebook-id> --source-ids <id1>,<id2> --confirm
 ```
 
+When `--skip-freshness` / `-S` is used, `stale=null` means freshness was not
+checked. It does not mean the source is fresh.
+
 ---
 
 ## Research Issues
@@ -278,6 +314,9 @@ Error: Research already in progress
 - Audio podcasts: 2-5 minutes
 - Videos: 3-7 minutes
 - Deep research: 4-5 minutes
+
+Deep research can take longer. MCP `research_status` and CLI auto-import wait
+up to 15 minutes by default.
 
 **Solution:** Keep polling:
 ```bash

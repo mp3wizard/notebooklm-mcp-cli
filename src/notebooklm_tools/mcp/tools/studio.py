@@ -293,6 +293,7 @@ def studio_status(
                 - status: completed, in_progress, failed
                 - url: URL to view/download (if applicable)
                 - custom_instructions: The custom prompt/focus instructions used to generate the artifact (if any)
+                - source_ids: List of source UUIDs the artifact was generated from
             - summary: Counts of total, completed, in_progress
     """
     try:

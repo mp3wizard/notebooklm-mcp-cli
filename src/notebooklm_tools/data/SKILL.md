@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.7.7"
+version: "0.7.8"
 description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", or any NotebookLM-related automation task."
 ---
 
@@ -48,11 +48,14 @@ nlm --version           # Check installed version
 
 ## Critical Rules (Read First!)
 
-1. **Always authenticate first**: Run `nlm login` before any operations
-2. **Sessions expire in ~20 minutes**: Re-run `nlm login` if commands start failing
+1. **Authenticate when needed**: Run `nlm login` for first-time setup or confirmed stale/missing credentials. Saved cookies often remain usable for weeks.
+2. **Do not confuse network failures with expired auth**: `auth_status="unverified"` means the probe was inconclusive. Check connectivity or try an API call before asking the user to log in again.
 3. **⚠️ ALWAYS ASK USER BEFORE DELETE**: Before executing ANY delete command, ask the user for explicit confirmation. Deletions are **irreversible**. Show what will be deleted and warn about permanent data loss.
-4. **`--confirm` is REQUIRED**: All generation and delete commands need `--confirm` or `-y` (CLI) or `confirm=True` (MCP)
-5. **Research requires `--notebook-id`**: The flag is mandatory, not positional
+4. **Always obtain approval before generation or deletion**: Direct
+   `studio_create` and delete operations enforce `--confirm` / `confirm=True`.
+   The current MCP batch Studio path does not enforce its confirm parameter,
+   so the agent must preserve the approval gate.
+5. **Research needs a destination**: Pass `--notebook-id <id>` for an existing notebook or `--title <title>` to create one.
 6. **Capture IDs from output**: Create/start commands return IDs needed for subsequent operations
 7. **Use aliases**: Simplify long UUIDs with `nlm alias set <name> <uuid>`
 8. **Check aliases before creating**: Run `nlm alias list` before creating a new alias to avoid conflicts with existing names.
@@ -60,6 +63,10 @@ nlm --version           # Check installed version
 10. **Choose output format wisely**: Default output (no flags) is compact and token-efficient—use it for status checks. Use `--quiet` to capture IDs for piping. Only use `--json` when you need to parse specific fields programmatically.
 11. **Use `--help` when unsure**: Run `nlm <command> --help` to see available options and flags for any command.
 12. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
+
+**Current MCP surface:** 39 tools. Consolidated action tools include `note`,
+`label`, `studio_status`, `batch`, `pipeline`, and `tag`. Consolidated type
+tools include `source_add`, `studio_create`, and `download_artifact`.
 
 ## Workflow Decision Tree
 
@@ -141,7 +148,9 @@ nlm login profile rename <old> <new> # Rename a profile
 
 **Multi-Profile Support**: Each profile gets its own isolated browser session (supports Chrome, Arc, Brave, Edge, Chromium, and more), so you can be logged into multiple Google accounts simultaneously.
 
-**Session lifetime**: ~20 minutes. Re-authenticate when commands fail with auth errors.
+**Auth status:** `configured` means usable; `stale` means run `nlm login`;
+`not_configured` means first-time setup is required; `unverified` means the
+probe was inconclusive; `error` means the health check itself failed.
 
 **Switching MCP Accounts**: The MCP server always uses the active default profile. If you need to switch which Google account the MCP server is communicating with, you MUST use the CLI: run `nlm login switch <name>`. Your next MCP tool call will instantly use the new account.
 
@@ -151,7 +160,13 @@ nlm login profile rename <old> <new> # Rename a profile
 
 #### MCP Tools
 
-Use tools: `notebook_list`, `notebook_create`, `notebook_get`, `notebook_describe`, `notebook_query`, `notebook_rename`, `notebook_delete`. All accept `notebook_id` parameter. Delete requires `confirm=True`.
+Use `notebook_list`, `notebook_create`, `notebook_get`, `notebook_describe`,
+`notebook_query`, `notebook_rename`, and `notebook_delete`. The
+get/describe/query/rename/delete tools require `notebook_id`; list and create
+do not. Delete requires `confirm=True`.
+
+For large notebooks or long-running questions, call `notebook_query_start`,
+then poll `notebook_query_status(query_id)` until completed or errored.
 
 #### CLI Commands
 ```bash
@@ -159,6 +174,7 @@ nlm notebook list                      # List all notebooks
 nlm notebook list --json               # JSON output for parsing
 nlm notebook list --quiet              # IDs only (for scripting)
 nlm notebook create "Title"            # Create notebook, returns ID
+nlm notebook create "Title" --json     # Stable machine-readable ID capture
 nlm notebook get <id>                  # Get notebook details
 nlm notebook describe <id>             # AI-generated summary + suggested topics
 nlm notebook query <id> "question"     # One-shot Q&A with sources
@@ -173,10 +189,26 @@ nlm notebook delete <id> --confirm     # PERMANENT deletion
 Use `source_add` with these `source_type` values:
 - `url` - Web page or YouTube URL (`url` param)
 - `text` - Pasted content (`text` + `title` params)
-- `file` - Local file upload (`file_path` param). Supported extensions: `PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, JPEG, PNG, GIF, WEBP`. Note: Image-bearing sources (PDF / JPG / PNG / etc.) feed Studio video generation's visual-crop pipeline — charts, photos, and diagrams may be extracted as on-screen aids in Video Overviews.
+- `file` - Server-local file upload (`file_path` param). The path must exist on
+  the machine running the MCP server, not merely on the client host. Failures
+  preserve the concrete reason and include a host-path hint. Supported:
+  `PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG,
+  JPEG, PNG, GIF, WEBP`.
 - `drive` - Google Drive doc (`document_id` + `doc_type` params)
 
-Other tools: `source_list_drive` (`skip_freshness=True` for large notebooks when freshness is not needed), `source_describe`, `source_get_content`, `source_rename`, `source_sync_drive` (requires `confirm=True`), `source_delete` (requires `confirm=True`).
+Other tools: `source_list_drive` (`skip_freshness=True` reports
+`stale/is_stale=null`, meaning unknown, not fresh), `source_describe`,
+`source_get_content`, `source_rename`, `source_sync_drive`, and
+`source_delete`. Bulk URL add uses `source_add(source_type="url", urls=[...])`;
+bulk delete uses `source_delete(source_ids=[...], confirm=True)`. MCP Drive
+sync requires explicit source UUIDs: list first, select stale IDs, then call
+`source_sync_drive(source_ids=[...], confirm=True)`.
+
+#### Source Labels
+
+Use `label` with actions `auto`, `list`, `reorganize`, `create`, `rename`,
+`set_emoji`, `move_source`, and `delete`. Full reorganization and deletion
+require `confirm=True`; `reorganize(unlabeled_only=True)` does not.
 
 #### CLI Commands
 ```bash
@@ -184,7 +216,7 @@ Other tools: `source_list_drive` (`skip_freshness=True` for large notebooks when
 nlm source add <nb-id> --url "https://..."           # Web page
 nlm source add <nb-id> --url "https://youtube.com/..." # YouTube video
 nlm source add <nb-id> --text "content" --title "X"  # Pasted text
-nlm source add <nb-id> --drive <doc-id>              # Drive doc (auto-detect type)
+nlm source add <nb-id> --drive <doc-id>              # Defaults to Drive doc
 nlm source add <nb-id> --drive <doc-id> --type slides # Explicit type
 nlm source add <nb-id> --file "/path/to/diagram.png" --wait # Local file upload (images, PDFs, documents, audio, video)
 
@@ -222,17 +254,23 @@ Use `research_start` with:
 - `source`: `web` or `drive`
 - `mode`: `fast` (~30s) or `deep` (~5min, web only)
 
-Workflow: `research_start` → poll `research_status` → `research_import`
+Preferred workflow: `research_start` → `research_status(auto_import=True)`.
+For manual source selection, poll without auto-import and then call
+`research_import`. `research_start` accepts either `notebook_id` or `title`
+to create a destination notebook. MCP status defaults to a 900-second wait
+with 30-second polling.
 
 #### CLI Commands
 ```bash
-# Start research (--notebook-id is REQUIRED)
+# Start research in an existing notebook or create one with --title
 nlm research start "query" --notebook-id <id>              # Fast web (~30s)
+nlm research start "query" --title "New Research"           # Create destination notebook
 nlm research start "query" --notebook-id <id> --mode deep  # Deep web (~5min)
 nlm research start "query" --notebook-id <id> --source drive  # Drive search
+nlm research start "query" --notebook-id <id> --mode deep --auto-import
 
 # Check progress
-nlm research status <nb-id>                   # Poll until done (5min max)
+nlm research status <nb-id>                   # Poll until done
 nlm research status <nb-id> --max-wait 0      # Single check, no waiting
 nlm research status <nb-id> --task-id <tid>   # Check specific task
 nlm research status <nb-id> --full            # Full details
@@ -264,7 +302,15 @@ Use `studio_create` with `artifact_type` and type-specific options. All require 
 | `infographic` | `orientation`: landscape/portrait/square, `detail_level`: concise/standard/detailed, `infographic_style`: auto_select/sketch_note/professional/bento_grid/editorial/instructional/bricks/clay/anime/kawaii/scientific |
 | `data_table` | `description` (REQUIRED) |
 
-**Common options**: `source_ids`, `language` (BCP-47 code), `focus_prompt`
+**Common options**: `source_ids`, `language` (BCP-47 code, including regional
+locales such as `es-419`), `focus_prompt`
+
+**Audio accent:** NotebookLM has been observed using the `language` region
+subtag, not the prompt, to choose the Audio Overview accent. For example,
+`es`/`es-ES` produces Spain Spanish, while `es-US`/`es-419` produces
+Latin-American Spanish. `NOTEBOOKLM_HL` can set the same regional locale as
+the default. Treat this as observed upstream behavior, not a guaranteed API
+contract.
 
 **Revise Slides:** Use `studio_revise` to revise individual slides in an existing slide deck.
 - Requires `artifact_id` (from `studio_status`) and `slide_instructions`
@@ -274,10 +320,12 @@ Use `studio_create` with `artifact_type` and type-specific options. All require 
 
 #### CLI Commands
 
-All generation commands share these flags:
+All generation commands share `--confirm`, `--source-ids`, and `--profile`.
+`--language` is available for audio, report, slides, infographic, video, and
+data-table:
 - `--confirm` or `-y`: **REQUIRED** to execute
 - `--source-ids <id1,id2>`: Limit to specific sources
-- `--language <code>`: BCP-47 code (en, es, fr, de, ja)
+- `--language <code>`: BCP-47 code (`en`, `es-ES`, `es-US`, `es-419`, `fr`, etc.)
 
 ```bash
 # Audio (Podcast)
@@ -311,12 +359,12 @@ nlm flashcards create <id> --difficulty medium --focus "Focus on definitions" --
 # Mind Map
 nlm mindmap create <id> --confirm
 nlm mindmap create <id> --title "Topic Overview" --confirm
-nlm mindmap list <id>  # List existing mind maps
+nlm studio status <id>  # Includes existing mind maps
 
 # Slides
 nlm slides create <id> --confirm
-nlm slides create <id> --format presenter --length short --confirm
-# Formats: detailed, presenter | Lengths: short, default
+nlm slides create <id> --format presenter_slides --length short --confirm
+# Formats: detailed_deck, presenter_slides | Lengths: short, default
 nlm slides revise <artifact-id> --slide '1 Make the title larger' --confirm
 # Each --slide value must be: '<slide-number> <instruction>'
 # Creates a NEW deck with revisions. Original unchanged.
@@ -382,7 +430,13 @@ nlm data-table create <id> "Extract all dates and events" --confirm
 
 #### MCP Tools
 
-Use `studio_status` to check progress (or rename with `action="rename"`). For failed artifacts, `studio_status` returns a non-null `error_reason` field so callers know why without re-running. Use `download_artifact` with `artifact_type` and `output_path`. Use `export_artifact` with `export_type`: docs/sheets. Delete with `studio_delete` (requires `confirm=True`).
+Use `studio_status` to check progress, rename with `action="rename"`, or inspect
+supported types with `action="list_types"`. Failed artifacts include
+`error_reason`. Each artifact also includes `source_ids`; an empty list means
+the upstream payload did not expose provenance, not necessarily that no
+sources were used. Use `download_artifact` with `artifact_type` and
+`output_path`, `export_artifact` with `export_type` (`docs`/`sheets`), and
+`studio_delete` with `confirm=True`.
 
 #### CLI Commands
 ```bash
@@ -390,6 +444,7 @@ Use `studio_status` to check progress (or rename with `action="rename"`). For fa
 nlm studio status <nb-id>                          # List all artifacts
 nlm studio status <nb-id> --full                   # Show full details (including custom prompts)
 nlm studio status <nb-id> --json                   # JSON output
+nlm studio status <nb-id> --json --full            # Includes artifact source_ids
 
 # Download artifacts
 nlm download audio <nb-id> --output podcast.mp3
@@ -443,8 +498,11 @@ Use `server_info` to get version and check for updates:
 
 ```python
 mcp__notebooklm-mcp__server_info()
-# Returns: version, latest_version, update_available, update_command
+# Returns version/update fields plus auth_status
 ```
+
+Treat `stale` as requiring `nlm login`. `unverified` is an inconclusive probe,
+not confirmed expiration.
 
 #### CLI Commands
 ```bash
@@ -483,7 +541,7 @@ nlm chat configure <id> --response-length longer  # longer, default, shorter
 
 **Notes management**:
 ```bash
-nlm note create <nb-id> "Content" --title "Title"
+nlm note create <nb-id> --content "Content" --title "Title"
 nlm note list <nb-id>
 nlm note update <nb-id> <note-id> --content "New content"
 nlm note delete <nb-id> <note-id> --confirm
@@ -493,7 +551,10 @@ nlm note delete <nb-id> <note-id> --confirm
 
 #### MCP Tools
 
-Use `notebook_share_status` to check, `notebook_share_public` to enable/disable public link, `notebook_share_invite` with `email` and `role`: viewer/editor.
+Use `notebook_share_status` to check, `notebook_share_public` to enable/disable
+public links, and `notebook_share_invite` for one collaborator. Use
+`notebook_share_batch` with `recipients=[{"email": "...", "role":
+"viewer|editor"}]` and `confirm=True` for multiple collaborators.
 
 #### CLI Commands
 ```bash
@@ -597,10 +658,10 @@ batch(action="studio", artifact_type="audio", tags="research", confirm=True)
 nlm batch query "What are the key takeaways?" --notebooks "id1,id2"
 nlm batch query "Summarize" --tags "ai,research"      # Query by tag
 nlm batch query "Summarize" --all                      # Query ALL notebooks
-nlm batch add-source --url "https://..." --notebooks "id1,id2"
+nlm batch add-source "https://..." --notebooks "id1,id2"
 nlm batch create "Project A, Project B, Project C"     # Create multiple
 nlm batch delete --notebooks "id1,id2" --confirm       # Delete multiple
-nlm batch studio --type audio --tags "research" --confirm  # Generate across notebooks
+nlm batch studio audio --tags "research"                   # Generate across notebooks
 ```
 
 ### 13. Cross-Notebook Query
@@ -636,9 +697,10 @@ pipeline(action="run", notebook_id="...", pipeline_name="ingest-and-podcast", in
 #### CLI Commands
 ```bash
 nlm pipeline list                                         # List available pipelines
-nlm pipeline run <notebook> ingest-and-podcast --url "https://..."
-nlm pipeline run <notebook> research-and-report --url "https://..."
-nlm pipeline run <notebook> multi-format                  # Audio + report + flashcards
+nlm pipeline run ingest-and-podcast --notebook <id> --input-url "https://..."
+nlm pipeline run research-and-report --notebook <id> --input-url "https://..."
+nlm pipeline run multi-format --notebook <id>             # Audio + report + flashcards
+nlm pipeline create my-pipeline --file pipeline.yaml
 ```
 
 **Built-in pipelines:** `ingest-and-podcast`, `research-and-report`, `multi-format`
@@ -709,6 +771,14 @@ When starting the MCP server directly, two flags control transport-layer behavio
 - `--transport http` / `--transport stdio` (default: `stdio`): Pick the transport. `--transport http` requires `--port` (default `8000`).
 - `--host <addr>` (default `127.0.0.1`): Bind address for HTTP/SSE. Refuses external binds unless `NOTEBOOKLM_ALLOW_EXTERNAL_BIND=1` is set.
 
+#### Remote MCP security
+
+The server has no built-in endpoint authentication or TLS and uses one
+process-wide Google account. Never expose it directly to the public internet.
+Put authentication, TLS, and network restrictions in front of remote
+deployments. Browser/phone-local files are not transferred automatically;
+`source_add(file)` requires a path already present on the server host.
+
 ## Common Patterns
 
 ### Pattern 1: Research → Podcast Pipeline
@@ -717,8 +787,8 @@ When starting the MCP server directly, two flags control transport-layer behavio
 nlm notebook create "AI Research 2026"   # Capture ID
 nlm alias set ai <notebook-id>
 nlm research start "agentic AI trends" --notebook-id ai --mode deep
-nlm research status ai --max-wait 300    # Wait up to 5 min
-nlm research import ai <task-id>         # Import all sources
+nlm research status ai --max-wait 900    # Deep research can take up to 15 min
+nlm research import ai <task-id>         # Or use research start --auto-import
 nlm audio create ai --format deep_dive --confirm
 nlm studio status ai                     # Check generation progress
 ```
@@ -761,10 +831,10 @@ nlm tag add <id2> --tags "ai,product"
 nlm cross query "What are the main conclusions?" --tags "ai"
 
 # Batch generate podcasts for all tagged notebooks
-nlm batch studio --type audio --tags "ai" --confirm
+nlm batch studio audio --tags "ai"
 
 # Run a pipeline on a single notebook
-nlm pipeline run <id> ingest-and-podcast --url "https://example.com"
+nlm pipeline run ingest-and-podcast --notebook <id> --input-url "https://example.com"
 ```
 
 ## Error Recovery
@@ -781,6 +851,8 @@ nlm pipeline run <id> ingest-and-podcast --url "https://example.com"
 | "Google API error code 3" | Transient deep research error | Retry in a few minutes, or use `--mode fast` |
 | Browser doesn't launch | Port conflict | Close browser, retry |
 | `nlm login` crashes with `ClientAuthenticationError` | (Fixed in 0.6.14) Disk tokens fully expired | `nlm login` now works directly, no manual `nlm login profile delete` needed |
+| `RPCDriftError` / rotated method ID | NotebookLM changed an internal RPC ID | Run with `--debug`, apply the suggested `NOTEBOOKLM_RPC_OVERRIDES` JSON mapping, then restart the MCP server |
+| File upload path not found | Path exists on the client but not the CLI/MCP host | Use a path accessible on the machine running `nlm` or the MCP server |
 
 ## Rate Limiting
 
@@ -798,3 +870,4 @@ For detailed information, see:
 - **[references/command_reference.md](references/command_reference.md)**: Complete command signatures
 - **[references/troubleshooting.md](references/troubleshooting.md)**: Detailed error handling
 - **[references/workflows.md](references/workflows.md)**: End-to-end task sequences
+- **[references/remote-mcp.md](references/remote-mcp.md)**: Remote HTTP deployment boundaries, security, account isolation, and file-transfer limitations

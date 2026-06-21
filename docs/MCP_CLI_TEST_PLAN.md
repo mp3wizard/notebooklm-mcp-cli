@@ -2,10 +2,10 @@
 
 **Purpose:** Verify all **30 consolidated MCP tools** work correctly.
 
-**Version:** 2.3 (Updated 2026-02-21 - added studio_revise)
+**Version:** 2.4 (Updated 2026-06-20 - synchronized current MCP surface)
 
 **Changes from v2.1:**
-- Corrected tool count: 29 tools (notes consolidated + server_info added)
+- Current tool count: 39 tools (including consolidated notes, labels, async query, batch, pipeline, tags, and server_info)
 
 **Changes from v1:**
 - Tools consolidated: 45+ → 29 (-36%)

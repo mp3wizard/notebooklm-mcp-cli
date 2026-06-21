@@ -47,7 +47,9 @@ def source_add(
         urls: List of URLs to add in bulk (for source_type=url, alternative to url)
         text: Text content to add (for source_type=text)
         title: Display title (for text sources)
-        file_path: Local file path (for source_type=file)
+        file_path: Local file path on the machine running the MCP server
+            (for source_type=file). A path on a different client/agent host
+            is not accessible to the server.
         document_id: Google Drive document ID (for source_type=drive)
         doc_type: Drive doc type: doc|slides|sheets|pdf (for source_type=drive)
         wait: If True, wait for source processing to complete before returning

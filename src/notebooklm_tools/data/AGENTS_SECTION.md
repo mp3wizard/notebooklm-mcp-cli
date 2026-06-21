@@ -1,5 +1,5 @@
 <!-- nlm-skill-start -->
-<!-- nlm-version: 0.7.7 -->
+<!-- nlm-version: 0.7.8 -->
 ## NLM - NotebookLM CLI Expert
 
 **Triggers:** "nlm", "notebooklm", "notebook lm", "podcast", "audio overview", "research"
@@ -14,12 +14,13 @@ nlm notebook create "Title"  # Create notebook
 nlm source add <id> --url "https://..."  # Add web source
 nlm audio create <id> --confirm          # Generate podcast
 nlm research start "query" --notebook-id <id>  # Discover sources
+nlm research start "query" --title "New Research"  # Create destination notebook
 ```
 
 ### Critical Rules
 
-1. **Always authenticate first**: `nlm login` before operations
-2. **Sessions expire in ~20 minutes**: Re-run `nlm login` if auth fails
+1. **Authenticate when needed**: Run `nlm login` for setup or confirmed stale credentials
+2. **Do not treat `unverified` as expired**: Check connectivity or try an API call first
 3. **`--confirm` required** for generation/delete commands
 4. **Capture IDs from output** for subsequent operations
 5. **Use `nlm alias set`** to simplify UUIDs
@@ -33,7 +34,7 @@ nlm research start "query" --notebook-id <id>  # Discover sources
 nlm notebook create "AI Research"
 nlm alias set ai <notebook-id>
 nlm research start "AI trends" --notebook-id ai --mode deep
-nlm research status ai
+nlm research status ai --max-wait 900
 nlm research import ai <task-id>
 nlm audio create ai --confirm
 nlm studio status ai
@@ -58,7 +59,7 @@ nlm flashcards create <id> --focus "Vocabulary" --confirm
 nlm tag add <id> --tags "ai,research"                     # Tag notebooks
 nlm batch query "Summarize" --tags "ai"                   # Batch query by tag
 nlm cross query "Compare approaches" --notebooks "id1,id2"  # Cross-notebook query
-nlm pipeline run <id> ingest-and-podcast --url "https://..."  # Run pipeline
+nlm pipeline run ingest-and-podcast --notebook <id> --input-url "https://..."
 ```
 
 ### Full Documentation

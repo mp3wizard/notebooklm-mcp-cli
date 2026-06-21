@@ -193,6 +193,15 @@ Run mentally; do not present as a questionnaire.
 
 **Parameters:** `audio_format`, `audio_length`, `focus_prompt`
 
+### Language and accent
+
+Use a regional BCP-47 locale when the requested accent matters. NotebookLM has
+been observed producing Spain Spanish for `es`/`es-ES` and Latin-American
+Spanish for `es-US`/`es-419`. Prompt instructions do not reliably change the
+voice accent. `NOTEBOOKLM_HL` sets the default locale, while `language` can
+override it per generation. This behavior is controlled upstream and may
+change.
+
 ### Format × length decision tree
 
 | Scenario | Format | Length |

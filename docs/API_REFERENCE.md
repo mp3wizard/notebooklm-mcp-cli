@@ -774,7 +774,12 @@ Returns the same structure as `R7cb6c` (Create Studio Content):
 |--------|--------|
 | **Formats** | 1=Deep Dive (conversation), 2=Brief, 3=Critique, 4=Debate |
 | **Lengths** | 1=Short, 2=Default, 3=Long |
-| **Languages** | BCP-47 codes: "en", "es", "fr", "de", "ja", etc. |
+| **Languages** | BCP-47 codes, including regional values such as `"es-ES"`, `"es-US"`, and `"es-419"` |
+
+For Audio Overviews, NotebookLM has been observed using the region subtag to
+select the voice accent. `es` and `es-ES` produce Spain Spanish, while `es-US`
+and `es-419` produce Latin-American Spanish. Prompt text does not reliably
+override the accent. This is observed behavior and may change upstream.
 
 ### Video Options
 

@@ -15,7 +15,9 @@ nlm version {version}
 
 ## CRITICAL: Authentication
 
-**Sessions last approximately 20 minutes.** Before ANY operation, you MUST ensure the user is authenticated.
+Saved cookies often remain usable for weeks. Authenticate for first-time setup
+or confirmed stale/missing credentials. Do not treat an `unverified` auth
+health result as confirmed expiration.
 
 ### First-Time Setup / Re-Authentication
 ```bash
@@ -299,15 +301,17 @@ nlm configure chat <notebook-id> --length longer           # Set response length
 
 **Noun-First:**
 ```bash
-# Start research (--notebook-id is REQUIRED)
+# Start research in an existing notebook or create a destination notebook
 nlm research start "query" --notebook-id <id>                    # Fast web (default)
+nlm research start "query" --title "New Research"                # Create destination notebook
 nlm research start "query" --notebook-id <id> --mode deep        # Deep web (~5min)
 nlm research start "query" --notebook-id <id> --source drive     # Fast drive
 nlm research start "query" --notebook-id <id> --force            # Override pending
 nlm research start "query" --notebook-id <id> --auto-import      # Auto wait (15min) and import
 
 # Check progress
-nlm research status <notebook-id>                    # Poll until done (15min max, 30s interval)
+nlm research status <notebook-id>                    # Poll until done (5min max, 30s interval)
+nlm research status <notebook-id> --max-wait 900     # Allow up to 15min for deep research
 nlm research status <notebook-id> --max-wait 0       # Single check
 nlm research status <notebook-id> --task-id <tid>    # Specific task
 nlm research status <notebook-id> --full             # Full details
@@ -333,7 +337,7 @@ nlm status research <notebook-id>                        # Check progress
 **All generation commands support:**
 - `--confirm` or `-y`: Skip confirmation (REQUIRED for automation)
 - `--source-ids <id1,id2>`: Limit to specific sources
-- `--language <code>`: BCP-47 code (en, es, fr, de, ja)
+- `--language <code>`: BCP-47 code, including regional locales such as `es-419`
 - `--profile <name>`: Use specific auth profile
 
 #### Audio (Podcast)
@@ -343,9 +347,15 @@ nlm status research <notebook-id>                        # Check progress
 nlm audio create <notebook-id> --confirm
 nlm audio create <notebook-id> --format deep_dive --length default --confirm
 nlm audio create <notebook-id> --format brief --focus "key topic" --confirm
+nlm audio create <notebook-id> --language es-419 --confirm
 # Formats: deep_dive, brief, critique, debate
 # Lengths: short, default, long
 ```
+
+NotebookLM has been observed using the BCP-47 region subtag to select the
+Audio Overview accent. `es`/`es-ES` produces Spain Spanish, while
+`es-US`/`es-419` produces Latin-American Spanish. Prompt text does not
+reliably override the accent. `NOTEBOOKLM_HL` can set the regional default.
 
 **Verb-First:**
 ```bash
@@ -615,12 +625,12 @@ nlm batch query "What are the key takeaways?" --notebooks "id1,id2"
 nlm batch query "Summarize" --tags "ai,research"          # Select by tag
 nlm batch query "Summarize" --all                         # ALL notebooks
 
-nlm batch add-source --url "https://..." --notebooks "id1,id2"
-nlm batch add-source --url "https://..." --tags "research"
+nlm batch add-source "https://..." --notebooks "id1,id2"
+nlm batch add-source "https://..." --tags "research"
 
 nlm batch create "Project A, Project B, Project C"        # Create multiple
 nlm batch delete --notebooks "id1,id2" --confirm
-nlm batch studio --type audio --tags "research" --confirm
+nlm batch studio audio --tags "research"
 ```
 
 ### Cross-Notebook Query
@@ -639,9 +649,9 @@ Run predefined multi-step workflows on a notebook:
 
 ```bash
 nlm pipeline list                                         # List available pipelines
-nlm pipeline run <notebook-id> ingest-and-podcast --url "https://..."
-nlm pipeline run <notebook-id> research-and-report --url "https://..."
-nlm pipeline run <notebook-id> multi-format                # Audio + report + flashcards
+nlm pipeline run ingest-and-podcast --notebook <id> --input-url "https://..."
+nlm pipeline run research-and-report --notebook <id> --input-url "https://..."
+nlm pipeline run multi-format --notebook <id>             # Audio + report + flashcards
 ```
 
 **Built-in pipelines:**
@@ -716,7 +726,7 @@ nlm skill show | head -50
 
 **What Gets Installed:**
 - `SKILL.md` - Main skill file with NotebookLM CLI/MCP documentation
-- `references/` - Additional documentation (command_reference.md, troubleshooting.md, workflows.md)
+- `references/` - Additional documentation, including command, troubleshooting, workflow, Studio prompting, and remote MCP guides
 
 For Gemini CLI (v0.33.1+) and Codex, it installs to `~/.agents/skills/nlm-skill/SKILL.md` — the cross-tool compatible path.
 
@@ -841,7 +851,7 @@ nlm research start "agentic AI trends 2026" --notebook-id ai --mode deep
 # Task ID: task456...
 
 # 5. Wait for completion
-nlm research status ai --max-wait 300
+nlm research status ai --max-wait 900
 
 # 6. Import all sources
 nlm research import ai task456...
@@ -958,8 +968,8 @@ nlm download infographic <notebook-id> --id <infographic-id>
 3. **Capture IDs from create outputs** - you'll need them for subsequent operations
 4. **Use aliases** for frequently-used notebooks to simplify commands
 5. **Poll for long operations** - audio/video takes 1-5 minutes; use `nlm studio status` or `nlm status artifacts`
-6. **Research requires `--notebook-id`** - the flag is mandatory
-7. **Session lifetime is ~20 minutes** - re-login if operations start failing
+6. **Research needs a destination** - use `--notebook-id` for an existing notebook or `--title` to create one
+7. **Re-authenticate only for stale/missing credentials** - `unverified` means the probe was inconclusive
 8. **Use `--max-wait 0`** for single status poll instead of blocking
 9. **⚠️ ALWAYS ask user before delete** - Before running ANY delete command, ask the user for explicit confirmation. Deletions are IRREVERSIBLE. Show what will be deleted and warn about permanent data loss.
 10. **Check aliases before creating** - Run `nlm alias list` or `nlm list aliases` before creating a new alias to avoid conflicts with existing names.

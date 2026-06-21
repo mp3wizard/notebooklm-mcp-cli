@@ -311,6 +311,7 @@ class JsonFormatter(Formatter):
         "report_content",
         "flashcard_count",
         "duration_seconds",
+        "source_ids",
     )
 
     def format_notebooks(

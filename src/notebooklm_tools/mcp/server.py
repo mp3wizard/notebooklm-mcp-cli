@@ -53,7 +53,8 @@ Consolidated tools:
 - studio_create(artifact_type=audio|video|...): Create any artifact type
 - studio_revise: Revise individual slides in an existing slide deck
 - download_artifact(artifact_type=audio|video|...): Download any artifact type
-- note_create/note_list/note_update/note_delete: Manage notes in notebooks""",
+- note(action=create|list|update|delete): Manage notes in notebooks
+- label(action=auto|list|reorganize|create|rename|set_emoji|move_source|delete): Manage source labels""",
 )
 
 # MCP request/response logger
