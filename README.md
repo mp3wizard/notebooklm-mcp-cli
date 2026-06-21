@@ -11,6 +11,22 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.7.8 — June 2026)
+- **Studio artifact source provenance** — `studio_status` now returns `source_ids` per artifact, letting you trace generated podcasts, videos, and slide decks back to their source documents (PR #240, @tonhuu96)
+- **Actionable file upload errors** — file source failures now surface the concrete reason and path hint instead of a generic "Could not add file source." message
+- **Regional audio accent locale docs** — `es` vs `es-US`/`es-419` behavior for Audio Overviews documented in `docs/API_REFERENCE.md` and `docs/CLI_GUIDE.md`
+- **Skill capability audit** — SKILL.md and MCP reference docs brought in sync with the full 39-tool MCP surface
+- **fix(studio):** nested artifact source ID parsing corrected for all artifact types
+
+### Security scan (June 2026 — v0.7.8)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **6 HIGH fixed** — cryptography 46.0.7→49.0.0 (GHSA-537c-gmf6-5ccf); python-multipart 0.0.26→0.0.32 (CVE-2026-42561, CVE-2026-53539); starlette 1.0.0→1.3.1 (CVE-2026-48818, CVE-2026-54283)
+- **6 MEDIUM fixed** — authlib 1.6.10→1.7.2 (CVE-2026-41425, CVE-2026-44681); idna 3.11→3.18 (CVE-2026-45409); pydantic-settings 2.13.1→2.14.2 (GHSA-4xgf-cpjx-pc3j); starlette (CVE-2026-48710, CVE-2026-48817)
+- **5 LOW** resolved automatically by the above upgrades
+- **0 secrets** in git history (618 commits, 10 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 102 files / 688 rules; Bandit 0 High in src/)
+- **Trivy post-fix: 0 / OSV-Scanner: 0** ✅ (full report: `docs/security-scan-report-2026-06-21.md`)
+
 ### Upstream sync (v0.7.3 — June 2026)
 - **Robust multi-probe AuthHealthChecker (#219)** — `AuthHealthChecker` now runs multiple parallel probes and aggregates results; header fix prevents false-stale auth on valid cookies
 - **`no_proxy` sanitization on import** — prevents httpx crash on Windows when `no_proxy` env var contains invalid values
