@@ -11,6 +11,20 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.8.0 — July 2026)
+- **Short Video Overview format** — `video_format="short"` (CLI: `nlm video create <id> --format short`) generates NotebookLM's new ~60-second vertical "bite-sized" video format, announced by Google on 2026-06-30. Like Cinematic, Short rejects `--style`/`--style-prompt` and maps those flags into `--focus`. Currently English-only, rolling out to Pro/Ultra accounts.
+- **"Refactor with NotebookLM" workflow** — new reference workflow in `docs/references/workflows.md` for iteratively refactoring documents using NotebookLM as the editing loop (PR #239, @Grobiou)
+- **Skill trigger update** — SKILL.md gains a document-refactoring entry in the workflow tree
+- Folds in v0.7.8 features: studio artifact source provenance (`source_ids`), actionable file upload errors, regional audio locale docs, skill capability audit
+
+### Security scan (July 2026 — v0.8.0)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan, skillspector
+- **0 dependency vulnerabilities** — Trivy + OSV-Scanner clean (88 packages; lockfile carried forward from June security upgrades)
+- **0 secrets** in git history (622 commits, 10 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** (Semgrep OWASP+Python+Secrets / 102 files; Bandit 0 High/Medium in src/)
+- **All scanner flags confirmed false positives** — YARA info_stealer pattern matches legitimate Chrome CDP auth code by design
+- Full report: [`docs/security-scan-report-2026-07-01.md`](docs/security-scan-report-2026-07-01.md)
+
 ### Upstream sync (v0.7.8 — June 2026)
 - **Studio artifact source provenance** — `studio_status` now returns `source_ids` per artifact, letting you trace generated podcasts, videos, and slide decks back to their source documents (PR #240, @tonhuu96)
 - **Actionable file upload errors** — file source failures now surface the concrete reason and path hint instead of a generic "Could not add file source." message
