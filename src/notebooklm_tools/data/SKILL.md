@@ -1,7 +1,7 @@
 ---
 name: nlm-skill
-version: "0.7.8"
-description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", or any NotebookLM-related automation task."
+version: "0.8.0"
+description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any NotebookLM-related automation task."
 ---
 
 # NotebookLM CLI & MCP Expert
@@ -92,6 +92,9 @@ User wants to...
 │   ├─► Visual content → nlm mindmap/slides/infographic create <nb-id> --confirm
 │   ├─► Video → nlm video create <nb-id> --confirm
 │   └─► Extract data → nlm data-table create <nb-id> "description" --confirm
+│
+├─► Refactor, critique, or improve a draft document
+│   └─► See Workflow 15 in references/workflows.md
 │
 ├─► Ask questions about sources
 │   └─► nlm notebook query <nb-id> "question"
@@ -293,7 +296,7 @@ Use `studio_create` with `artifact_type` and type-specific options. All require 
 | artifact_type | Key Options |
 |--------------|-------------|
 | `audio` | `audio_format`: deep_dive/brief/critique/debate, `audio_length`: short/default/long |
-| `video` | `video_format`: explainer/brief/cinematic, `visual_style`: auto_select/classic/whiteboard/kawaii/anime/watercolor/retro_print/heritage/paper_craft (not for cinematic), `video_style_prompt` |
+| `video` | `video_format`: explainer/brief/cinematic/short, `visual_style`: auto_select/classic/whiteboard/kawaii/anime/watercolor/retro_print/heritage/paper_craft (not for cinematic/short), `video_style_prompt` |
 | `report` | `report_format`: Briefing Doc/Study Guide/Blog Post/Create Your Own, `custom_prompt` |
 | `quiz` | `question_count`, `difficulty`: easy/medium/hard |
 | `flashcards` | `difficulty`: easy/medium/hard |
@@ -380,9 +383,10 @@ nlm infographic create <id> --orientation portrait --detail detailed --style pro
 nlm video create <id> --confirm
 nlm video create <id> --format brief --style whiteboard --confirm
 nlm video create <id> --format cinematic --focus "Full creative brief..." --confirm
-# Formats: explainer, brief, cinematic (English, 18+, quota-limited)
-# Styles: auto_select, classic, whiteboard, kawaii, anime, watercolor, retro_print, heritage, paper_craft
-# Cinematic: put full brief in --focus; --style-prompt merges into --focus
+nlm video create <id> --format short --focus "Key topic" --confirm
+# Formats: explainer, brief, cinematic (English, 18+, quota-limited), short (English, 18+, vertical ~60s, rolling out)
+# Styles: auto_select, classic, whiteboard, kawaii, anime, watercolor, retro_print, heritage, paper_craft (not for cinematic/short)
+# Cinematic/short: put full brief in --focus; --style-prompt merges into --focus
 
 # Data Table
 nlm data-table create <id> "Extract all dates and events" --confirm

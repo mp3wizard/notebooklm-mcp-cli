@@ -45,6 +45,12 @@ Explainer for [audience]. Cover [2-3 key topics from sources]. Clear and concise
 Use only uploaded sources.
 ```
 
+### Video (short)
+```
+60-second overview of [core concept from sources]. Quickly grasp the key idea.
+Use only uploaded sources.
+```
+
 ### Slide deck
 ```
 Presentation for [audience/meeting type]. Structure: [problem → findings → recommendation].

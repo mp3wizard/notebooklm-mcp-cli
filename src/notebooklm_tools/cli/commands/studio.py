@@ -564,7 +564,7 @@ def create_infographic(
 def create_video(
     notebook_id: str = typer.Argument(..., help="Notebook ID"),
     format: str = typer.Option(
-        "explainer", "--format", "-f", help="Format: explainer, brief, cinematic"
+        "explainer", "--format", "-f", help="Format: explainer, brief, cinematic, short"
     ),
     style: str = typer.Option(
         "auto_select",
@@ -575,15 +575,17 @@ def create_video(
     style_prompt: str = typer.Option(
         "",
         "--style-prompt",
-        help="Custom visual style description. For explainer/brief: implies --style custom. For cinematic: mapped to --focus (custom_instructions).",
+        help="Custom visual style description. For explainer/brief: implies --style custom. For cinematic/short: mapped to --focus (custom_instructions).",
     ),
     language: str = typer.Option(
-        "", "--language", help="BCP-47 language code (default: NOTEBOOKLM_HL or en)"
+        "",
+        "--language",
+        help="BCP-47 language code (default: NOTEBOOKLM_HL or en; short format is English-only for now)",
     ),
     focus: str = typer.Option(
         "",
         "--focus",
-        help="Focus topic or creative direction. For cinematic format, this is the full steering prompt (visual style, audience, narrative).",
+        help="Focus topic or creative direction. For cinematic/short formats, this is the full steering prompt (visual style, audience, narrative).",
     ),
     source_ids: str | None = typer.Option(None, "--source-ids", help="Comma-separated source IDs"),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation"),

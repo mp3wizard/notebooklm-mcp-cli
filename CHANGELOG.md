@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.8] - 2026-06-20
+## [0.8.0] - 2026-06-30
 
 ### Added
 
+- **Short Video Overview format** — `video_format="short"` (CLI: `nlm video create <id> --format short`) generates NotebookLM's new ~60-second, vertical "bite-sized overview" video format, announced by Google on 2026-06-30. Like Cinematic, Short has no visual style picker (`--style`/`--style-prompt` map into `--focus`) and is currently English-only, 18+, and rolling out gradually to Pro/Ultra accounts. The request payload was verified via a live network capture against a production NotebookLM account.
 - **Studio artifact source provenance (PR #240)** — `studio_status` and `nlm studio status --json --full` now include each artifact's `source_ids`, allowing callers to trace generated podcasts, videos, reports, slide decks, infographics, quizzes, flashcards, and data tables back to their source documents. The parser handles the nested source-ID shapes returned by current NotebookLM responses. Thanks to **@tonhuu96** for identifying the missing capability and contributing the end-to-end implementation!
 
 ### Fixed
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **Closed-loop "Refactor with NotebookLM" workflow (#239)** — Added a reference workflow and a corresponding skill trigger for iteratively refactoring documents using NotebookLM as the editing loop.
 - **Regional audio accent locales** — Documented the observed BCP-47 region behavior for Audio Overviews: `es`/`es-ES` selects Spain Spanish, while `es-US`/`es-419` selects Latin-American Spanish. The same regional locale can be supplied through `NOTEBOOKLM_HL`.
 - **Packaged skill capability audit** — Brought the installable NotebookLM skill and references in sync with the current 39-tool MCP surface and CLI. Updated authentication semantics, async query tools, research auto-import and 15-minute polling, labels, bulk source and sharing operations, artifact source provenance, server-local file paths, remote MCP security, RPC drift recovery, current command syntax, pipeline/batch examples, and consolidated tool contracts.
 

@@ -106,7 +106,7 @@ source_add(
 
 **`studio_create` artifact types:**
 - `audio` - Podcast (formats: deep_dive, brief, critique, debate)
-- `video` - Video overview (formats: explainer, brief)
+- `video` - Video overview (formats: explainer, brief, cinematic, short)
 - `report` - Text report (Briefing Doc, Study Guide, Blog Post)
 - `quiz` - Multiple choice quiz
 - `flashcards` - Study flashcards

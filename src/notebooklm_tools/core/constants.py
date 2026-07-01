@@ -238,12 +238,14 @@ AUDIO_LENGTHS = CodeMapper(
 VIDEO_FORMAT_EXPLAINER = 1
 VIDEO_FORMAT_BRIEF = 2
 VIDEO_FORMAT_CINEMATIC = 3
+VIDEO_FORMAT_SHORT = 4
 
 VIDEO_FORMATS = CodeMapper(
     {
         "explainer": VIDEO_FORMAT_EXPLAINER,
         "brief": VIDEO_FORMAT_BRIEF,
         "cinematic": VIDEO_FORMAT_CINEMATIC,
+        "short": VIDEO_FORMAT_SHORT,
     }
 )
 

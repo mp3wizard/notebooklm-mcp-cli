@@ -289,15 +289,21 @@ class StudioMixin(BaseClient):
         # Build source IDs in the simpler format: [[id1], [id2], ...]
         sources_simple = [[sid] for sid in source_ids]
 
-        # Build inner options — Cinematic format (code 3) omits visual_style_code
+        # Build inner options — Cinematic (code 3) and Short (code 4) omit visual_style_code
         inner_options = [
             sources_simple,
-            language,
+            None if format_code == constants.VIDEO_FORMAT_SHORT else language,
             focus_prompt,
             None,
             format_code,
         ]
-        if format_code != constants.VIDEO_FORMAT_CINEMATIC:
+        if format_code == constants.VIDEO_FORMAT_SHORT:
+            # Short Video Overviews are English-only for now (language sent as
+            # null; NotebookLM defaults it server-side) and require a trailing
+            # flag — value `1` observed in a live capture on 2026-06-30, exact
+            # meaning undocumented by Google.
+            inner_options.extend([None, None, 1])
+        elif format_code != constants.VIDEO_FORMAT_CINEMATIC:
             inner_options.append(visual_style_code)
             if visual_style_prompt:
                 inner_options.append(visual_style_prompt)
@@ -337,10 +343,12 @@ class StudioMixin(BaseClient):
                 "status": self._normalize_studio_status(artifact_data),
                 "format": constants.VIDEO_FORMATS.get_name(format_code),
                 "visual_style": constants.VIDEO_STYLES.get_name(visual_style_code)
-                if format_code != constants.VIDEO_FORMAT_CINEMATIC and visual_style_code is not None
+                if format_code
+                not in (constants.VIDEO_FORMAT_CINEMATIC, constants.VIDEO_FORMAT_SHORT)
+                and visual_style_code is not None
                 else None,
                 "visual_style_prompt": visual_style_prompt or None,
-                "language": language,
+                "language": "en" if format_code == constants.VIDEO_FORMAT_SHORT else language,
             }
 
         return None

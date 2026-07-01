@@ -193,7 +193,7 @@ result = audio_overview_create(
 # Create a video overview
 result = video_overview_create(
     notebook_id=notebook_id,
-    format="explainer",      # explainer, brief, cinematic
+    format="explainer",      # explainer, brief, cinematic, short
     visual_style="classic",  # auto_select, custom, classic, whiteboard, kawaii, anime, etc.
     focus_prompt="",         # Optional host/content focus text
     visual_style_prompt="",  # Optional custom style text when visual_style="custom"
@@ -220,7 +220,7 @@ studio_delete(
 
 **Audio Formats:** deep_dive (conversation), brief, critique, debate
 **Audio Lengths:** short, default, long
-**Video Formats:** explainer, brief, cinematic
+**Video Formats:** explainer, brief, cinematic, short (vertical, ~60s, English-only, no visual style)
 **Video Styles:** auto_select, custom, classic, whiteboard, kawaii, anime, watercolor, retro_print, heritage, paper_craft
 
 ---
@@ -656,12 +656,30 @@ params = [
                 language_code,     # "en", "es", etc.
                 focus_prompt,      # Host/content focus text
                 None,
-                format_code,       # 1=Explainer, 2=Brief, 3=Cinematic
+                format_code,       # 1=Explainer, 2=Brief, 3=Cinematic, 4=Short
                 visual_style_code,  # 1=Auto, 3=Classic, etc. (null when using custom style text)
                 visual_style_prompt  # Present when visual_style="custom"
             ]
         ]
     ]
+]
+```
+
+**Short format (code 4) — verified via live capture, 2026-06-30:** Short Video
+Overviews have no visual style picker, so the inner options list omits
+`visual_style_code`/`visual_style_prompt` entirely (matching Cinematic), and
+additionally sends `language_code` as `null` (server defaults to `"en"`;
+English-only for now) plus a trailing flag `1` whose meaning is undocumented
+by Google but required for the request to succeed:
+```python
+[
+    [[source_id1], [source_id2], ...],  # Source IDs
+    None,                                # language — always null for Short
+    focus_prompt,
+    None,
+    4,                                   # format_code = Short
+    None, None,                          # no visual style
+    1,                                   # required trailing flag (unexplained)
 ]
 ```
 
@@ -785,9 +803,9 @@ override the accent. This is observed behavior and may change upstream.
 
 | Option | Values |
 |--------|--------|
-| **Formats** | 1=Explainer (comprehensive), 2=Brief |
-| **Visual Styles** | 1=Auto-select, 2=Custom, 3=Classic, 4=Whiteboard, 5=Kawaii, 6=Anime, 7=Watercolor, 8=Retro print, 9=Heritage, 10=Paper-craft |
-| **Languages** | BCP-47 codes: "en", "es", "fr", "de", "ja", etc. |
+| **Formats** | 1=Explainer (comprehensive), 2=Brief, 3=Cinematic, 4=Short (vertical, ~60s) |
+| **Visual Styles** | 1=Auto-select, 2=Custom, 3=Classic, 4=Whiteboard, 5=Kawaii, 6=Anime, 7=Watercolor, 8=Retro print, 9=Heritage, 10=Paper-craft (not applicable to Cinematic or Short) |
+| **Languages** | BCP-47 codes: "en", "es", "fr", "de", "ja", etc. (Short is English-only for now) |
 
 #### Infographic Request
 ```python

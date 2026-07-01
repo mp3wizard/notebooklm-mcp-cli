@@ -440,6 +440,84 @@ nlm studio status $NOTEBOOK_ID
 
 ---
 
+## Workflow 15: Refactor a Document with NotebookLM (Closed-Loop Review)
+
+### Goal: Iteratively improve a draft using NotebookLM as a grounded critic — critique, fix, re-critique until convergence.
+
+**Boundary:** NotebookLM *advises*; the agent *decides and edits*. NotebookLM is a
+grounded but fallible critic (it only sees its sources) and never decides what is applied.
+
+**Modes** (pick one at the start; default `lite`):
+- `lite` — core loop + three safeguards: required citations, logged adjudication, escalation checkpoint.
+- `full` — `lite` plus regression guard, file/git versioning, and adversarial framing. Use for high-stakes or audited documents.
+
+**Behavior rules for this workflow:**
+- Every critique MUST include a cited source passage. Discard any critique with no citation.
+- The agent adjudicates each surviving critique (ACCEPT / REJECT / DEFER + reason); only ACCEPTED BLOCKING/IMPORTANT items are applied.
+- If an item is high-impact **and** ambiguous (the citation doesn't settle it), do **not** auto-apply — surface it to the user and wait.
+- Cleanup deletes obsolete draft sources. Per **Critical AI Behavior Rules**, confirm with the user before any `nlm source delete`.
+- Stop on convergence (no BLOCKING/IMPORTANT), on **repeated or contradictory** feedback across rounds, or at `MAX_ITER`.
+
+```bash
+# Prerequisites: authenticated (nlm login); draft saved locally (e.g. draft_v1.md);
+# reference material available (URLs, Drive docs, or text). MAX_ITER=4.
+
+# --- Setup ---
+nlm notebook create "Refactor — <doc> — $(date +%F)"
+# Capture: NOTEBOOK_ID=<id>
+nlm alias set refactor <notebook-id>
+
+# Add the REFERENCE sources ONCE — the authority the draft is measured against
+nlm source add refactor --url "https://example.com/standard"
+sleep 2
+nlm source add refactor --drive <DRIVE_DOC_ID> --type doc
+sleep 2
+nlm source list refactor          # capture the reference source-ids
+# Capture: REF_IDS="<ref-id-1>,<ref-id-2>"
+
+# ===== Iteration i (repeat until convergence; i = 1..MAX_ITER) =====
+
+# 1. Add the current draft as TEXT (avoids MCP-host file-path issues)
+nlm source add refactor --text "$(cat draft_v1.md)" --title "DRAFT v1"
+sleep 2
+# Capture: DRAFT_ID=<id>
+
+# 2. Critique — ALWAYS scope to the current draft PLUS the references
+#    (querying the draft alone would strip the grounding material)
+nlm notebook query refactor \
+  "Review DRAFT v1 against the reference sources. Return a table: \
+severity (BLOCKING/IMPORTANT/MINOR) | location | problem | cited source passage | \
+suggested fix | VERDICT (SHIP or REVISE). Only flag issues you can ground in a cited passage." \
+  --source-ids "<DRAFT_ID>,<REF_IDS>"
+
+# 3. Adjudicate (agent, not the CLI):
+#    - discard critiques without a citation
+#    - ACCEPT / REJECT / DEFER each, with a one-line reason
+#    - apply ACCEPTED BLOCKING/IMPORTANT edits to the local file
+#    [full] write draft_v2.md and git-commit the diff (auditable, reversible)
+
+# 4. Cleanup the now-obsolete draft  ——  CONFIRM WITH THE USER FIRST
+nlm source delete <DRAFT_ID> --confirm
+sleep 2
+
+# 5. Re-add the revised draft and loop:
+#    nlm source add refactor --text "$(cat draft_v2.md)" --title "DRAFT v2"  -> re-query -> re-adjudicate
+#    [full] regression guard: if this round introduced issues the previous round
+#           did not have, revert to draft_v{i-1} and stop.
+#    Stop when VERDICT is SHIP with no BLOCKING/IMPORTANT, when feedback repeats
+#    or contradicts itself, or at MAX_ITER.
+
+# --- Optional: Latin-American audio recap of the final version ---
+# Observed: es-US / es-419 -> Latin-American voice; es / es-ES -> Spain. NOTEBOOKLM_HL sets a default.
+nlm audio create refactor --format brief --language es-US
+```
+
+**Outputs:** the final document; a per-iteration changelog; residual MINOR/subjective
+issues (listed, never auto-applied); and, in `full` mode, a standalone decision-log
+audit trail (each critique: citation, verdict, reason, resulting edit).
+
+---
+
 ## Rate Limiting Guidelines
 
 To avoid hitting API rate limits:

@@ -21,7 +21,7 @@ def _get_studio_types() -> dict[str, Any]:
         "video": {
             "description": "Video Overview",
             "options": {
-                "video_format": ["explainer", "brief", "cinematic"],
+                "video_format": ["explainer", "brief", "cinematic", "short"],
                 "visual_style": [
                     "auto_select",
                     "custom",
@@ -34,7 +34,7 @@ def _get_studio_types() -> dict[str, Any]:
                     "heritage",
                     "paper_craft",
                 ],
-                "video_style_prompt": "Optional custom visual style text (requires visual_style=custom; not supported for cinematic)",
+                "video_style_prompt": "Optional custom visual style text (requires visual_style=custom; not supported for cinematic/short)",
                 "language": "BCP-47 code",
                 "focus_prompt": "Optional focus topic",
             },

@@ -779,6 +779,7 @@ Simply chat with your AI tool (Claude Code, Cursor, Gemini CLI) using natural la
 
 - "Create an audio podcast overview of this notebook in deep dive format"
 - "Generate a video explainer with classic visual style"
+- "Make a short vertical video overview of the key idea"
 - "Make a briefing doc from these sources"
 - "Create flashcards for studying, medium difficulty"
 - "Generate an infographic in landscape orientation with professional style"

@@ -472,7 +472,8 @@ nlm create infographic <notebook-id> --orientation portrait --detail detailed --
 ```bash
 nlm video create <notebook-id> --confirm
 nlm video create <notebook-id> --format brief --style whiteboard --confirm
-# Formats: explainer, brief (default: explainer)
+nlm video create <notebook-id> --format short --confirm
+# Formats: explainer, brief, cinematic, short (default: explainer; short is vertical ~60s, English-only, no --style)
 # Styles: auto_select, classic, whiteboard, kawaii, anime, watercolor, retro_print, heritage, paper_craft
 ```
 
@@ -539,7 +540,7 @@ nlm download data-table <notebook-id>                          # Download data t
 
 **Supported Formats:**
 - Audio: `.mp3` (Deep Dive, Brief, Critique, Debate)
-- Video: `.mp4` (Explainer, Brief with various styles)
+- Video: `.mp4` (Explainer, Brief with various styles; Cinematic and Short with no style picker)
 - Report: `.txt` or `.md` (Briefing Doc, Study Guide, Blog Post)
 - Mind Map: `.txt` (node structure)
 - Slide Deck: `.txt` (slide content)

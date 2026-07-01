@@ -540,10 +540,12 @@ nlm video create <notebook-id> [OPTIONS]
 
 | Option | Values | Default |
 |--------|--------|---------|
-| `--format` | `explainer`, `brief`, `cinematic` | `explainer` |
-| `--style` | `auto_select`, `custom`, `classic`, `whiteboard`, `kawaii`, `anime`, `watercolor`, `retro_print`, `heritage`, `paper_craft` | `auto_select` |
+| `--format` | `explainer`, `brief`, `cinematic`, `short` | `explainer` |
+| `--style` | `auto_select`, `custom`, `classic`, `whiteboard`, `kawaii`, `anime`, `watercolor`, `retro_print`, `heritage`, `paper_craft` (not for cinematic/short) | `auto_select` |
 | `--style-prompt` | Custom visual style text (requires `--style custom`, or implies it when `--style` omitted) | |
 | `--focus` | Focus text/topic | |
+
+`short` produces a ~60s vertical video with no visual style picker; English-only for now.
 
 ### nlm data-table create
 

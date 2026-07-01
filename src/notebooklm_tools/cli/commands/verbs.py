@@ -144,7 +144,7 @@ def create_audio_verb(
 def create_video_verb(
     notebook: str = typer.Argument(..., help="Notebook ID or alias"),
     format_opt: str | None = typer.Option(
-        None, "--format", "-f", help="Format: explainer, brief, cinematic"
+        None, "--format", "-f", help="Format: explainer, brief, cinematic, short"
     ),
     style: str | None = typer.Option(
         None,

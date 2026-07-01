@@ -373,3 +373,59 @@ class TestCinematicVideoConstant:
 
         assert constants.VIDEO_STYLES.get_code("custom") == 2
         assert constants.VIDEO_STYLES.get_name(2) == "custom"
+
+
+class TestShortVideoFormat:
+    """Test the Short video format (code 4), verified via live network capture."""
+
+    def test_short_constant_value(self):
+        """VIDEO_FORMAT_SHORT should be 4."""
+        from notebooklm_tools.core import constants
+
+        assert constants.VIDEO_FORMAT_SHORT == 4
+
+    def test_short_code_mapper_lookup(self):
+        """CodeMapper should resolve 'short' to 4 and back."""
+        from notebooklm_tools.core import constants
+
+        assert constants.VIDEO_FORMATS.get_code("short") == 4
+        assert constants.VIDEO_FORMATS.get_name(4) == "short"
+
+    def test_short_inner_options_omit_language_and_style_add_trailing_flag(self):
+        """Short sends null language, no visual style fields, and a trailing `1` flag.
+
+        Matches the payload captured from a live NotebookLM request on 2026-06-30:
+        [sources_simple, None, focus_prompt, None, 4, None, None, 1]
+        """
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._get_all_source_ids = MagicMock(return_value=["src-1"])
+        mixin._call_rpc = MagicMock(return_value=[["art-1", "Title", 3, [], 1]])
+
+        mixin.create_video_overview(
+            "nb-1",
+            source_ids=["src-1"],
+            format_code=4,
+            language="en",
+            focus_prompt="Key topic",
+        )
+
+        params = mixin._call_rpc.call_args[0][1]
+        inner_options = params[2][8][2]
+        assert inner_options == [[["src-1"]], None, "Key topic", None, 4, None, None, 1]
+
+    def test_short_result_reports_no_visual_style_and_english_language(self):
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._get_all_source_ids = MagicMock(return_value=["src-1"])
+        mixin._call_rpc = MagicMock(return_value=[["art-1", "Title", 3, [], 1]])
+
+        result = mixin.create_video_overview(
+            "nb-1",
+            source_ids=["src-1"],
+            format_code=4,
+            language="es",
+            focus_prompt="Key topic",
+        )
+
+        assert result["format"] == "short"
+        assert result["visual_style"] is None
+        assert result["language"] == "en"

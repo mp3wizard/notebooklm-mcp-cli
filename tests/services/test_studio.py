@@ -195,6 +195,40 @@ class TestCreateArtifact:
             )
         assert "--focus" in str(exc_info.value)
 
+    def test_create_video_short(self, mock_client):
+        """Short format resolves to code 4 and calls client correctly."""
+        result = create_artifact(mock_client, "nb-1", "video", video_format="short")
+        assert result["artifact_type"] == "video"
+        assert result["artifact_id"] == "art-2"
+        call_kwargs = mock_client.create_video_overview.call_args
+        assert call_kwargs[1]["format_code"] == 4
+
+    def test_create_video_short_maps_style_prompt_to_focus(self, mock_client):
+        """Short --style-prompt is remapped to focus_prompt (no visual style picker)."""
+        result = create_artifact(
+            mock_client,
+            "nb-1",
+            "video",
+            video_format="short",
+            video_style_prompt="key takeaways",
+        )
+        assert result["artifact_type"] == "video"
+        call_kwargs = mock_client.create_video_overview.call_args
+        assert call_kwargs[1]["focus_prompt"] == "key takeaways"
+        assert call_kwargs[1]["visual_style_prompt"] == ""
+
+    def test_create_video_short_rejects_style(self, mock_client):
+        """Short still rejects --style (style codes don't apply)."""
+        with pytest.raises(ValidationError, match="does not support --style") as exc_info:
+            create_artifact(
+                mock_client,
+                "nb-1",
+                "video",
+                video_format="short",
+                visual_style="classic",
+            )
+        assert "--focus" in str(exc_info.value)
+
     def test_resource_exhausted_gives_retry_hint(self, mock_client):
         """ResourceExhaustedError wraps with user-friendly retry message."""
         mock_client.create_infographic.side_effect = ResourceExhaustedError(
