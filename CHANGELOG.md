@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-07-01 - Happy Canada Day 🇨🇦
+
+### Fixed
+
+- **`nlm login --check` crash on slow accounts (Fixes #243, PR #245)** — Auth checks now use the lightweight NotebookLM homepage probe instead of the full notebook-list RPC, and notebook counts are fetched as a best-effort extra so large accounts no longer crash the command with a raw timeout. Connect-phase RPC failures are retried safely without retrying read/write timeouts that may have already reached NotebookLM. Thanks to **@LesleyMurfin** for the report, careful fix, and regression coverage!
+- **CDP reuse with foreign Chrome on port 9222 (Fixes #244, PR #246)** — `find_existing_nlm_chrome()` now verifies mapped Chrome PIDs still use the NLM profile's `--user-data-dir` and the expected `--remote-debugging-port`, skips headless automation browsers on all platforms, and clears stale port-map entries instead of reconnecting to unrelated CDP listeners such as agent-browser or Playwright. Thanks to **@syf2211** for the focused Windows CDP fix and tests!
+- **Exact CDP ownership matching** — Tightened the follow-up validation for mapped Chrome processes so `--user-data-dir` and `--remote-debugging-port` must match exactly, preventing prefix matches such as `chrome-profile-other` or port `92222` from being accepted as the intended NLM profile/port.
+
 ## [0.8.0] - 2026-06-30
 
 ### Added
