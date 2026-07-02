@@ -11,6 +11,18 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.8.1 — July 2026)
+- **`nlm login --check` crash fix on slow accounts** — Auth checks now use a lightweight homepage probe instead of the full notebook-list RPC; notebook counts fetched as best-effort. Connect-phase RPC failures retried safely without retrying read/write timeouts (Fixes #243, PR #245, @LesleyMurfin)
+- **CDP reuse fix with foreign Chrome on port 9222** — `find_existing_nlm_chrome()` now verifies mapped Chrome PIDs still own the NLM profile's `--user-data-dir` and `--remote-debugging-port`, skips headless automation browsers, clears stale port-map entries. Exact flag matching prevents prefix matches like `chrome-profile-other` or port `92222` from being accepted (Fixes #244, PR #246, @syf2211)
+
+### Security scan (July 2026 — v0.8.1)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, mcp-exfil-scan, skillspector
+- **0 dependency vulnerabilities** — Trivy + OSV-Scanner clean (88 packages; uv.lock unchanged from prior upgrade)
+- **0 secrets** in git history (627 commits, 10 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** in project source — Semgrep OWASP+Python+Secrets clean on src/; Bandit 0 High/Medium in src/
+- **0 fixes needed** — all Bandit High findings were in .venv (third-party), not project source
+- Full report: [`docs/security-scan-report-2026-07-02.md`](docs/security-scan-report-2026-07-02.md)
+
 ### Upstream sync (v0.8.0 — July 2026)
 - **Short Video Overview format** — `video_format="short"` (CLI: `nlm video create <id> --format short`) generates NotebookLM's new ~60-second vertical "bite-sized" video format, announced by Google on 2026-06-30. Like Cinematic, Short rejects `--style`/`--style-prompt` and maps those flags into `--focus`. Currently English-only, rolling out to Pro/Ultra accounts.
 - **"Refactor with NotebookLM" workflow** — new reference workflow in `docs/references/workflows.md` for iteratively refactoring documents using NotebookLM as the editing loop (PR #239, @Grobiou)
