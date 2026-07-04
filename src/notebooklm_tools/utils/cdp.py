@@ -1591,11 +1591,10 @@ def run_headless_auth(
         if not ready:
             return None
 
-        # Extract cookies
+        # Keep the raw list so per-domain values survive profile storage.
         cookies_list = get_page_cookies(ws_url)
-        cookies = {c["name"]: c["value"] for c in cookies_list}
 
-        if not validate_cookies(cookies):
+        if not validate_cookies(cookies_list):
             return None
 
         # Get page HTML for CSRF extraction
@@ -1605,7 +1604,7 @@ def run_headless_auth(
 
         # Create and save tokens
         tokens = AuthTokens(
-            cookies=cookies,
+            cookies=cookies_list,
             csrf_token=csrf_token or "",
             session_id=session_id or "",
             extracted_at=time.time(),

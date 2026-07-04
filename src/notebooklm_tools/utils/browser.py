@@ -3,6 +3,7 @@
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from notebooklm_tools.core.exceptions import AuthenticationError
 from notebooklm_tools.utils.config import get_base_url
@@ -134,17 +135,45 @@ def _try_parse_netscape_cookies(content: str) -> dict[str, str] | None:
     return cookies if valid_lines > 0 else None
 
 
+def flatten_cookies(cookies: dict[str, str] | list[dict[str, Any]]) -> dict[str, str]:
+    """Flatten cookies to a dict, preferring exact ``.google.com`` values.
+
+    Chrome can export the same auth cookie names for multiple Google-owned
+    domains. NotebookLM runs on ``.google.com``, so those values should win when
+    a name appears more than once.
+    """
+    if isinstance(cookies, dict):
+        return cookies
+
+    out: dict[str, str] = {}
+    google_locked: set[str] = set()
+    for cookie in cookies:
+        name = cookie.get("name")
+        value = cookie.get("value")
+        if not name or value is None:
+            continue
+        normalized_name = str(name)
+        is_google = (cookie.get("domain") or "").lstrip(".").lower() == "google.com"
+        if normalized_name in google_locked and not is_google:
+            continue
+        out[normalized_name] = str(value)
+        if is_google:
+            google_locked.add(normalized_name)
+    return out
+
+
 def cookies_to_header(cookies: dict[str, str]) -> str:
     """Convert cookies dict to Cookie header value."""
     return "; ".join(f"{name}={value}" for name, value in cookies.items())
 
 
-def validate_notebooklm_cookies(cookies: dict[str, str]) -> bool:
+def validate_notebooklm_cookies(cookies: dict[str, str] | list[dict[str, Any]]) -> bool:
     """
     Check if cookies appear to be valid for NotebookLM.
 
     This is a basic check - actual validation requires making an API call.
     """
+    cookies = flatten_cookies(cookies)
     # Check for essential Google auth cookies
     essential_patterns = ["SID", "HSID", "SSID", "APISID", "SAPISID"]
     found = sum(1 for pattern in essential_patterns if any(pattern in name for name in cookies))

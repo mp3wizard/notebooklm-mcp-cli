@@ -84,7 +84,9 @@ class TestCheckAuthAPI:
             assert result.details.get("csrf_token") == "csrf123abc"
 
     def test_check_auth_live_true_detects_expired_redirect(self, tmp_path, monkeypatch):
-        """The only reliable way to know cookies are dead is seeing the redirect."""
+        """Dead cookies require homepage redirect plus RPC rejection."""
+        from notebooklm_tools.core.exceptions import AuthenticationError
+
         monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
 
         mgr = AuthManager("default")
@@ -96,13 +98,21 @@ class TestCheckAuthAPI:
                 "APISID": "dead",
                 "SAPISID": "dead",
             },
+            csrf_token="stale123",
+            session_id="sess123",
             email="test@example.com",
         )
 
-        with patch("httpx.Client") as MockClient:
+        with (
+            patch("httpx.Client") as MockClient,
+            patch(
+                "notebooklm_tools.core.client.NotebookLMClient.list_notebooks",
+                side_effect=AuthenticationError("dead"),
+            ),
+        ):
             client = MockClient.return_value.__enter__.return_value
 
-            # Simulate Google login redirect (the authoritative failure mode)
+            # Simulate Google login redirect.
             req = httpx.Request("GET", "https://accounts.google.com/ServiceLogin")
             resp = httpx.Response(200, request=req, text="login page here")
             client.get.return_value = resp
@@ -112,6 +122,60 @@ class TestCheckAuthAPI:
             assert result.valid is False
             assert result.reason == "expired"
             assert result.live is True
+
+    def test_check_auth_live_true_redirect_but_rpc_alive_is_valid(self, tmp_path, monkeypatch):
+        """Homepage redirects can be false negatives; a live RPC wins."""
+        monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
+
+        mgr = AuthManager("default")
+        mgr.save_profile(
+            cookies={"SID": "x", "HSID": "x", "SSID": "x", "APISID": "x", "SAPISID": "x"},
+            csrf_token="csrf123",
+            session_id="sess123",
+            email="test@example.com",
+            build_label="build123",
+        )
+
+        with (
+            patch("httpx.Client") as MockClient,
+            patch(
+                "notebooklm_tools.core.client.NotebookLMClient.list_notebooks",
+                return_value=[],
+            ),
+        ):
+            client = MockClient.return_value.__enter__.return_value
+            req = httpx.Request("GET", "https://accounts.google.com/ServiceLogin")
+            client.get.return_value = httpx.Response(200, request=req, text="login page")
+
+            result = check_auth(live=True)
+
+        assert result.valid is True
+        assert result.reason is None
+        assert result.live is True
+        assert result.details == {"recovered_via": "rpc"}
+
+    def test_check_auth_live_true_non_redirect_non_200_reports_http_error(
+        self, tmp_path, monkeypatch
+    ):
+        """A non-login non-200 homepage remains an HTTP error."""
+        monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
+
+        mgr = AuthManager("default")
+        mgr.save_profile(
+            cookies={"SID": "x", "HSID": "x", "SSID": "x", "APISID": "x", "SAPISID": "x"},
+            email="test@example.com",
+        )
+
+        with patch("httpx.Client") as MockClient:
+            client = MockClient.return_value.__enter__.return_value
+            req = httpx.Request("GET", "https://notebooklm.google.com/")
+            client.get.return_value = httpx.Response(500, request=req, text="oops")
+
+            result = check_auth(live=True)
+
+        assert result.valid is False
+        assert result.reason == "http_500"
+        assert result.live is True
 
     def test_check_auth_live_true_degrades_on_read_timeout(self, tmp_path, monkeypatch):
         """Regression for #243: a real httpx.ReadTimeout from the homepage probe

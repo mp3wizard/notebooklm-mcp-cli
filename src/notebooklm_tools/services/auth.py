@@ -28,18 +28,26 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from notebooklm_tools.core import auth as _core_auth
+from notebooklm_tools.services.auth_replay import (
+    AuthReplayDiagnostic,
+    AuthReplayProbe,
+    diagnose_auth_replay,
+)
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "AuthHealthChecker",  # defined locally in this module
     "AuthHealthReport",  # defined locally in this module
+    "AuthReplayDiagnostic",  # provided by services.auth_replay
+    "AuthReplayProbe",  # provided by services.auth_replay
     "AuthManager",  # noqa: F822 — provided lazily via PEP 562 __getattr__
     "AuthProbeResult",  # defined locally in this module
     "AuthTokens",  # noqa: F822 — provided lazily via PEP 562 __getattr__
     "check_auth",
     "confirm_auth_via_api",
     "credentials_are_usable",
+    "diagnose_auth_replay",
     "get_active_auth_mtime",
     "get_auth_health_checker",
     "get_cache_path",
@@ -475,10 +483,10 @@ class AuthHealthChecker:
     @staticmethod
     def _cookies_to_dict(profile: Any) -> dict[str, str]:
         """Convert profile cookies to a plain dict."""
-        if isinstance(profile.cookies, list):
-            return {c["name"]: c["value"] for c in profile.cookies if "name" in c and "value" in c}
-        if isinstance(profile.cookies, dict):
-            return profile.cookies
+        from notebooklm_tools.utils.browser import flatten_cookies
+
+        if isinstance(profile.cookies, (dict, list)):
+            return flatten_cookies(profile.cookies)
         return {}
 
     @staticmethod

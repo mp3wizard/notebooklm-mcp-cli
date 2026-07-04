@@ -63,6 +63,61 @@ def doctor(
         console.print("[yellow]Some issues found.[/yellow] See suggestions above.")
 
 
+@app.command("auth-replay")
+def auth_replay(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Profile to diagnose (defaults to configured profile)",
+    ),
+    no_cdp: bool = typer.Option(
+        False,
+        "--no-cdp",
+        help="Skip the in-browser CDP fetch probe",
+    ),
+    timeout: float = typer.Option(
+        15.0,
+        "--timeout",
+        help="Timeout in seconds for each replay lane",
+    ),
+) -> None:
+    """Diagnose cookie replay vs browser-bound auth failures.
+
+    This compares three lanes:
+    1. saved cookies through normal httpx,
+    2. httpx after a forced Google RotateCookies call,
+    3. an optional in-page CDP fetch from the saved browser profile.
+    """
+    from notebooklm_tools.services.auth import diagnose_auth_replay
+
+    console.print("[bold]NotebookLM Auth Replay Diagnostic[/bold]\n")
+    report = diagnose_auth_replay(profile=profile, include_cdp=not no_cdp, timeout=timeout)
+
+    console.print(f"Profile: [cyan]{report.profile}[/cyan]")
+    console.print(f"Verdict: [bold]{report.verdict}[/bold]\n")
+
+    for probe in report.probes:
+        if not probe.attempted:
+            status = "[dim]skipped[/dim]"
+        elif probe.valid:
+            status = "[green]pass[/green]"
+        else:
+            status = "[red]fail[/red]"
+        console.print(f"  {probe.name}: {status}")
+        if probe.notebook_count is not None:
+            console.print(f"    notebooks: {probe.notebook_count}")
+        if probe.detail:
+            console.print(f"    [dim]{probe.detail}[/dim]")
+        if probe.error:
+            console.print(f"    [red]{probe.error}[/red]")
+
+    console.print(f"\nRecommendation: {report.recommendation}")
+
+    if report.verdict in {"not_configured", "profile_load_error", "all_failed"}:
+        raise typer.Exit(2)
+
+
 def _check_installation(verbose: bool) -> bool:
     """Check that the package and binaries are properly installed."""
     console.print("[bold]Installation[/bold]")

@@ -19,5 +19,28 @@ def test_extract_cookies_header_string():
     assert result == {"name": "value", "other": "foo"}
 
 
+def test_extract_cookies_from_chrome_export_list_prefers_google_com():
+    export = [
+        {"name": "SID", "value": "vn", "domain": ".google.com.vn"},
+        {"name": "SID", "value": "google", "domain": ".google.com"},
+        {"name": "SID", "value": "youtube", "domain": ".youtube.com"},
+    ]
+
+    assert extract_cookies_from_chrome_export(export)["SID"] == "google"
+
+
+def test_extract_cookies_from_chrome_export_json_list_prefers_google_com():
+    import json as _json
+
+    export = _json.dumps(
+        [
+            {"name": "HSID", "value": "youtube", "domain": ".youtube.com"},
+            {"name": "HSID", "value": "google", "domain": ".google.com"},
+        ]
+    )
+
+    assert extract_cookies_from_chrome_export(export)["HSID"] == "google"
+
+
 def test_rpc_names_exists():
     assert "wXbhsf" in RPC_NAMES

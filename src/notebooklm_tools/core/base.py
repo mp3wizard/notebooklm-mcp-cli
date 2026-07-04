@@ -479,14 +479,10 @@ class BaseClient:
 
     def _get_cookie_header(self) -> str:
         """Get Cookie header string (backward compatibility)."""
-        if isinstance(self.cookies, list):
-            # Flatten to simple dict for header
-            simple_cookies = {
-                c["name"]: c["value"] for c in self.cookies if "name" in c and "value" in c
-            }
-            return "; ".join(f"{k}={v}" for k, v in simple_cookies.items())
-        else:
-            return "; ".join(f"{k}={v}" for k, v in self.cookies.items())
+        from notebooklm_tools.utils.browser import flatten_cookies
+
+        simple_cookies = flatten_cookies(self.cookies)
+        return "; ".join(f"{k}={v}" for k, v in simple_cookies.items())
 
     # =========================================================================
     # HTTP Client Management
@@ -956,10 +952,16 @@ class BaseClient:
         # Must use browser-like headers for page fetch
         headers = self._PAGE_FETCH_HEADERS.copy()
 
-        # Use a temporary client for the page fetch
+        # Use a temporary client for the page fetch. Before the fetch, touch
+        # Google's RotateCookies endpoint as a non-fatal freshness recovery
+        # step. This helps when the short-lived *PSIDTS cookies are stale while
+        # the browser profile can still rotate them.
         with httpx.Client(
             cookies=cookies, headers=headers, follow_redirects=True, timeout=15.0
         ) as client:
+            from .cookie_rotation import rotate_google_cookies
+
+            rotate_google_cookies(client)
             response = client.get(f"{self._get_base_url()}/")
 
             # Check if redirected to login (cookies expired)
@@ -1002,6 +1004,9 @@ class BaseClient:
             bl_match = re.search(r'"cfb2h":"([^"]+)"', html)
 
             with self._state_lock:
+                from .cookie_rotation import snapshot_cookie_input
+
+                self.cookies = snapshot_cookie_input(self.cookies, client.cookies)
                 self.csrf_token = csrf_token
                 if sid_match:
                     self._session_id = sid_match.group(1)

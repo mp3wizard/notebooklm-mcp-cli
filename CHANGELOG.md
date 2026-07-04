@@ -5,7 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.2] - 2026-07-03
+
+### Added
+
+- **`nlm doctor auth-replay` diagnostic command** — Compares saved-cookie replay through normal `httpx`, `httpx` replay after a forced Google `RotateCookies` call, and optional in-page CDP fetch from the saved Chrome profile. Verdicts distinguish ordinary cookie freshness failures from likely browser-bound replay behavior, giving actionable next steps for issue #248.
+- **Best-effort Google `RotateCookies` support during auth token refresh** — When refreshing auth tokens, the client now attempts a `RotateCookies` call to keep cookies fresh before replay.
+
+### Fixed
+
+- **Auth replay diagnostic HTTP probes matched to normal RPC headers** — Bare `httpx` requests were producing false `browser_bound_replay` verdicts; probes now use the same headers as normal NotebookLM RPC calls.
+- **`nlm login --check` confirms auth redirects with a real RPC (Fixes #250)** — The homepage probe now validates with a lightweight NotebookLM RPC before reporting cookies as expired, eliminating false-positive expiry reports. Thanks to **@laofun** for reporting and contributing this fix!
+- **Preserved raw Chrome cookie-list handling across auth checks** — Cookie lists were being flattened too early, causing duplicate cookies to clobber each other before auth checks ran.
+- **Preferred exact `.google.com` cookie values when flattening duplicates (Fixes #249)** — When browser cookies contain duplicates, the `.google.com`-domain value is now preferred, preventing stale subdomain values from overriding the correct one. Thanks to **@laofun** for reporting and contributing this fix!
+- **Persisted NotebookLM build label from profile metadata** — Diagnostics and replay checks now use the current saved build label instead of always re-fetching it.
 
 ## [0.8.1] - 2026-07-01 - Happy Canada Day 🇨🇦
 

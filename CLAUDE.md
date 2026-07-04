@@ -188,6 +188,12 @@ When adding new features:
 - `src/notebooklm_tools/data/AGENTS_SECTION.md` → `<!-- nlm-version: X.Y.Z -->`
 - `desktop-extension/manifest.json` → `"version": "X.Y.Z"`
 
+**CHANGELOG.md is also REQUIRED on every release** — add the `[X.Y.Z]` section at the top of `CHANGELOG.md` BEFORE committing the version bump. This is not optional and is not covered by the CI version-alignment check. Include:
+- A dated header: `## [X.Y.Z] - YYYY-MM-DD`
+- All Added / Fixed / Changed / Removed sections with full descriptions
+- Community credits with contributor GitHub handles and PR/issue links (e.g. "Thanks to **@username** for …")
+- DO NOT claim CHANGELOG.md was updated without verifying the file was actually modified in the commit
+
 ## Documentation
 
 - **`docs/API_REFERENCE.md`** — RPC IDs, parameter structures, response formats. Read when debugging API issues or adding features.
