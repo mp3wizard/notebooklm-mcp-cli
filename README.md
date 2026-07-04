@@ -11,6 +11,21 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.8.2 — July 2026)
+- **`nlm doctor auth-replay` diagnostic command** — Compares saved-cookie replay through `httpx`, `httpx`+`RotateCookies`, and optional CDP fetch from saved Chrome profile. Gives actionable verdicts for auth issues (issue #248)
+- **Best-effort Google `RotateCookies` during token refresh** — Attempts to rotate cookies before replay to keep auth fresh
+- **`nlm login --check` validates redirects with a real RPC** — Homepage redirects now confirmed with `list_notebooks` before reporting cookies as expired — eliminates false-positive expiry reports (Fixes #250, @laofun)
+- **Preserved raw Chrome cookie-list across auth checks** — Duplicate cookies no longer clobber each other during auth checks (Fixes #249, @laofun)
+- **Preferred `.google.com` domain values when flattening duplicates** — Prevents stale subdomain values from overriding the correct one
+
+### Security scan (July 2026 — v0.8.2)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **0 dependency vulnerabilities** — Trivy + OSV-Scanner clean (88 packages; uv.lock unchanged)
+- **0 secrets** in git history (634 commits, 10.49 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** in project source — Semgrep OWASP+Python+Secrets clean; Bandit 0 High/Medium in src/
+- **0 fixes needed** — all scanner flags were false positives (see report)
+- Full report: [`docs/security-scan-report-2026-07-04.md`](docs/security-scan-report-2026-07-04.md)
+
 ### Upstream sync (v0.8.1 — July 2026)
 - **`nlm login --check` crash fix on slow accounts** — Auth checks now use a lightweight homepage probe instead of the full notebook-list RPC; notebook counts fetched as best-effort. Connect-phase RPC failures retried safely without retrying read/write timeouts (Fixes #243, PR #245, @LesleyMurfin)
 - **CDP reuse fix with foreign Chrome on port 9222** — `find_existing_nlm_chrome()` now verifies mapped Chrome PIDs still own the NLM profile's `--user-data-dir` and `--remote-debugging-port`, skips headless automation browsers, clears stale port-map entries. Exact flag matching prevents prefix matches like `chrome-profile-other` or port `92222` from being accepted (Fixes #244, PR #246, @syf2211)
