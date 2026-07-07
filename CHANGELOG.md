@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] - 2026-07-05
+
+### Added
+
+- **Experimental browser-backed RPC transport (`NOTEBOOKLM_RPC_TRANSPORT=cdp`)** — Routes normal batchexecute RPCs and notebook chat through `fetch` inside the saved NotebookLM browser profile so Chrome supplies live browser-bound cookies. Off by default; use only when `nlm doctor auth-replay` shows `cdp_in_page` succeeds but normal replay fails. See `docs/AUTHENTICATION.md` for usage.
+- **CDP transport support for notebook chat** — `GenerateFreeFormStreamed` queries are routed through the experimental CDP transport when the flag is enabled, with longer CDP response waits to handle long answers.
+- **Tests for CDP transport** — Focused tests for transport routing, streamed query routing, long CDP timeouts, and browser lifecycle cleanup.
+
+### Fixed
+
+- **MCP `notebook_query` cancellation crash** — The query tool is now `async` and dispatches blocking I/O to a thread via `anyio.to_thread.run_sync` with `abandon_on_cancel=True`, so MCP client cancellation no longer leaves the server in an inconsistent state.
+
+### Changed
+
+- **`nlm doctor auth-replay` CDP probe uses the shared fetch helper** — The diagnostic path now exercises the same `fetch_form_in_page` helper used by the real experimental transport, keeping the two code paths consistent.
+- **`execute_cdp_command` accepts a `response_timeout` parameter** — The default 30 s WebSocket wait is now configurable so long-running in-page fetches (e.g. streamed notebook queries) do not time out prematurely.
+- **`find_existing_nlm_chrome` accepts `include_headless`** — Interactive login keeps the existing `False` default; the browser-backed RPC transport passes `True` to reuse profile-owned headless browsers.
+
 ## [0.8.2] - 2026-07-03
 
 ### Added

@@ -603,7 +603,9 @@ def _mapped_chrome_owns_profile(pid: int | None, profile_name: str, port: int) -
 
 
 def find_existing_nlm_chrome(
-    port_range: range = CDP_PORT_RANGE, profile_name: str = "default"
+    port_range: range = CDP_PORT_RANGE,
+    profile_name: str = "default",
+    include_headless: bool = False,
 ) -> tuple[int | None, str | None]:
     """Find an existing NLM Chrome instance for a specific profile.
 
@@ -614,6 +616,8 @@ def find_existing_nlm_chrome(
     Args:
         port_range: Range of ports to scan.
         profile_name: Only reuse Chrome instances launched for this profile.
+        include_headless: Reuse profile-owned headless browsers too. Interactive
+            login flows keep this false; browser-backed RPC transport sets it true.
 
     Returns:
         The port number and debugger URL if found, (None, None) otherwise
@@ -633,7 +637,7 @@ def find_existing_nlm_chrome(
             continue
 
         ua = version_info.get("User-Agent", "")
-        if "Headless" in ua:
+        if "Headless" in ua and not include_headless:
             _logger.debug("Skipping headless mapped browser on port %d", port)
             _clear_port_map(port)
             continue
@@ -964,7 +968,12 @@ def _cdp_websocket_without_proxy_env():
 
 
 def execute_cdp_command(
-    ws_url: str, method: str, params: dict | None = None, *, retry: bool = True
+    ws_url: str,
+    method: str,
+    params: dict | None = None,
+    *,
+    retry: bool = True,
+    response_timeout: float = 30,
 ) -> dict:
     """Execute a CDP command via WebSocket.
 
@@ -981,7 +990,13 @@ def execute_cdp_command(
     if retry:
         # Retry once in case of stale cached connection
         try:
-            return execute_cdp_command(ws_url, method, params, retry=False)
+            return execute_cdp_command(
+                ws_url,
+                method,
+                params,
+                retry=False,
+                response_timeout=response_timeout,
+            )
         except Exception:
             # Try again without the cached connection
             _cached_ws = _cached_ws_url = None
@@ -1008,8 +1023,9 @@ def execute_cdp_command(
     command = {"id": 1, "method": method, "params": params or {}}
     ws.send(json.dumps(command))
 
-    # Wait for response with matching ID (timeout after 30s to avoid infinite block)
-    ws.settimeout(30)
+    # Wait for response with matching ID. Long-running in-page fetches, such as
+    # streamed notebook queries, can legitimately exceed the default 30s wait.
+    ws.settimeout(response_timeout)
     try:
         while True:
             response = json.loads(ws.recv())
@@ -1018,7 +1034,7 @@ def execute_cdp_command(
     except websocket.WebSocketTimeoutException as err:
         _cached_ws = _cached_ws_url = None
         raise TimeoutError(
-            f"CDP command '{method}' timed out after 30s waiting for response"
+            f"CDP command '{method}' timed out after {response_timeout:g}s waiting for response"
         ) from err
 
 

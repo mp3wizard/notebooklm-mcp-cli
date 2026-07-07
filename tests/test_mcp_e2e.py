@@ -5,6 +5,7 @@ Tests the consolidated MCP tools against the real NotebookLM API.
 Run with: NOTEBOOKLM_E2E=1 pytest tests/test_mcp_e2e.py -v
 """
 
+import asyncio
 import contextlib
 import os
 import time
@@ -151,8 +152,10 @@ class TestMCPQueryTools:
         )
         time.sleep(3)
 
-        result = mcp_tools["chat"].notebook_query(
-            notebook_id=test_notebook, query="What is the speed of light?"
+        result = asyncio.run(
+            mcp_tools["chat"].notebook_query(
+                notebook_id=test_notebook, query="What is the speed of light?"
+            )
         )
 
         assert result["status"] == "success"

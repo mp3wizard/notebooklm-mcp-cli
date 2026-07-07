@@ -8,6 +8,7 @@ operations (notebooks, sources, studio, etc.) are provided by mixin classes.
 Internal API. See CLAUDE.md for full documentation.
 """
 
+import contextlib
 import json
 import logging
 import os
@@ -389,6 +390,8 @@ class BaseClient:
         # Request counter for _reqid parameter (required for query endpoint)
         # SEC-006: Use secrets module instead of random for unpredictable counter seed
         self._reqid_counter = secrets.randbelow(900000) + 100000
+        self._cdp_ws_url: str | None = None
+        self._cdp_launched_port: int | None = None
 
         # RPC version cache for URL source addition (issue #121).
         # Google is rolling out a new RPC (ozz5Z) to replace izAoDd for URL sources.
@@ -410,7 +413,10 @@ class BaseClient:
         # Only refresh CSRF token if not provided - tokens actually last hours/days, not minutes
         # The retry logic in _call_rpc() handles expired tokens gracefully
         if not self.csrf_token:
-            self._refresh_auth_tokens()
+            if self._cdp_rpc_transport_enabled():
+                self._prepare_cdp_transport(DEFAULT_TIMEOUT)
+            else:
+                self._refresh_auth_tokens()
 
     def __enter__(self):
         return self
@@ -423,6 +429,13 @@ class BaseClient:
         if self._client:
             self._client.close()
             self._client = None
+        if self._cdp_launched_port is not None:
+            from notebooklm_tools.utils import cdp
+
+            with contextlib.suppress(Exception):
+                cdp.terminate_chrome(port=self._cdp_launched_port)
+            self._cdp_launched_port = None
+            self._cdp_ws_url = None
 
     def _apply_rpc_overrides(self) -> None:
         """Apply NOTEBOOKLM_RPC_OVERRIDES as instance attributes.
@@ -722,6 +735,97 @@ class BaseClient:
                         present.append(item[1])
         return present
 
+    def _cdp_rpc_transport_enabled(self) -> bool:
+        from .cdp_transport import cdp_transport_enabled
+
+        return cdp_transport_enabled()
+
+    def _prepare_cdp_transport(self, timeout: float | None = None) -> None:
+        """Refresh request tokens from a profile-owned NotebookLM browser page."""
+        from .cdp_transport import get_cdp_page_context
+
+        with self._state_lock:
+            if self._cdp_ws_url and self._session_id:
+                return
+            csrf_fallback = self.csrf_token
+            session_fallback = self._session_id
+            build_fallback = self._bl
+
+        context = get_cdp_page_context(
+            timeout=timeout or DEFAULT_TIMEOUT,
+            csrf_fallback=csrf_fallback,
+            session_fallback=session_fallback,
+            build_fallback=build_fallback,
+        )
+        with self._state_lock:
+            self.csrf_token = context.csrf_token
+            self._session_id = context.session_id
+            self._bl = context.build_label
+            self._cdp_ws_url = context.ws_url
+            if context.launched:
+                self._cdp_launched_port = context.port
+
+    def _post_form_via_cdp(self, url: str, body: str, timeout: float | None = None) -> str:
+        """POST an already-built form request through the browser page."""
+        from .cdp_transport import CdpTransportError, fetch_form_in_page
+
+        with self._state_lock:
+            ws_url = self._cdp_ws_url
+
+        if not ws_url:
+            self._prepare_cdp_transport(timeout or DEFAULT_TIMEOUT)
+            with self._state_lock:
+                ws_url = self._cdp_ws_url
+
+        if not ws_url:
+            raise CdpTransportError("CDP transport was enabled, but no page websocket was found.")
+
+        result = fetch_form_in_page(ws_url, url, body, timeout=timeout or DEFAULT_TIMEOUT)
+        if result.status_code in (400, 401, 403):
+            raise AuthenticationError(f"CDP fetch returned HTTP {result.status_code}.")
+        if result.status_code >= 400:
+            raise CdpTransportError(f"CDP fetch returned HTTP {result.status_code}.")
+        return result.text
+
+    def _call_rpc_via_cdp(
+        self,
+        rpc_id: str,
+        params: Any,
+        path: str = "/",
+        timeout: float | None = None,
+        _server_retry: int = 0,
+    ) -> Any:
+        """Execute a batchexecute RPC through the experimental CDP transport."""
+        self._prepare_cdp_transport(timeout or DEFAULT_TIMEOUT)
+        body = self._build_request_body(rpc_id, params)
+        url = self._build_url(rpc_id, path)
+        response_text = self._post_form_via_cdp(url, body, timeout or DEFAULT_TIMEOUT)
+
+        parsed = self._parse_response(response_text)
+        try:
+            return self._extract_rpc_result(parsed, rpc_id)
+        except ResourceExhaustedError:
+            if _server_retry < DEFAULT_MAX_RETRIES:
+                import time as _time
+
+                delay = min(DEFAULT_BASE_DELAY * (2**_server_retry), DEFAULT_MAX_DELAY)
+                logger.warning(
+                    "RPC rate limit (RESOURCE_EXHAUSTED) on %s, attempt %d/%d, retrying in %.1fs...",
+                    rpc_id,
+                    _server_retry + 1,
+                    DEFAULT_MAX_RETRIES + 1,
+                    delay,
+                )
+                _time.sleep(delay)
+                return self._call_rpc_via_cdp(
+                    rpc_id,
+                    params,
+                    path,
+                    timeout,
+                    _server_retry=_server_retry + 1,
+                )
+            raise
+
     def _call_rpc(
         self,
         rpc_id: str,
@@ -739,6 +843,15 @@ class BaseClient:
         2. Reload cookies from disk (handles external re-authentication)
         3. Run headless auth (auto-refresh if Chrome profile has saved login)
         """
+        if self._cdp_rpc_transport_enabled():
+            return self._call_rpc_via_cdp(
+                rpc_id,
+                params,
+                path,
+                timeout,
+                _server_retry=_server_retry,
+            )
+
         client = self._get_client()
         body = self._build_request_body(rpc_id, params)
         url = self._build_url(rpc_id, path)

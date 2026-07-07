@@ -861,6 +861,10 @@ You can also call `refresh_auth()` to explicitly reload tokens.
 
 If automatic refresh fails (Google login fully expired), run `nlm login` again.
 
+For suspected browser-bound auth replay failures, run `nlm doctor auth-replay`.
+If the `cdp_in_page` probe succeeds while normal replay fails, see
+[Experimental browser-backed RPC transport](docs/AUTHENTICATION.md#experimental-browser-backed-rpc-transport).
+
 ## Troubleshooting
 
 ### `uv tool upgrade` Not Installing Latest Version

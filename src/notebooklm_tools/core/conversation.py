@@ -322,6 +322,9 @@ class ConversationMixin(BaseClient):
 
         assert conversation_id is not None  # nosec B101 — type narrowing
 
+        if self._cdp_rpc_transport_enabled():
+            self._prepare_cdp_transport(timeout)
+
         # Build source IDs structure: [[[sid]]] for each source (3 brackets, not 4!)
         sources_array = [[[sid]] for sid in source_ids] if source_ids else []
 
@@ -368,14 +371,18 @@ class ConversationMixin(BaseClient):
         # The streamed query endpoint is stricter than batchexecute and rejects
         # form-encoded payloads without an explicit Content-Type header.
         headers = {"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"}
-        with _httpx.Client(timeout=timeout, cookies=cookies, headers=headers) as client:
-            response = client.post(url, content=body)
-            response.raise_for_status()
+        if self._cdp_rpc_transport_enabled():
+            response_text = self._post_form_via_cdp(url, body, timeout)
+        else:
+            with _httpx.Client(timeout=timeout, cookies=cookies, headers=headers) as client:
+                response = client.post(url, content=body)
+                response.raise_for_status()
+                response_text = response.text
 
-        logger.debug("Raw query response (first 2000 chars): %s", response.text[:2000])
+        logger.debug("Raw query response (first 2000 chars): %s", response_text[:2000])
 
         # Parse streaming response
-        answer_text, citation_data, server_conv_id = self._parse_query_response(response.text)
+        answer_text, citation_data, server_conv_id = self._parse_query_response(response_text)
 
         # If the server assigned a conversation ID in the response, use it.
         # This is the key mechanism for chat history persistence — the server

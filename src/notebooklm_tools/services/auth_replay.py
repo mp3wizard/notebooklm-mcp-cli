@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import json
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -165,6 +164,7 @@ def _probe_cdp_in_page_replay(
     profile_name: str, profile: Any, *, timeout: float
 ) -> AuthReplayProbe:
     """Run the list-notebooks RPC inside a saved browser profile via CDP."""
+    from notebooklm_tools.core.cdp_transport import fetch_form_in_page
     from notebooklm_tools.core.client import NotebookLMClient
     from notebooklm_tools.utils import cdp
 
@@ -252,29 +252,8 @@ def _probe_cdp_in_page_replay(
         url = parser._build_url(parser.RPC_LIST_NOTEBOOKS)
         parser.close()
 
-        expression = f"""
-            (async () => {{
-                const response = await fetch({json.dumps(url)}, {{
-                    method: "POST",
-                    credentials: "include",
-                    headers: {{
-                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-                        "X-Same-Domain": "1"
-                    }},
-                    body: {json.dumps(body)}
-                }});
-                const text = await response.text();
-                return JSON.stringify({{status: response.status, url: response.url, text}});
-            }})()
-        """
-        cdp_result = cdp.execute_cdp_command(
-            ws_url,
-            "Runtime.evaluate",
-            {"expression": expression, "awaitPromise": True, "returnByValue": True},
-        )
-        value = cdp_result.get("result", {}).get("value")
-        payload = json.loads(value) if isinstance(value, str) else {}
-        status = payload.get("status")
+        cdp_response = fetch_form_in_page(ws_url, url, body, timeout=timeout)
+        status = cdp_response.status_code
         if status != 200:
             return AuthReplayProbe(
                 name="cdp_in_page",
@@ -284,7 +263,7 @@ def _probe_cdp_in_page_replay(
             )
 
         ok, count, error = _parse_list_notebooks_response(
-            payload.get("text", ""),
+            cdp_response.text,
             csrf_token=csrf_token,
             session_id=session_id,
             build_label=build_label,

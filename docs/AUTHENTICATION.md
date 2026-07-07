@@ -349,6 +349,43 @@ Similarly, if you have `NOTEBOOKLM_CSRF_TOKEN` or `NOTEBOOKLM_SESSION_ID` in you
 
 ---
 
+### Experimental browser-backed RPC transport
+
+If `nlm doctor auth-replay` shows that normal `httpx` replay fails but
+`cdp_in_page` succeeds, you can opt in to the experimental CDP transport:
+
+```bash
+NOTEBOOKLM_RPC_TRANSPORT=cdp nlm notebook list
+NOTEBOOKLM_RPC_TRANSPORT=cdp nlm query notebook <notebook-id> "Question?"
+```
+
+For MCP clients, add the same environment variable to the server config:
+
+```json
+{
+  "mcpServers": {
+    "notebooklm-mcp": {
+      "command": "notebooklm-mcp",
+      "env": {
+        "NOTEBOOKLM_RPC_TRANSPORT": "cdp"
+      }
+    }
+  }
+}
+```
+
+This runs supported NotebookLM form POSTs through `fetch` inside the saved
+NotebookLM browser profile, so the browser supplies its live cookies. It is
+off by default and currently targets normal batchexecute RPCs plus notebook
+chat. Uploads, downloads, and artifact file transfers still use the existing
+HTTP paths.
+
+If the CDP transport cannot find a saved profile-owned browser session, run
+`nlm login` first. Do not use this flag as a general auth refresh shortcut;
+use it only for suspected browser-bound replay failures.
+
+---
+
 ## Chromium 136+ Compatibility
 
 Chrome 136+ (and other Chromium-based browsers at the same version) restrict remote debugging on the default profile for security reasons. This is handled automatically by:

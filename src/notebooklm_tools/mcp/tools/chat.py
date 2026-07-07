@@ -1,5 +1,9 @@
 """Chat tools - Query and conversation management."""
 
+import functools
+
+import anyio
+
 from ...services import ServiceError
 from ...services import chat as chat_service
 from ._utils import (
@@ -13,7 +17,7 @@ from ._utils import (
 
 
 @logged_tool()
-def notebook_query(
+async def notebook_query(
     notebook_id: str,
     query: str,
     source_ids: list[str] | None = None,
@@ -36,13 +40,17 @@ def notebook_query(
         # Coerce list params from MCP clients (may arrive as strings)
         coerced_source_ids: list[str] | None = coerce_list(source_ids)
         effective_timeout = timeout or get_query_timeout()
-        result = chat_service.query(
-            client,
-            notebook_id,
-            query,
-            source_ids=coerced_source_ids,
-            conversation_id=conversation_id,
-            timeout=effective_timeout,
+        result = await anyio.to_thread.run_sync(
+            functools.partial(
+                chat_service.query,
+                client,
+                notebook_id,
+                query,
+                source_ids=coerced_source_ids,
+                conversation_id=conversation_id,
+                timeout=effective_timeout,
+            ),
+            abandon_on_cancel=True,
         )
         return {"status": "success", **result}
     except ServiceError as e:
