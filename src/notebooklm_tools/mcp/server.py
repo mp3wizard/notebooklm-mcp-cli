@@ -100,6 +100,11 @@ def _register_tools() -> None:
     # Register collected tools with mcp
     register_all_tools(mcp)
 
+    # Optionally hide tool groups/tools via environment variables (opt-in).
+    from . import tool_groups
+
+    tool_groups.apply(mcp)
+
 
 # Register tools on import
 _register_tools()
