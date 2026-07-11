@@ -11,6 +11,35 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.8.4 / v0.8.5 — July 2026)
+- **Opt-in MCP tool group gating** — Restrict the tools exposed to your AI agent via the `NOTEBOOKLM_DISABLED_GROUPS` env var, saving significant context-window tokens for agents that only need a subset of functionality (#254). Thanks to **@KoscheiiB**!
+- **Flaky Drive-source freshness test fixed** — Resolved a race condition in the parallel freshness-check test suite (#255). Thanks to **@KoscheiiB**!
+- **Hardened CDP auth** — Eliminated a redundant lock-reset in `cdp.py` that could prematurely close a newly opened WebSocket (PR #253). Thanks to **@insane66613**!
+- **Test storage isolation** — Added `conftest.py` autouse fixtures so tests can no longer silently overwrite real user credentials in `~/.notebooklm-mcp-cli/auth.json` (cherry-picked from PR #252).
+
+### Security scan (July 2026 — v0.8.5)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit, mcp-exfil-scan
+- **0 dependency vulnerabilities** — Trivy + OSV-Scanner clean (88 packages; uv.lock unchanged)
+- **0 secrets** in git history (650 commits, 10.23 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** in project source — Semgrep OWASP+Python+Secrets clean
+- **Medium findings reviewed, no fix needed** — Bandit `hardcoded_tmp_directory`/`exec_used` flags are all in test fixtures (non-production); skill-audit's 75/100 score on the packaged skill doc is a pattern-matcher false positive (flags the words "credentials"/"silently infer" in this auth-CLI's own documentation, not an actual exfiltration or hidden-action vector)
+- Full report: [`docs/security-scan-report-2026-07-11.md`](docs/security-scan-report-2026-07-11.md)
+
+### Upstream sync (v0.8.3 — July 2026)
+- **Experimental CDP RPC transport (`NOTEBOOKLM_RPC_TRANSPORT=cdp`)** — Routes batchexecute RPCs and notebook chat through `fetch` inside the saved NotebookLM browser profile, so Chrome supplies live browser-bound cookies. Off by default; use only when `nlm doctor auth-replay` shows `cdp_in_page` succeeds but normal replay fails. See `docs/AUTHENTICATION.md`.
+- **MCP `notebook_query` cancellation crash fix** — The query tool is now `async` and dispatches blocking I/O to a thread via `anyio.to_thread.run_sync(abandon_on_cancel=True)`, so MCP client cancellation no longer leaves the server in an inconsistent state.
+- **`execute_cdp_command` accepts `response_timeout`** — Configurable WebSocket wait for long-running in-page fetches (e.g. streamed notebook queries).
+- **`find_existing_nlm_chrome` accepts `include_headless`** — Interactive login keeps the existing strict default; the CDP transport passes `True` to reuse profile-owned headless browsers.
+
+### Security scan (July 2026 — v0.8.3)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit, mcp-exfil-scan
+- **0 dependency vulnerabilities** — Trivy + OSV-Scanner clean (88 packages; uv.lock unchanged)
+- **0 secrets** in git history (638 commits, 10.21 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** in project source — Semgrep OWASP+Python+Secrets clean; Bandit 0 High/Medium in src/
+- **13 Low Bandit findings fixed** — `# nosec` with justification on hardcoded, list-form (no `shell=True`) subprocess calls and best-effort `except Exception: pass` blocks, following the project's existing convention
+- Full test suite (1080 tests) and `ruff check`/`ruff format --check` pass after fixes
+- Full report: [`docs/security-scan-report-2026-07-07.md`](docs/security-scan-report-2026-07-07.md)
+
 ### Upstream sync (v0.8.2 — July 2026)
 - **`nlm doctor auth-replay` diagnostic command** — Compares saved-cookie replay through `httpx`, `httpx`+`RotateCookies`, and optional CDP fetch from saved Chrome profile. Gives actionable verdicts for auth issues (issue #248)
 - **Best-effort Google `RotateCookies` during token refresh** — Attempts to rotate cookies before replay to keep auth fresh
