@@ -28,7 +28,7 @@ Output on success: `✓ Successfully authenticated!`
 
 ### Check If Already Authenticated
 ```bash
-nlm auth status
+nlm login --check
 ```
 Validates credentials by making a real API call (lists notebooks).
 Shows: `✓ Authenticated` with notebook count, or error if expired.
@@ -88,8 +88,7 @@ nlm status artifacts <notebook>
 
 | Command | Description |
 |---------|-------------|
-| `nlm login` | Authenticate with NotebookLM (**START HERE**) |
-| `nlm auth` | Check authentication status (status, list, delete) |
+| `nlm login` | Authenticate with NotebookLM and manage profiles (**START HERE**) |
 | `nlm config` | View/edit configuration (show, get, set) |
 | `nlm notebook` | Manage notebooks (list, create, get, describe, rename, delete, query) |
 | `nlm source` | Manage sources (list, add, get, describe, content, rename, delete, stale, sync) |
@@ -174,11 +173,10 @@ nlm login --profile work               # Named profile
 nlm login --manual --file <path>       # Import cookies from file
 nlm login --check                      # Only check if auth valid
 nlm login --provider openclaw --cdp-url http://127.0.0.1:18800  # External CDP provider
-
-nlm auth status                        # Check current auth
-nlm auth status --profile work         # Check specific profile
-nlm auth list                          # List all profiles
-nlm auth delete work --confirm         # Delete a profile
+nlm login switch <profile>          # Switch the default profile
+nlm login profile list              # List all profiles with email addresses
+nlm login profile delete <name>     # Delete a profile
+nlm login profile rename <old> <new> # Rename a profile
 ```
 
 

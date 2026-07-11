@@ -317,6 +317,9 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 | `NOTEBOOKLM_HL` | Interface language and default artifact locale, including regional BCP-47 values such as `es-419` (default: en) |
 | `NOTEBOOKLM_QUERY_TIMEOUT` | Query timeout (seconds) |
 | `NOTEBOOKLM_BASE_URL` | Override base URL for Enterprise/Workspace (default: `https://notebooklm.google.com`) |
+| `NOTEBOOKLM_DISABLED_GROUPS` | Comma-separated tool groups to hide (see [Selective tool exposure](#selective-tool-exposure)) |
+| `NOTEBOOKLM_DISABLED_TOOLS` | Comma-separated individual tools to hide |
+| `NOTEBOOKLM_ENABLED_TOOLS` | Comma-separated tools to re-enable, overriding the two above |
 
 ---
 
@@ -325,8 +328,33 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 This MCP has **39 tools** which consume context. Best practices:
 
 - **Disable when not using**: In Claude Code, use `@notebooklm-mcp` to toggle
+- **Hide tools you don't need**: See [Selective tool exposure](#selective-tool-exposure) below to expose only a subset
 - **Use unified tools**: `source_add`, `studio_create`, `download_artifact` handle multiple operations each
 - **Poll wisely**: Use `studio_status` sparingly - artifacts take 1-5 minutes
+
+### Selective tool exposure
+
+Gating is opt-in: with no configuration all tools are visible. To reduce context,
+hide tools by group or by name via environment variables. Tools are hidden rather
+than removed, so no code changes are needed.
+
+Resolution order (later wins): `NOTEBOOKLM_DISABLED_GROUPS`, then
+`NOTEBOOKLM_DISABLED_TOOLS`, then `NOTEBOOKLM_ENABLED_TOOLS`.
+
+```bash
+# Query-first setup: hide mutating groups, keep read + chat tools
+export NOTEBOOKLM_DISABLED_GROUPS="notebooks_manage,sources_manage,studio,research,sharing,notes"
+
+# Hide one extra tool, but keep studio_status from an otherwise-hidden group
+export NOTEBOOKLM_DISABLED_TOOLS="tag"
+export NOTEBOOKLM_ENABLED_TOOLS="studio_status"
+```
+
+Available groups: `notebooks_read`, `notebooks_manage`, `sources_read`,
+`sources_manage`, `chat`, `query_multi`, `organization`, `automation`, `notes`,
+`auth`, `server`, `sharing`, `research`, `studio`.
+
+Unknown group names are ignored. Changes take effect on server restart.
 
 ---
 

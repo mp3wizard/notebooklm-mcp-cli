@@ -17,7 +17,9 @@ from notebooklm_tools.services.auth import load_cached_tokens
 mcp_logger = logging.getLogger("notebooklm_tools.mcp")
 
 # Parameters that must never appear in log output
-_SENSITIVE_PARAMS = frozenset({"cookies", "csrf_token", "session_id", "request_body"})
+_SENSITIVE_PARAMS = frozenset(
+    {"cookies", "csrf_token", "session_id", "request_body", "request_url"}
+)
 P = ParamSpec("P")
 R = TypeVar("R")
 T = TypeVar("T")

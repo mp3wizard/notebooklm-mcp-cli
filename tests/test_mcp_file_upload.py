@@ -52,11 +52,12 @@ class TestMCPSourceAddFile:
         """Test that file_path is required for source_type=file."""
         from notebooklm_tools.mcp.tools import sources
 
-        result = sources.source_add(
-            notebook_id="test-notebook",
-            source_type="file",
-            # Missing file_path
-        )
+        with patch("notebooklm_tools.mcp.tools.sources.get_client", return_value=MagicMock()):
+            result = sources.source_add(
+                notebook_id="test-notebook",
+                source_type="file",
+                # Missing file_path
+            )
 
         assert result["status"] == "error"
         assert "file_path is required" in result["error"]

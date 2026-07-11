@@ -365,7 +365,13 @@ class TestListDriveSources:
             },
         ]
         mock_client.get_notebook_sources_with_types.return_value = sources
-        mock_client.check_source_freshness.side_effect = [True, RuntimeError("rpc fail"), False]
+
+        def _fake_freshness(source_id):
+            if source_id == "bad1":
+                raise RuntimeError("rpc fail")
+            return {"good1": True, "good2": False}[source_id]
+
+        mock_client.check_source_freshness.side_effect = _fake_freshness
 
         result = list_drive_sources(mock_client, "nb-1")
 

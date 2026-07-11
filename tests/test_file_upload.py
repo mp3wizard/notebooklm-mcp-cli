@@ -344,6 +344,7 @@ def temp_notebook():
     """Create a temporary notebook for E2E tests."""
     from notebooklm_tools.core.auth import load_cached_tokens
     from notebooklm_tools.core.client import NotebookLMClient
+    from notebooklm_tools.core.errors import ClientAuthenticationError
 
     # Load real auth
     tokens = load_cached_tokens()
@@ -353,7 +354,10 @@ def temp_notebook():
     client = NotebookLMClient(
         cookies=tokens.cookies, csrf_token=tokens.csrf_token, session_id=tokens.session_id
     )
-    notebook = client.create_notebook(title="Test Upload Notebook")
+    try:
+        notebook = client.create_notebook(title="Test Upload Notebook")
+    except ClientAuthenticationError as exc:
+        pytest.skip(f"Authentication tokens are expired or invalid: {exc}")
 
     yield notebook
 

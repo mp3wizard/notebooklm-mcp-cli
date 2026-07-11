@@ -9,12 +9,14 @@ Usage:
     3. No keychain access required!
 """
 
+import contextlib
 import json
 import os
 import platform
 import re
 import shutil
 import subprocess  # nosec B404 — required to launch Chrome/Chromium for CDP authentication; chrome_path validated by shutil.which()
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -36,6 +38,25 @@ import websocket  # noqa: E402
 
 _cached_ws: websocket.WebSocket | None = None
 _cached_ws_url: str | None = None
+_cdp_ws_lock = threading.Lock()
+_cdp_next_command_id = 0
+
+
+def _next_cdp_command_id() -> int:
+    """Return a process-local monotonically increasing CDP command id."""
+    global _cdp_next_command_id
+    _cdp_next_command_id += 1
+    return _cdp_next_command_id
+
+
+def _reset_cached_ws_unlocked() -> None:
+    """Close and clear the cached CDP websocket. Caller must hold _cdp_ws_lock."""
+    global _cached_ws, _cached_ws_url
+    if _cached_ws is not None:
+        with contextlib.suppress(Exception):
+            _cached_ws.close()
+    _cached_ws = None
+    _cached_ws_url = None
 
 
 def _normalize_ws_url(url: str | None) -> str | None:
@@ -437,14 +458,17 @@ def _is_snap_browser(browser_path: str) -> bool:
     if not browser_path:
         return False
 
+    browser_text = str(browser_path).replace("\\", "/")
+
     # Direct snap path or snap binary wrapper
-    if "/snap/" in browser_path:
+    if "/snap/" in browser_text or browser_text.startswith("/snap/"):
         return True
 
-    # Check if it's a symlink pointing to a snap path
+    # Check if it's a symlink pointing to a snap path. Normalize the resolved
+    # path text because tests can simulate POSIX paths while running on Windows.
     try:
-        resolved = Path(browser_path).resolve()
-        if "/snap/" in str(resolved):
+        resolved_text = str(Path(browser_path).resolve()).replace("\\", "/")
+        if "/snap/" in resolved_text or resolved_text.startswith("/snap/"):
             return True
     except (OSError, RuntimeError):
         pass
@@ -462,10 +486,17 @@ def get_snap_common_dir(browser_path: str) -> Path | None:
     if not _is_snap_browser(browser_path):
         return None
 
-    # Extract snap name from path (e.g., /snap/chromium/3444/... -> chromium)
+    # Extract snap name from path (e.g., /snap/chromium/3444/... -> chromium).
+    # Normalize to POSIX separators so Linux-path simulations work on Windows.
     try:
-        resolved = Path(browser_path).resolve()
-        for part in resolved.parts:
+        resolved_text = str(Path(browser_path).resolve()).replace("\\", "/")
+        parts = [part for part in resolved_text.split("/") if part]
+        for index, part in enumerate(parts):
+            if part == "snap" and index + 1 < len(parts):
+                snap_name = parts[index + 1]
+                if snap_name in ("chromium", "google-chrome", "firefox"):
+                    return Path.home() / "snap" / snap_name / "common"
+        for part in parts:
             if part in ("chromium", "google-chrome", "firefox"):
                 return Path.home() / "snap" / part / "common"
     except (OSError, RuntimeError):
@@ -502,8 +533,6 @@ def get_supported_browsers() -> list[str]:
 
 
 # Import Chrome profile directory from unified config
-import contextlib  # noqa: E402
-
 from notebooklm_tools.utils.config import get_chrome_profile_dir  # noqa: E402
 
 
@@ -799,19 +828,18 @@ def terminate_chrome(process: subprocess.Popen | None = None, port: int | None =
         return False
 
     # Attempt graceful shutdown via CDP to prevent "Restore Pages" warnings on next launch
-    ws_to_close = _cached_ws
     try:
-        if port or _cached_ws_url:
-            execute_cdp_command(_cached_ws_url or get_debugger_url(_chrome_port), "Browser.close")
-            if ws_to_close:
-                ws_to_close.close()
+        debugger_url = _cached_ws_url or (get_debugger_url(port) if port else None)
+        if debugger_url:
+            execute_cdp_command(debugger_url, "Browser.close")
         else:
             process.terminate()
     except Exception as _e:
         # SEC-007: log instead of silently swallowing — connection drops during close are expected
         _logger.debug("Suppressed error during Chrome close (expected on connection drop): %s", _e)
 
-    _cached_ws = _cached_ws_url = None
+    with _cdp_ws_lock:
+        _reset_cached_ws_unlocked()
 
     try:
         # Wait up to 5 seconds for the graceful shutdown to finish
@@ -905,9 +933,8 @@ def find_or_create_notebooklm_page_by_cdp_url(cdp_http_url: str) -> dict | None:
     except Exception as e:
         _logger.debug("Exception creating blank page via PUT /json/new: %s", e)
 
-    # All creation attempts failed — reuse an existing page
-    _logger.debug("Falling back to reusing an existing page.")
-    any_page: tuple[dict, str] | None = None
+    # All creation attempts failed — reuse only a safe blank/new-tab page.
+    _logger.debug("Falling back to reusing a blank existing page.")
     for page in pages:
         url = page.get("url", "")
         if url in ("about:blank", "chrome://newtab/"):
@@ -916,16 +943,6 @@ def find_or_create_notebooklm_page_by_cdp_url(cdp_http_url: str) -> dict | None:
                 _logger.debug("Reusing page with url %s", url)
                 navigate_to_url(ws_url, NOTEBOOKLM_URL)
                 return page
-        elif page.get("type") == "page" and any_page is None:
-            ws_url = _normalize_ws_url(page.get("webSocketDebuggerUrl"))
-            if ws_url:
-                any_page = (page, ws_url)
-
-    if any_page:
-        page, ws_url = any_page
-        _logger.debug("Reusing arbitrary page with url %s", page.get("url", ""))
-        navigate_to_url(ws_url, NOTEBOOKLM_URL)
-        return page
 
     return None
 
@@ -988,7 +1005,8 @@ def execute_cdp_command(
     global _cached_ws, _cached_ws_url
 
     if retry:
-        # Retry once in case of stale cached connection
+        # Retry once in case of stale cached connection. Close stale sockets so
+        # the second attempt cannot reuse a broken descriptor.
         try:
             return execute_cdp_command(
                 ws_url,
@@ -998,44 +1016,49 @@ def execute_cdp_command(
                 response_timeout=response_timeout,
             )
         except Exception:
-            # Try again without the cached connection
-            _cached_ws = _cached_ws_url = None
+            pass  # Fall through to reconnect below
 
-    if ws_url != _cached_ws_url or not _cached_ws:
-        if _cached_ws:
-            _cached_ws.close()
-            _cached_ws = None
+    with _cdp_ws_lock:
+        if ws_url != _cached_ws_url or not _cached_ws:
+            _reset_cached_ws_unlocked()
 
-        # suppress_origin=True is required for some managed Chrome/CDP endpoints
-        # (e.g. OpenClaw browser profile) that reject default Origin headers.
+            # suppress_origin=True is required for some managed Chrome/CDP endpoints
+            # (e.g. OpenClaw browser profile) that reject default Origin headers.
+            try:
+                with _cdp_websocket_without_proxy_env():
+                    ws = websocket.create_connection(ws_url, timeout=30, suppress_origin=True)
+            except TypeError:
+                # Older websocket-client versions may not support suppress_origin.
+                with _cdp_websocket_without_proxy_env():
+                    ws = websocket.create_connection(ws_url, timeout=30)
+            _cached_ws = ws
+            _cached_ws_url = ws_url
+        else:
+            ws = _cached_ws
+
+        command_id = _next_cdp_command_id()
+        command = {"id": command_id, "method": method, "params": params or {}}
+        ws.send(json.dumps(command))
+
+        # Wait for response with matching ID. Long-running in-page fetches, such as
+        # streamed notebook queries, can legitimately exceed the default 30s wait.
+        ws.settimeout(response_timeout)
         try:
-            with _cdp_websocket_without_proxy_env():
-                ws = websocket.create_connection(ws_url, timeout=30, suppress_origin=True)
-        except TypeError:
-            # Older websocket-client versions may not support suppress_origin.
-            with _cdp_websocket_without_proxy_env():
-                ws = websocket.create_connection(ws_url, timeout=30)
-        _cached_ws = ws
-        _cached_ws_url = ws_url
-    else:
-        ws = _cached_ws
-
-    command = {"id": 1, "method": method, "params": params or {}}
-    ws.send(json.dumps(command))
-
-    # Wait for response with matching ID. Long-running in-page fetches, such as
-    # streamed notebook queries, can legitimately exceed the default 30s wait.
-    ws.settimeout(response_timeout)
-    try:
-        while True:
-            response = json.loads(ws.recv())
-            if response.get("id") == 1:
+            while True:
+                response = json.loads(ws.recv())
+                if response.get("id") != command_id:
+                    continue
+                if "error" in response:
+                    raise RuntimeError(f"CDP command '{method}' failed: {response['error']}")
                 return response.get("result", {})
-    except websocket.WebSocketTimeoutException as err:
-        _cached_ws = _cached_ws_url = None
-        raise TimeoutError(
-            f"CDP command '{method}' timed out after {response_timeout:g}s waiting for response"
-        ) from err
+        except websocket.WebSocketTimeoutException as err:
+            _reset_cached_ws_unlocked()
+            raise TimeoutError(
+                f"CDP command '{method}' timed out after {response_timeout:g}s waiting for response"
+            ) from err
+        except Exception:
+            _reset_cached_ws_unlocked()
+            raise
 
 
 def get_page_cookies(ws_url: str) -> list[dict]:
@@ -1559,11 +1582,16 @@ def run_headless_auth(
     chrome_was_running = False
 
     try:
-        # Try to connect to existing Chrome first
-        debugger_url = get_debugger_url(port)
+        # Try to connect only to a profile-owned existing Chrome first.
+        existing_port, debugger_url = find_existing_nlm_chrome(
+            port_range=range(port, port + 1),
+            profile_name=profile_name,
+            include_headless=True,
+        )
 
-        if debugger_url:
-            # Chrome already running - use existing instance
+        if existing_port is not None and debugger_url:
+            # Chrome already running for this profile - use existing instance
+            port = existing_port
             chrome_was_running = True
         else:
             # No Chrome running - launch in headless mode

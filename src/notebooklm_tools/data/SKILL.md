@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.8.3"
+version: "0.8.5"
 description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any NotebookLM-related automation task."
 ---
 
@@ -50,19 +50,20 @@ nlm --version           # Check installed version
 
 1. **Authenticate when needed**: Run `nlm login` for first-time setup or confirmed stale/missing credentials. Saved cookies often remain usable for weeks.
 2. **Do not confuse network failures with expired auth**: `auth_status="unverified"` means the probe was inconclusive. Check connectivity or try an API call before asking the user to log in again.
-3. **⚠️ ALWAYS ASK USER BEFORE DELETE**: Before executing ANY delete command, ask the user for explicit confirmation. Deletions are **irreversible**. Show what will be deleted and warn about permanent data loss.
-4. **Always obtain approval before generation or deletion**: Direct
+3. **Auto-Authentication Recovery**: The CLI includes automatic 3-layer auth recovery (CSRF refresh -> Token reload -> Headless Auth) and 3x server error retries. Most errors are handled automatically. You only need to manually run `nlm login` if all recovery layers fail.
+4. **⚠️ ALWAYS ASK USER BEFORE DELETE**: Before executing ANY delete command, ask the user for explicit confirmation. Deletions are **irreversible**. Show what will be deleted and warn about permanent data loss.
+5. **Always obtain approval before generation or deletion**: Direct
    `studio_create` and delete operations enforce `--confirm` / `confirm=True`.
    The current MCP batch Studio path does not enforce its confirm parameter,
    so the agent must preserve the approval gate.
-5. **Research needs a destination**: Pass `--notebook-id <id>` for an existing notebook or `--title <title>` to create one.
-6. **Capture IDs from output**: Create/start commands return IDs needed for subsequent operations
-7. **Use aliases**: Simplify long UUIDs with `nlm alias set <name> <uuid>`
-8. **Check aliases before creating**: Run `nlm alias list` before creating a new alias to avoid conflicts with existing names.
-9. **DO NOT launch REPL**: Never use `nlm chat start` - it opens an interactive REPL that AI tools cannot control. Use `nlm notebook query` for one-shot Q&A instead.
-10. **Choose output format wisely**: Default output (no flags) is compact and token-efficient—use it for status checks. Use `--quiet` to capture IDs for piping. Only use `--json` when you need to parse specific fields programmatically.
-11. **Use `--help` when unsure**: Run `nlm <command> --help` to see available options and flags for any command.
-12. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
+6. **Research needs a destination**: Pass `--notebook-id <id>` for an existing notebook or `--title <title>` to create one.
+7. **Capture IDs from output**: Create/start commands return IDs needed for subsequent operations
+8. **Use aliases**: Simplify long UUIDs with `nlm alias set <name> <uuid>`
+9. **Check aliases before creating**: Run `nlm alias list` before creating a new alias to avoid conflicts with existing names.
+10. **DO NOT launch REPL**: Never use `nlm chat start` - it opens an interactive REPL that AI tools cannot control. Use `nlm notebook query` for one-shot Q&A instead.
+11. **Choose output format wisely**: Default output (no flags) is compact and token-efficient—use it for status checks. Use `--quiet` to capture IDs for piping. Only use `--json` when you need to parse specific fields programmatically.
+12. **Use `--help` when unsure**: Run `nlm <command> --help` to see available options and flags for any command.
+13. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
 
 **Current MCP surface:** 39 tools. Consolidated action tools include `note`,
 `label`, `studio_status`, `batch`, `pipeline`, and `tag`. Consolidated type
@@ -456,7 +457,7 @@ nlm download video <nb-id> --output video.mp4
 nlm download report <nb-id> --output report.md
 nlm download slide-deck <nb-id> --output slides.pdf           # PDF (default)
 nlm download slide-deck <nb-id> --output slides.pptx --format pptx  # PPTX
-nlm download quiz <nb-id> --output quiz.json --format json
+nlm download quiz <nb-id> --output quiz.html --format html    # Also: json, markdown
 
 # Export to Google Docs/Sheets
 nlm export sheets <nb-id> <artifact-id> --title "My Data Table"
@@ -613,6 +614,19 @@ nlm login switch work                        # Switch default profile
 | `output.short_ids` | `true` | Show shortened IDs |
 | `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, vivaldi, opera) |
 | `auth.default_profile` | `default` | Profile to use when `--profile` not specified |
+
+### Diagnostics & Setup
+
+Diagnose and fix issues with your NotebookLM installation, MCP server, and AI tools:
+
+```bash
+nlm doctor                                   # Full diagnostic check
+nlm setup mcp                                # Show MCP server config JSON
+nlm setup add json                           # Interactive MCP config generator
+nlm setup add claude                         # Setup MCP for Claude Desktop
+nlm setup add cursor                         # Setup MCP for Cursor
+nlm setup remove cursor                      # Remove MCP from Cursor
+```
 
 ### 11. Skill Management
 
