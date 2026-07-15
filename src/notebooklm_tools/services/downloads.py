@@ -66,6 +66,13 @@ _BLOCKED_DIRS = {
     ".config",
     ".aws",
     ".kube",
+    ".git",
+    ".local",
+    ".npm",
+    ".pip",
+    ".cache",
+    ".docker",
+    ".terraform",
 }
 
 
@@ -96,9 +103,27 @@ def validate_output_path(output_path: str) -> None:
     """Validate that output_path is safe and does not escape to sensitive locations.
 
     Raises ValidationError if the path resolves to a dangerous location.
+    When NOTEBOOKLM_DOWNLOAD_DIR is set, output must be within that directory.
     """
+    import os
+
     resolved = Path(output_path).expanduser().resolve()
 
+    # Opt-in allowlist mode: if NOTEBOOKLM_DOWNLOAD_DIR is set, restrict output
+    # to that directory (and its subdirectories). This is the safest mode.
+    download_dir_env = os.environ.get("NOTEBOOKLM_DOWNLOAD_DIR", "")
+    if download_dir_env:
+        download_root = Path(download_dir_env).expanduser().resolve()
+        try:
+            resolved.relative_to(download_root)
+        except ValueError:
+            raise ValidationError(
+                f"Output path '{resolved}' is outside download directory "
+                f"'{download_root}'. Set NOTEBOOKLM_DOWNLOAD_DIR to change."
+            )
+        return  # Within allowed directory — skip further checks
+
+    # Fallback: blocklist mode (when NOTEBOOKLM_DOWNLOAD_DIR is not set)
     # Block writes into sensitive dotfile directories
     for part in resolved.parts:
         if part in _BLOCKED_DIRS:
@@ -114,10 +139,15 @@ def validate_output_path(output_path: str) -> None:
         ".profile",
         ".bash_profile",
         ".gitconfig",
+        ".env",
+        ".npmrc",
+        ".pypirc",
         "authorized_keys",
         "known_hosts",
         "id_rsa",
         "id_ed25519",
+        "credentials.json",
+        "serviceaccount.json",
     }
     if resolved.name in _sensitive_files:
         raise ValidationError(
