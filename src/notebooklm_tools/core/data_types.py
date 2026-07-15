@@ -60,6 +60,7 @@ class Notebook:
     is_shared: bool = False  # True if shared with others (for owned notebooks)
     created_at: str | None = None  # ISO format timestamp
     modified_at: str | None = None  # ISO format timestamp
+    emoji: str | None = None
 
     @property
     def url(self) -> str:

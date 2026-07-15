@@ -23,6 +23,7 @@ class QueryResult(TypedDict):
     """Result of a notebook query."""
 
     answer: str
+    question: str
     conversation_id: str | None
     sources_used: list[Any]
     citations: dict[str, Any]
@@ -122,6 +123,7 @@ def query(
     if result:
         return {
             "answer": result.get("answer", ""),
+            "question": query_text,
             "conversation_id": result.get("conversation_id"),
             "sources_used": result.get("sources_used", []),
             "citations": result.get("citations", {}),

@@ -280,6 +280,34 @@ class TestStudioMixinMethods:
         assert result[0]["status"] == "completed"
         assert result[0]["audio_url"] == "https://example.com/audio.m4a"
 
+    def test_poll_studio_status_identifies_mind_map_subtype(self):
+        """Shared type code 4 with subtype 4 is a saved mind map, not flashcards."""
+        mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._call_rpc = MagicMock(
+            return_value=[
+                [
+                    [
+                        "mind-map-1",
+                        "Budget Map",
+                        mixin.STUDIO_TYPE_FLASHCARDS,
+                        [[["source-1"]]],
+                        3,
+                        None,
+                        None,
+                        None,
+                        None,
+                        ["", [4, None, None, "en", None, None, None, None, True]],
+                    ]
+                ]
+            ]
+        )
+
+        result = mixin.poll_studio_status("nb-1")
+
+        assert result[0]["artifact_id"] == "mind-map-1"
+        assert result[0]["type"] == "mind_map"
+        assert result[0]["flashcard_count"] is None
+
     def test_create_audio_overview_uses_normalized_status_mapping(self):
         mixin = StudioMixin(cookies={"test": "cookie"}, csrf_token="test")
         http_client = MagicMock()

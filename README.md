@@ -7,7 +7,6 @@
 [![Total downloads](https://static.pepy.tech/badge/notebooklm-mcp-cli)](https://pepy.tech/projects/notebooklm-mcp-cli)
 [![Python](https://img.shields.io/pypi/pyversions/notebooklm-mcp-cli)](https://pypi.org/project/notebooklm-mcp-cli/)
 [![License](https://img.shields.io/pypi/l/notebooklm-mcp-cli)](https://github.com/jacob-bd/notebooklm-mcp-cli/blob/main/LICENSE)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jacobbd)
 
 ## What's New (mp3wizard fork)
 
@@ -383,6 +382,11 @@
 **Programmatic access to Google NotebookLM** — via command-line interface (CLI) or Model Context Protocol (MCP) server.
 
 > **Note:** Tested with Pro/free and Google AI Ultra ($249/mo) tier accounts. May work with NotebookLM Enterprise accounts but has not been tested.
+
+> ☕ **If you find notebooklm-mcp-cli useful, consider [buying me a coffee](https://buymeacoffee.com/jacobbd).**
+> It's free and built in my spare time — but testing every NotebookLM feature takes real time and resources. A coffee helps me cover it and keep shipping. Thank you! 🙏
+>
+> <a href="https://buymeacoffee.com/jacobbd"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="42"></a>
 
 📺 **Watch the Demos**
 

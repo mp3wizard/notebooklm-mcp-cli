@@ -76,8 +76,16 @@ def diagnose_auth_replay(
     ]
 
     if include_cdp:
-        probes.append(_probe_cdp_in_page_replay(profile, loaded, timeout=timeout))
+        probes.extend(_probe_browser_session_replay(profile, loaded, timeout=timeout))
     else:
+        probes.append(
+            AuthReplayProbe(
+                name="httpx_fresh",
+                attempted=False,
+                valid=False,
+                detail="Skipped by --no-cdp.",
+            )
+        )
         probes.append(
             AuthReplayProbe(
                 name="cdp_in_page",
@@ -160,21 +168,42 @@ def _probe_rotated_httpx_replay(manager: Any, profile: Any, *, timeout: float) -
     )
 
 
-def _probe_cdp_in_page_replay(
+def _probe_browser_session_replay(
     profile_name: str, profile: Any, *, timeout: float
-) -> AuthReplayProbe:
-    """Run the list-notebooks RPC inside a saved browser profile via CDP."""
+) -> list[AuthReplayProbe]:
+    """Open one live, logged-in browser session and run two probes inside it.
+
+    1. ``httpx_fresh`` - re-extract cookies/tokens from the live page and
+       replay list_notebooks through plain httpx. This is the distinguishing
+       experiment for issue #248: if fresh credentials succeed over httpx,
+       the saved on-disk cookies were simply stale, not device-bound.
+    2. ``cdp_in_page`` - replay the same RPC via an in-page fetch, executed
+       inside the browser itself.
+
+    Both probes share a single Chrome launch/attach so a genuinely
+    browser-bound account is only distinguishable from an account with
+    merely expired saved cookies by comparing fresh-httpx against
+    in-page-fetch, not saved-httpx against in-page-fetch.
+    """
+    from notebooklm_tools.core.auth import parse_cookies_from_chrome_format
     from notebooklm_tools.core.cdp_transport import fetch_form_in_page
     from notebooklm_tools.core.client import NotebookLMClient
     from notebooklm_tools.utils import cdp
 
+    def _skip(detail: str) -> list[AuthReplayProbe]:
+        return [
+            AuthReplayProbe(name="httpx_fresh", attempted=False, valid=False, detail=detail),
+            AuthReplayProbe(name="cdp_in_page", attempted=False, valid=False, detail=detail),
+        ]
+
+    def _fail(error: str) -> list[AuthReplayProbe]:
+        return [
+            AuthReplayProbe(name="httpx_fresh", attempted=True, valid=False, error=error),
+            AuthReplayProbe(name="cdp_in_page", attempted=True, valid=False, error=error),
+        ]
+
     if not cdp.has_chrome_profile(profile_name):
-        return AuthReplayProbe(
-            name="cdp_in_page",
-            attempted=False,
-            valid=False,
-            detail="No saved browser profile is available for CDP.",
-        )
+        return _skip("No saved browser profile is available for CDP.")
 
     launched = False
     port = cdp.CDP_DEFAULT_PORT + 1
@@ -182,39 +211,19 @@ def _probe_cdp_in_page_replay(
         debugger_url = cdp.get_debugger_url(port)
         if not debugger_url:
             if not cdp.launch_chrome(port=port, headless=True, profile_name=profile_name):
-                return AuthReplayProbe(
-                    name="cdp_in_page",
-                    attempted=True,
-                    valid=False,
-                    error="Failed to launch headless browser for CDP probe.",
-                )
+                return _fail("Failed to launch headless browser for CDP probe.")
             launched = True
             debugger_url = cdp.get_debugger_url(port, tries=10)
             if not debugger_url:
-                return AuthReplayProbe(
-                    name="cdp_in_page",
-                    attempted=True,
-                    valid=False,
-                    error="Headless browser did not expose CDP in time.",
-                )
+                return _fail("Headless browser did not expose CDP in time.")
 
         page = cdp.find_or_create_notebooklm_page(port)
         if not page:
-            return AuthReplayProbe(
-                name="cdp_in_page",
-                attempted=True,
-                valid=False,
-                error="Could not open a NotebookLM page in the browser profile.",
-            )
+            return _fail("Could not open a NotebookLM page in the browser profile.")
 
         ws_url = cdp._normalize_ws_url(page.get("webSocketDebuggerUrl"))
         if not ws_url:
-            return AuthReplayProbe(
-                name="cdp_in_page",
-                attempted=True,
-                valid=False,
-                error="NotebookLM page did not expose a CDP websocket URL.",
-            )
+            return _fail("NotebookLM page did not expose a CDP websocket URL.")
 
         start = time.time()
         while time.time() - start < timeout:
@@ -222,26 +231,51 @@ def _probe_cdp_in_page_replay(
                 break
             time.sleep(0.5)
         else:
-            return AuthReplayProbe(
-                name="cdp_in_page",
-                attempted=True,
-                valid=False,
-                error="Saved browser profile is not logged in to NotebookLM.",
-            )
+            return _fail("Saved browser profile is not logged in to NotebookLM.")
 
         html, ready = cdp._wait_for_page_ready(ws_url, timeout=int(timeout))
         if not ready:
-            return AuthReplayProbe(
-                name="cdp_in_page",
-                attempted=True,
-                valid=False,
-                error="NotebookLM page loaded, but session fields were not found.",
-            )
+            return _fail("NotebookLM page loaded, but session fields were not found.")
 
         csrf_token = cdp.extract_csrf_token(html) or profile.csrf_token or ""
         session_id = cdp.extract_session_id(html) or profile.session_id or ""
         build_label = cdp.extract_build_label(html) or profile.build_label or ""
 
+        # Probe 1: fresh cookies straight from the live browser, replayed
+        # through plain httpx (no in-page execution). This is what
+        # distinguishes stale on-disk cookies from genuine device binding.
+        fresh_cookies = cdp.get_page_cookies(ws_url)
+        if fresh_cookies:
+            flat_preview = parse_cookies_from_chrome_format(fresh_cookies)
+            httpx_fresh_ok = bool(flat_preview)
+        else:
+            httpx_fresh_ok = False
+
+        if httpx_fresh_ok:
+            ok, count, error = _direct_list_notebooks_httpx(
+                cookies=fresh_cookies,
+                csrf_token=csrf_token,
+                session_id=session_id,
+                build_label=build_label,
+                timeout=timeout,
+            )
+            httpx_fresh_probe = AuthReplayProbe(
+                name="httpx_fresh",
+                attempted=True,
+                valid=ok,
+                notebook_count=count,
+                error=error,
+                detail="Cookies re-extracted from the live browser, replayed through httpx.",
+            )
+        else:
+            httpx_fresh_probe = AuthReplayProbe(
+                name="httpx_fresh",
+                attempted=True,
+                valid=False,
+                error="Could not extract fresh cookies from the live browser session.",
+            )
+
+        # Probe 2: the same RPC, executed in-page via CDP fetch.
         parser = NotebookLMClient(
             cookies={"diagnostic": "unused"},
             csrf_token=csrf_token or "diagnostic-no-csrf",
@@ -255,34 +289,31 @@ def _probe_cdp_in_page_replay(
         cdp_response = fetch_form_in_page(ws_url, url, body, timeout=timeout)
         status = cdp_response.status_code
         if status != 200:
-            return AuthReplayProbe(
+            cdp_probe = AuthReplayProbe(
                 name="cdp_in_page",
                 attempted=True,
                 valid=False,
                 error=f"CDP fetch returned HTTP {status}",
             )
+        else:
+            ok, count, error = _parse_list_notebooks_response(
+                cdp_response.text,
+                csrf_token=csrf_token,
+                session_id=session_id,
+                build_label=build_label,
+            )
+            cdp_probe = AuthReplayProbe(
+                name="cdp_in_page",
+                attempted=True,
+                valid=ok,
+                notebook_count=count,
+                error=error,
+                detail="list_notebooks replayed inside the saved browser profile.",
+            )
 
-        ok, count, error = _parse_list_notebooks_response(
-            cdp_response.text,
-            csrf_token=csrf_token,
-            session_id=session_id,
-            build_label=build_label,
-        )
-        return AuthReplayProbe(
-            name="cdp_in_page",
-            attempted=True,
-            valid=ok,
-            notebook_count=count,
-            error=error,
-            detail="list_notebooks replayed inside the saved browser profile.",
-        )
+        return [httpx_fresh_probe, cdp_probe]
     except Exception as exc:
-        return AuthReplayProbe(
-            name="cdp_in_page",
-            attempted=True,
-            valid=False,
-            error=f"{type(exc).__name__}: {exc}",
-        )
+        return _fail(f"{type(exc).__name__}: {exc}")
     finally:
         if launched:
             with contextlib.suppress(Exception):
@@ -400,10 +431,20 @@ def _parse_list_notebooks_response(
 
 
 def _classify_auth_replay(profile: str, probes: list[AuthReplayProbe]) -> AuthReplayDiagnostic:
-    """Turn probe results into a practical diagnosis."""
+    """Turn probe results into a practical diagnosis.
+
+    ``browser_bound_replay`` requires that even *freshly re-extracted*
+    cookies fail through plain httpx while the in-page fetch succeeds
+    (``httpx_fresh`` fails, ``cdp_in_page`` passes). Comparing stale
+    on-disk cookies (``httpx_saved``/``httpx_after_rotate``) against a live
+    browser session cannot distinguish device binding from ordinary
+    expired cookies, since a live session always holds fresh cookies
+    (issue #248).
+    """
     by_name = {probe.name: probe for probe in probes}
     direct = by_name.get("httpx_saved")
     rotated = by_name.get("httpx_after_rotate")
+    fresh = by_name.get("httpx_fresh")
     cdp_probe = by_name.get("cdp_in_page")
 
     if direct and direct.valid:
@@ -425,18 +466,38 @@ def _classify_auth_replay(profile: str, probes: list[AuthReplayProbe]) -> AuthRe
             ),
         )
 
-    if cdp_probe and cdp_probe.attempted and cdp_probe.valid:
+    if fresh and fresh.attempted and fresh.valid:
+        return AuthReplayDiagnostic(
+            profile=profile,
+            verdict="stale_cookies",
+            probes=probes,
+            recommendation=(
+                "Saved cookies are expired, not device-bound. Freshly re-extracted cookies "
+                "worked through normal httpx. Run `nlm login` to re-authenticate, then rerun "
+                "this diagnostic."
+            ),
+        )
+
+    if (
+        fresh
+        and fresh.attempted
+        and not fresh.valid
+        and cdp_probe
+        and cdp_probe.attempted
+        and cdp_probe.valid
+    ):
         return AuthReplayDiagnostic(
             profile=profile,
             verdict="browser_bound_replay",
             probes=probes,
             recommendation=(
-                "httpx replay failed but in-browser fetch succeeded. This matches issue #248 "
-                "and justifies an opt-in CDP transport for RPC/chat calls."
+                "Even freshly re-extracted cookies failed outside the browser, but the in-page "
+                "fetch succeeded. This matches issue #248 and justifies an opt-in CDP transport "
+                "for RPC/chat calls."
             ),
         )
 
-    if cdp_probe and not cdp_probe.attempted:
+    if not cdp_probe or not cdp_probe.attempted:
         return AuthReplayDiagnostic(
             profile=profile,
             verdict="httpx_failed_cdp_skipped",

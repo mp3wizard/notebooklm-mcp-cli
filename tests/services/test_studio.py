@@ -387,6 +387,24 @@ class TestGetStudioStatus:
         result = get_studio_status(mock_client, "nb-1")
         assert result["total"] == 2  # only studio artifacts
 
+    def test_deduplicates_mind_map_returned_by_both_status_apis(self, mock_client):
+        mock_client.poll_studio_status.return_value = [
+            {
+                "artifact_id": "mm-1",
+                "type": "mind_map",
+                "title": "Map 1",
+                "status": "completed",
+            }
+        ]
+        mock_client.list_mind_maps.return_value = [
+            {"mind_map_id": "mm-1", "title": "Map 1"},
+        ]
+
+        result = get_studio_status(mock_client, "nb-1")
+
+        assert result["total"] == 1
+        assert result["artifacts"][0]["type"] == "mind_map"
+
     def test_api_error(self, mock_client):
         mock_client.poll_studio_status.side_effect = RuntimeError("fail")
         with pytest.raises(ServiceError, match="Failed to poll"):

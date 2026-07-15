@@ -191,11 +191,11 @@ nlm notebook list --title              # "ID: Title" format
 nlm notebook list --full               # All columns
 
 nlm notebook create "Title"            # Create new notebook
-nlm notebook get <id>                  # Get notebook details
+nlm notebook get <id> --json           # Get details, including notebook emoji
 nlm notebook describe <id>             # AI summary with topics
 nlm notebook describe <id> --json      # JSON output
 nlm notebook rename <id> "New Title"   # Rename notebook
-nlm notebook delete <id> --confirm     # Delete permanently
+nlm notebook delete <id> --confirm --json  # Structured deletion result
 nlm notebook query <id> "question"     # Chat with sources
 nlm notebook query <id> "question" --json  # JSON output
 nlm notebook query <id> "follow up" --conversation-id <cid>  # Persists in web UI history
@@ -224,6 +224,7 @@ nlm source list <notebook-id> --drive  # Show Drive sources with freshness
 nlm source list <notebook-id> --drive --skip-freshness  # Faster, skip freshness checks
 
 nlm source add <notebook-id> --url "https://..."           # Add URL
+nlm source add <notebook-id> --url "https://..." --json    # Return new source ID as JSON
 nlm source add <notebook-id> --url "https://..." --wait    # Add URL and wait until processed
 nlm source add <notebook-id> --url "https://youtube.com/..." # Add YouTube
 nlm source add <notebook-id> --text "content" --title "Title"  # Add text
@@ -242,7 +243,7 @@ nlm source content <source-id>         # Raw text content
 nlm source content <source-id> --json  # JSON output
 nlm source content <source-id> --output file.txt  # Export to file
 nlm source rename <source-id> "New Title" --notebook <notebook-id>  # Rename source
-nlm source delete <source-id> --confirm  # Delete source
+nlm source delete <source-id> --confirm --json  # Structured deletion result
 nlm source stale <notebook-id>         # List stale Drive sources
 nlm source sync <notebook-id> --confirm  # Sync all stale
 nlm source sync <notebook-id> --source-ids <ids> --confirm  # Sync specific
@@ -343,6 +344,7 @@ nlm status research <notebook-id>                        # Check progress
 **Noun-First:**
 ```bash
 nlm audio create <notebook-id> --confirm
+nlm audio create <notebook-id> --confirm --json  # Return artifact ID as JSON
 nlm audio create <notebook-id> --format deep_dive --length default --confirm
 nlm audio create <notebook-id> --format brief --focus "key topic" --confirm
 nlm audio create <notebook-id> --language es-419 --confirm
@@ -806,7 +808,7 @@ Many commands support `--json` for structured output:
 | Flag | Description | Available On |
 |------|-------------|------|
 | (none) | Rich table (human-readable) | All |
-| `--json` | JSON output (for parsing/piping) | list, get, describe, query, content, status |
+| `--json` | JSON output (for parsing/piping) | list, get, describe, query, content, status, source add/delete, notebook delete, Studio create |
 | `--quiet` | IDs only (for piping) | list |
 | `--title` | "ID: Title" format | notebook list |
 | `--url` | "ID: URL" format | source list |

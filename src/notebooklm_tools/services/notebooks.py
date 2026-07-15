@@ -17,6 +17,7 @@ class NotebookInfo(TypedDict):
     is_shared: bool
     created_at: str | None
     modified_at: str | None
+    emoji: str | None
 
 
 class NotebookListResult(TypedDict):
@@ -44,6 +45,7 @@ class NotebookDetailResult(TypedDict):
     source_count: int
     url: str
     sources: list[SourceInfo]
+    emoji: str | None
 
 
 class NotebookSummaryResult(TypedDict):
@@ -112,6 +114,7 @@ def list_notebooks(
                 "is_shared": nb.is_shared,
                 "created_at": nb.created_at,
                 "modified_at": nb.modified_at,
+                "emoji": getattr(nb, "emoji", None),
             }
             for nb in notebooks[:max_results]
         ],
@@ -161,6 +164,7 @@ def get_notebook(
             title = data[0] if isinstance(data[0], str) else "Untitled"
             sources_data = data[1] if len(data) > 1 and isinstance(data[1], list) else []
             nb_id = data[2] if len(data) > 2 else notebook_id
+            emoji = data[3] if len(data) > 3 and isinstance(data[3], str) else None
 
             sources: list[SourceInfo] = []
             for src in sources_data:
@@ -175,6 +179,7 @@ def get_notebook(
                 "source_count": len(sources),
                 "url": f"{get_base_url()}/notebook/{nb_id}",
                 "sources": sources,
+                "emoji": emoji,
             }
 
     # Fallback: if nb is a dataclass-like object with attrs (e.g. from list_notebooks)
@@ -185,6 +190,7 @@ def get_notebook(
             "source_count": getattr(nb, "source_count", 0),
             "url": getattr(nb, "url", f"{get_base_url()}/notebook/{nb.id}"),
             "sources": [],
+            "emoji": getattr(nb, "emoji", None),
         }
 
     # Last-resort fallback

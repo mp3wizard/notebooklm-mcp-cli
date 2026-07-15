@@ -60,6 +60,21 @@ def test_list_notebooks_uses_correct_rpc():
                             assert mock_build_body.call_args[0][0] == "wXbhsf"  # RPC_LIST_NOTEBOOKS
 
 
+def test_list_notebooks_preserves_emoji():
+    """Notebook emoji metadata should survive parsing into the Notebook model."""
+    from notebooklm_tools.core.notebooks import NotebookMixin
+
+    raw = [["My Notebook", [], "nb-123", "📚"]]
+    with (
+        patch.object(NotebookMixin, "_refresh_auth_tokens"),
+        patch.object(NotebookMixin, "_call_rpc", return_value=[raw]),
+    ):
+        mixin = NotebookMixin(cookies={"test": "cookie"}, csrf_token="test")
+        notebooks = mixin.list_notebooks()
+
+    assert notebooks[0].emoji == "📚"
+
+
 def test_create_notebook_uses_correct_rpc():
     """Test that create_notebook calls the correct RPC."""
     from notebooklm_tools.core.notebooks import NotebookMixin

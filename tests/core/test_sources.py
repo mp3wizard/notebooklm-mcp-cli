@@ -99,3 +99,67 @@ def test_get_source_guide_uses_call_rpc():
 
             mock_rpc.assert_called_once()
             assert result == {"summary": "", "keywords": []}
+
+
+def _drive_pdf_metadata():
+    """Metadata shape captured from a PDF added through the web UI Drive picker."""
+    return [
+        None,
+        33405,
+        [1784078147, 841477000],
+        ["revision-id", [1784078147, 501725000]],
+        14,
+        None,
+        None,
+        None,
+        69367,
+        ["drive-file-id", 4, "application/pdf", ""],
+        None,
+        "document.pdf",
+        None,
+        None,
+        [1784078154, 877897000],
+        None,
+        None,
+        None,
+        None,
+        "application/pdf",
+    ]
+
+
+def test_get_notebook_sources_identifies_drive_picker_pdf_by_mime_type():
+    from notebooklm_tools.core.sources import SourceMixin
+
+    mixin = SourceMixin(cookies={"test": "cookie"}, csrf_token="test")
+    mixin.get_notebook = MagicMock(
+        return_value=[
+            [
+                "Notebook",
+                [[["source-1"], "document.pdf", _drive_pdf_metadata(), [None, 2]]],
+                "notebook-1",
+            ]
+        ]
+    )
+
+    sources = mixin.get_notebook_sources_with_types("notebook-1")
+
+    assert sources[0]["source_type"] == 14
+    assert sources[0]["source_type_name"] == "pdf"
+
+
+def test_get_source_fulltext_identifies_drive_picker_pdf_by_mime_type():
+    from notebooklm_tools.core.sources import SourceMixin
+
+    mixin = SourceMixin(cookies={"test": "cookie"}, csrf_token="test")
+    mixin._call_rpc = MagicMock(
+        return_value=[
+            [["source-1"], "document.pdf", _drive_pdf_metadata()],
+            None,
+            None,
+            [],
+        ]
+    )
+
+    source = mixin.get_source_fulltext("source-1")
+
+    assert source["source_type"] == "pdf"

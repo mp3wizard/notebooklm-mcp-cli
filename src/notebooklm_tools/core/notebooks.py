@@ -64,6 +64,7 @@ class NotebookMixin(BaseClient):
                     title = nb_data[0] if isinstance(nb_data[0], str) else "Untitled"
                     sources_data = nb_data[1] if len(nb_data) > 1 else []
                     notebook_id = nb_data[2] if len(nb_data) > 2 else None
+                    emoji = nb_data[3] if len(nb_data) > 3 and isinstance(nb_data[3], str) else None
 
                     is_owned = True  # Default to owned
                     is_shared = False  # Default to not shared
@@ -120,6 +121,7 @@ class NotebookMixin(BaseClient):
                                 is_shared=is_shared,
                                 created_at=created_at,
                                 modified_at=modified_at,
+                                emoji=emoji,
                             )
                         )
 

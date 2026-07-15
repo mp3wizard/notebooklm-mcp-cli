@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2026-07-14
+
+### Added
+- **JSON output parity for scripting and agents (#256)** — Added `--json` support to source add/delete, notebook delete, and every Studio creation command. Noun-first and verb-first command styles now expose the same JSON options, with machine-readable IDs and deletion confirmations.
+- **Notebook emoji and query context in JSON (#256)** — `nlm notebook get --json` now includes the notebook emoji, and `nlm notebook query --json` includes the original question alongside the answer and citations.
+
+### Fixed
+- **Mind maps mislabeled as flashcards in Studio status** — NotebookLM now returns saved mind maps through the shared Studio type code `4` with subtype `4`. Status parsing now identifies them as `mind_map`, avoids counting their metadata as flashcards, and deduplicates entries returned by both status paths.
+- **Drive-picker PDFs mislabeled as Word documents** — When NotebookLM returns the ambiguous source type code `14`, source listing and content metadata now prefer an explicit `application/pdf` MIME type. The raw numeric code remains unchanged for compatibility.
+
+### Documentation
+- Updated the CLI and AI-facing command references for the new JSON output options and documented the live-observed Studio mind-map subtype.
+
+## [0.8.6] - 2026-07-11
+
+### Fixed
+- **`nlm doctor auth-replay` false `browser_bound_replay` verdict on merely expired cookies (#248)** — The diagnostic previously compared *stale on-disk* cookies (`httpx_saved`, `httpx_after_rotate`) against an *always-fresh* live browser session (`cdp_in_page`). Since a live session's cookies are fresh by construction, that comparison could not distinguish ordinary cookie expiry from genuine device-bound replay — both produce the exact same pass/fail pattern. The diagnostic now re-extracts cookies from the same live browser session used for the CDP probe and replays them through plain httpx (new `httpx_fresh` lane) before drawing a conclusion. If fresh cookies succeed over httpx, the verdict is now the new `stale_cookies` (run `nlm login`, no transport needed); `browser_bound_replay` is only reported when even freshly re-extracted cookies fail outside the browser. Thanks to **@leomesheti-crypto** for the detailed controlled-comparison report that caught this.
+
+### Changed
+- **`nlm doctor auth-replay` now reports four lanes** instead of three: saved-cookie httpx replay, httpx after forced cookie rotation, fresh-cookie httpx replay, and the in-page CDP fetch. `--no-cdp` skips the two browser-backed lanes together.
+- Updated `docs/AUTHENTICATION.md` to describe the corrected four-lane diagnostic and clarify when the experimental `NOTEBOOKLM_RPC_TRANSPORT=cdp` transport is actually justified.
+
+### Other
+- README: moved the "Buy Me a Coffee" call-out from a low-visibility badge in the top badge row to a prominent, centered block near the top of the page.
+
 ## [0.8.5] - 2026-07-10
 
 ### Added

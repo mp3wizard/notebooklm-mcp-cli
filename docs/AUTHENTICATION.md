@@ -351,8 +351,18 @@ Similarly, if you have `NOTEBOOKLM_CSRF_TOKEN` or `NOTEBOOKLM_SESSION_ID` in you
 
 ### Experimental browser-backed RPC transport
 
-If `nlm doctor auth-replay` shows that normal `httpx` replay fails but
-`cdp_in_page` succeeds, you can opt in to the experimental CDP transport:
+`nlm doctor auth-replay` compares four lanes: saved cookies through httpx,
+httpx after a forced cookie rotation, cookies freshly re-extracted from a
+live logged-in browser (also replayed through httpx), and an in-page CDP
+fetch from that same browser session. The fresh-cookie lane exists to tell
+apart two failure modes that look identical if you only compare saved
+cookies against the browser: ordinary expired cookies (verdict
+`stale_cookies` — run `nlm login`, no transport needed) versus genuine
+device-bound replay (verdict `browser_bound_replay` — even fresh cookies
+fail outside the browser).
+
+Only opt in to the experimental CDP transport if the verdict is
+`browser_bound_replay`:
 
 ```bash
 NOTEBOOKLM_RPC_TRANSPORT=cdp nlm notebook list

@@ -726,6 +726,16 @@ params = [[2], notebook_id, 'NOT artifact.status = "ARTIFACT_STATUS_SUGGESTED"']
 ]
 ```
 
+Artifacts with type code `4` use the nested subtype at `[9][1][0]`:
+
+- `1` = flashcards
+- `2` = quiz
+- `4` = mind map
+
+Mind map subtype `4` was confirmed from a live `gArtLc` response on 2026-07-14.
+Older clients that only distinguish flashcards and quizzes will mislabel these
+saved mind maps as flashcards.
+
 ### `V5N4be` - Delete Studio Content
 
 Deletes an audio or video overview artifact permanently.

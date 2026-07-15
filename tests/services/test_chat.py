@@ -33,6 +33,7 @@ class TestQuery:
         result = query(mock_client, "nb-123", "What is the meaning?")
 
         assert result["answer"] == "The answer is 42."
+        assert result["question"] == "What is the meaning?"
         assert result["conversation_id"] == "conv-123"
         assert result["sources_used"] == ["src-1", "src-2"]
         assert result["citations"] == {1: "src-1", 2: "src-1", 3: "src-2"}

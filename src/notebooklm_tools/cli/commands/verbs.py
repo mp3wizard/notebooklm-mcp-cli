@@ -125,6 +125,7 @@ def create_audio_verb(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create an audio overview."""
@@ -136,6 +137,7 @@ def create_audio_verb(
         focus=focus,
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -161,6 +163,7 @@ def create_video_verb(
     focus: str | None = typer.Option(None, "--focus", help="Optional focus topic"),
     source_ids: str | None = typer.Option(None, "--source-ids", help="Comma-separated source IDs"),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create a video overview."""
@@ -173,6 +176,7 @@ def create_video_verb(
         focus=focus or "",
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -194,6 +198,7 @@ def create_report_verb(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create a report."""
@@ -204,6 +209,7 @@ def create_report_verb(
         language=language or "",
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -228,6 +234,7 @@ def create_infographic_verb(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create an infographic."""
@@ -240,6 +247,7 @@ def create_infographic_verb(
         focus=focus or "",
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -257,6 +265,7 @@ def create_slides_verb(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create a slide deck."""
@@ -268,6 +277,7 @@ def create_slides_verb(
         focus=focus or "",
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -284,6 +294,7 @@ def create_quiz_verb(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create a quiz."""
@@ -294,6 +305,7 @@ def create_quiz_verb(
         focus=focus or "",
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -309,6 +321,7 @@ def create_flashcards_verb(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create flashcards."""
@@ -318,6 +331,7 @@ def create_flashcards_verb(
         focus=focus or "",
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -331,6 +345,7 @@ def create_data_table_verb(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create a data table."""
@@ -340,6 +355,7 @@ def create_data_table_verb(
         language=language or "",
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -352,6 +368,7 @@ def create_mindmap_verb(
         None, "--source-ids", "-s", help="Comma-separated source IDs"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create a mind map."""
@@ -360,6 +377,7 @@ def create_mindmap_verb(
         title=title or "Mind Map",
         source_ids=source_ids,
         confirm=confirm,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -498,20 +516,32 @@ delete_app = typer.Typer(help="Delete resources (notebooks, sources, artifacts)"
 def delete_notebook_verb(
     notebook: str = typer.Argument(..., help="Notebook ID or alias"),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Delete a notebook permanently."""
-    delete_notebook(notebook_id=notebook, confirm=confirm, profile=profile)
+    delete_notebook(
+        notebook_id=notebook,
+        confirm=confirm,
+        json_output=json_output,
+        profile=profile,
+    )
 
 
 @delete_app.command("source")
 def delete_source_verb(
     source: str = typer.Argument(..., help="Source ID"),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation prompt"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Delete a source from notebook."""
-    delete_source(source_ids=[source], confirm=confirm, profile=profile)
+    delete_source(
+        source_ids=[source],
+        confirm=confirm,
+        json_output=json_output,
+        profile=profile,
+    )
 
 
 @delete_app.command("artifact")
@@ -548,6 +578,7 @@ def add_url_verb(
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
     wait: bool = typer.Option(False, "--wait", "-w", help="Wait for source processing to complete"),
     wait_timeout: float = typer.Option(600.0, "--wait-timeout", help="Wait timeout in seconds"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     """Add a URL source to notebook."""
     # Explicitly wrap the single URL string in a list so it doesn't get unpacked as characters
@@ -560,6 +591,7 @@ def add_url_verb(
         file=None,
         wait=wait,
         wait_timeout=wait_timeout,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -572,6 +604,7 @@ def add_text_verb(
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
     wait: bool = typer.Option(False, "--wait", "-w", help="Wait for source processing to complete"),
     wait_timeout: float = typer.Option(600.0, "--wait-timeout", help="Wait timeout in seconds"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     """Add text source to notebook."""
     # Explicitly pass None for unused source types to avoid typer.Option resolution issues
@@ -585,6 +618,7 @@ def add_text_verb(
         title=title or "Pasted Text",
         wait=wait,
         wait_timeout=wait_timeout,
+        json_output=json_output,
         profile=profile,
     )
 
@@ -598,6 +632,7 @@ def add_drive_verb(
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
     wait: bool = typer.Option(False, "--wait", "-w", help="Wait for source processing to complete"),
     wait_timeout: float = typer.Option(600.0, "--wait-timeout", help="Wait timeout in seconds"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     """Add a Google Drive source to notebook."""
     # Explicitly pass None for unused source types to avoid typer.Option resolution issues
@@ -612,6 +647,7 @@ def add_drive_verb(
         doc_type=doc_type,
         wait=wait,
         wait_timeout=wait_timeout,
+        json_output=json_output,
         profile=profile,
     )
 

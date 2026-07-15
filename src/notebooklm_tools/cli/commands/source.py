@@ -6,7 +6,7 @@ from notebooklm_tools.cli.formatters import detect_output_format, get_formatter
 from notebooklm_tools.cli.utils import get_client, handle_error, make_console
 from notebooklm_tools.core.alias import get_alias_manager
 from notebooklm_tools.core.exceptions import NLMError
-from notebooklm_tools.services import ServiceError
+from notebooklm_tools.services import ServiceError, ValidationError
 from notebooklm_tools.services import sources as sources_service
 
 console = make_console()
@@ -76,6 +76,7 @@ def add_source(
         "--wait-timeout",
         help="Max seconds to wait when --wait is set (default 600; raise for very long audio)",
     ),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Add a source to a notebook.
@@ -104,11 +105,23 @@ def add_source(
     # Validate that exactly one source type is provided (CLI-specific UX)
     source_count = sum(1 for x in [has_url, text, drive, has_youtube, file] if x)
     if source_count == 0:
+        if json_output:
+            handle_error(
+                ValidationError(
+                    "Please specify a source: --url, --text, --file, --drive, or --youtube"
+                ),
+                json_output=True,
+            )
         console.print(
             "[red]Error:[/red] Please specify a source: --url, --text, --file, --drive, or --youtube"
         )
         raise typer.Exit(1)
     if source_count > 1:
+        if json_output:
+            handle_error(
+                ValidationError("Please specify only one source type at a time"),
+                json_output=True,
+            )
         console.print("[red]Error:[/red] Please specify only one source type at a time")
         raise typer.Exit(1)
 
@@ -117,11 +130,11 @@ def add_source(
             # Bulk URL add: multiple --url and/or --youtube flags (both are URLs to the API)
             all_urls = urls + youtubes
             if len(all_urls) > 1:
-                if wait:
+                if wait and not json_output:
                     console.print(
                         f"[blue]Adding {len(all_urls)} URLs and waiting for processing...[/blue]"
                     )
-                else:
+                elif not json_output:
                     console.print(f"[blue]Adding {len(all_urls)} URLs...[/blue]")
                 bulk_result = sources_service.add_sources(
                     client,
@@ -130,6 +143,9 @@ def add_source(
                     wait=wait,
                     wait_timeout=wait_timeout,
                 )
+                if json_output:
+                    get_formatter(detect_output_format(True), console).format_item(bulk_result)
+                    return
                 ready_msg = " (ready)" if wait else ""
                 for r in bulk_result["results"]:
                     console.print(f"[green]✓[/green] Added source: {r['title']}{ready_msg}")
@@ -146,7 +162,7 @@ def add_source(
                 source_type, source_url = None, None
 
             if source_type == "url":
-                if wait:
+                if wait and not json_output:
                     console.print(f"[blue]Adding {source_url} and waiting for processing...[/blue]")
                 result = sources_service.add_source(
                     client,
@@ -157,7 +173,7 @@ def add_source(
                     wait_timeout=wait_timeout,
                 )
             elif text:
-                if wait:
+                if wait and not json_output:
                     console.print("[blue]Adding text and waiting for processing...[/blue]")
                 result = sources_service.add_source(
                     client,
@@ -169,7 +185,7 @@ def add_source(
                     wait_timeout=wait_timeout,
                 )
             elif drive:
-                if wait:
+                if wait and not json_output:
                     console.print(
                         "[blue]Adding Drive document and waiting for processing...[/blue]"
                     )
@@ -188,11 +204,17 @@ def add_source(
 
                 file_path = Path(file).expanduser().resolve()
                 if not file_path.exists():
+                    if json_output:
+                        handle_error(
+                            ValidationError(f"File not found: {file}"),
+                            json_output=True,
+                        )
                     console.print(f"[red]Error:[/red] File not found: {file}")
                     raise typer.Exit(1)
-                console.print(
-                    f"[blue]Uploading {file_path.name}{'...' if not wait else ' and waiting for processing...'}[/blue]"
-                )
+                if not json_output:
+                    console.print(
+                        f"[blue]Uploading {file_path.name}{'...' if not wait else ' and waiting for processing...'}[/blue]"
+                    )
                 result = sources_service.add_source(
                     client,
                     notebook_id,
@@ -206,6 +228,9 @@ def add_source(
                 raise typer.Exit(1)
 
         # Show result
+        if json_output:
+            get_formatter(detect_output_format(True), console).format_item(result)
+            return
         ready_msg = " (ready)" if wait else ""
         console.print(f"[green]✓[/green] Added source: {result['title']}{ready_msg}")
         console.print(f"[dim]Source ID: {result['source_id']}[/dim]")
@@ -305,6 +330,7 @@ def rename_source(
 def delete_source(
     source_ids: list[str] = typer.Argument(..., help="Source ID(s) to delete"),  # noqa: B008
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Delete source(s) permanently.
@@ -333,10 +359,20 @@ def delete_source(
         with get_client(profile) as client:
             if len(resolved_ids) == 1:
                 sources_service.delete_source(client, resolved_ids[0])
-                console.print(f"[green]✓[/green] Deleted source: {resolved_ids[0]}")
             else:
                 sources_service.delete_sources(client, resolved_ids)
-                console.print(f"[green]✓[/green] Deleted {len(resolved_ids)} sources")
+        if json_output:
+            get_formatter(detect_output_format(True), console).format_item(
+                {
+                    "status": "success",
+                    "deleted_source_ids": resolved_ids,
+                    "deleted_count": len(resolved_ids),
+                }
+            )
+        elif len(resolved_ids) == 1:
+            console.print(f"[green]✓[/green] Deleted source: {resolved_ids[0]}")
+        else:
+            console.print(f"[green]✓[/green] Deleted {len(resolved_ids)} sources")
     except (ServiceError, NLMError) as e:
         handle_error(e, json_output=locals().get("json_output", False))
 

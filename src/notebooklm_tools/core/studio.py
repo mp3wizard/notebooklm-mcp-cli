@@ -435,29 +435,37 @@ class StudioMixin(BaseClient):
                                 content_data[0] if isinstance(content_data[0], str) else None
                             )
 
-                # Flashcard/Quiz artifacts have cards data at position 9
-                # Quiz and Flashcards share type code 4, distinguished by options[1][0]:
-                #   - Flashcards: options[1][0] == 1
-                #   - Quiz: options[1][0] == 2
+                # Flashcard/Quiz/Mind Map artifacts share type code 4 and are
+                # distinguished by options[1][0]:
+                #   - Flashcards: 1
+                #   - Quiz: 2
+                #   - Mind Map: 4 (observed in live status payloads)
                 flashcard_count = None
                 is_quiz = False
+                is_mind_map = False
                 if type_code == self.STUDIO_TYPE_FLASHCARDS and len(artifact_data) > 9:
                     flashcard_options = artifact_data[9]
                     if isinstance(flashcard_options, list) and len(flashcard_options) > 1:
                         inner_options = flashcard_options[1]
                         if isinstance(inner_options, list) and len(inner_options) > 0:
-                            # Check format code: 1=flashcards, 2=quiz
+                            # Check subtype code: 1=flashcards, 2=quiz, 4=mind map
                             format_code = inner_options[0]
                             if format_code == 2:
                                 is_quiz = True
-                        # Count cards in the data
-                        cards_data = (
-                            flashcard_options[1] if isinstance(flashcard_options[1], list) else None
-                        )
-                        if cards_data:
-                            flashcard_count = (
-                                len(cards_data) if isinstance(cards_data, list) else None
+                            elif format_code == 4:
+                                is_mind_map = True
+                        # Count only genuine flashcard/quiz options. Mind-map
+                        # metadata occupies the same position but is not cards.
+                        if not is_mind_map:
+                            cards_data = (
+                                flashcard_options[1]
+                                if isinstance(flashcard_options[1], list)
+                                else None
                             )
+                            if cards_data:
+                                flashcard_count = (
+                                    len(cards_data) if isinstance(cards_data, list) else None
+                                )
 
                 # Extract created_at timestamp
                 # Position varies by type but often at position 10, 15, or similar
@@ -485,7 +493,12 @@ class StudioMixin(BaseClient):
                     self.STUDIO_TYPE_SLIDE_DECK: "slide_deck",
                     self.STUDIO_TYPE_DATA_TABLE: "data_table",
                 }
-                artifact_type = "quiz" if is_quiz else type_map.get(cast(int, type_code), "unknown")
+                if is_mind_map:
+                    artifact_type = "mind_map"
+                elif is_quiz:
+                    artifact_type = "quiz"
+                else:
+                    artifact_type = type_map.get(cast(int, type_code), "unknown")
                 status = self._normalize_studio_status(artifact_data)
 
                 # Extract custom_instructions (focus prompt) if present

@@ -688,9 +688,14 @@ def get_studio_status(
     # Also fetch mind maps
     try:
         mind_maps = client.list_mind_maps(notebook_id)
+        known_artifact_ids = {
+            artifact_id
+            for artifact in artifacts
+            if isinstance((artifact_id := artifact.get("artifact_id")), str)
+        }
         for mm in mind_maps:
             mind_map_id = mm.get("mind_map_id")
-            if not isinstance(mind_map_id, str):
+            if not isinstance(mind_map_id, str) or mind_map_id in known_artifact_ids:
                 continue
             mind_map_title = mm.get("title")
             mind_map_created_at = mm.get("created_at")
@@ -705,6 +710,7 @@ def get_studio_status(
                     else str(mind_map_created_at),
                 }
             )
+            known_artifact_ids.add(mind_map_id)
     except Exception:  # nosec B110 — mind map parsing is optional
         pass
 

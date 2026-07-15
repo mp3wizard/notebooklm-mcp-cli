@@ -84,10 +84,15 @@ def auth_replay(
 ) -> None:
     """Diagnose cookie replay vs browser-bound auth failures.
 
-    This compares three lanes:
+    This compares four lanes:
     1. saved cookies through normal httpx,
     2. httpx after a forced Google RotateCookies call,
-    3. an optional in-page CDP fetch from the saved browser profile.
+    3. cookies freshly re-extracted from a live, logged-in browser session,
+       replayed through normal httpx (distinguishes stale saved cookies
+       from genuine device-bound replay),
+    4. an optional in-page CDP fetch from that same browser session.
+
+    Lanes 3 and 4 are skipped together via --no-cdp.
     """
     from notebooklm_tools.services.auth import diagnose_auth_replay
 

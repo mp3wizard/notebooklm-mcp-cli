@@ -34,6 +34,20 @@ class _NotebookLookupProtocol(Protocol):
     def get_notebook(self, notebook_id: str) -> Any: ...
 
 
+def _resolve_source_type_name(source_type: object, metadata: list[Any]) -> str:
+    """Resolve ambiguous source codes using explicit MIME metadata when available."""
+    if source_type == constants.SOURCE_TYPE_WORD_DOC:
+        mime_type = metadata[19] if len(metadata) > 19 else None
+        if not isinstance(mime_type, str) and len(metadata) > 9:
+            drive_metadata = metadata[9]
+            if isinstance(drive_metadata, list) and len(drive_metadata) > 2:
+                mime_type = drive_metadata[2]
+        if mime_type == "application/pdf":
+            return "pdf"
+
+    return constants.SOURCE_TYPES.get_name(source_type)
+
+
 class SourceMixin(BaseClient):
     """Mixin for source management operations.
 
@@ -334,7 +348,10 @@ class SourceMixin(BaseClient):
                                 "id": source_id,
                                 "title": title,
                                 "source_type": source_type,
-                                "source_type_name": constants.SOURCE_TYPES.get_name(source_type),
+                                "source_type_name": _resolve_source_type_name(
+                                    source_type,
+                                    metadata if isinstance(metadata, list) else [],
+                                ),
                                 "url": url,
                                 "drive_doc_id": drive_doc_id,
                                 "can_sync": can_sync,
@@ -1065,7 +1082,7 @@ class SourceMixin(BaseClient):
                     # Source type code is at position 4
                     if len(metadata) > 4:
                         type_code = metadata[4]
-                        source_type = constants.SOURCE_TYPES.get_name(type_code)
+                        source_type = _resolve_source_type_name(type_code, metadata)
 
                     # URL might be at position 7 for web sources
                     if len(metadata) > 7 and isinstance(metadata[7], list):
