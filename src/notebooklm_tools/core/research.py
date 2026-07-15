@@ -397,7 +397,7 @@ class ResearchMixin(BaseClient):
                             {"id": s["id"], "title": s.get("title", "Untitled")}
                             for s in new_sources
                         ]
-                except Exception:
+                except Exception:  # nosec B110  # best-effort fallback poll; must not mask the original error
                     pass
             # Nothing landed after polling — surface the original error.
             raise

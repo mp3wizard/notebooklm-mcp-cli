@@ -148,7 +148,7 @@ def get_cdp_page_context(
             try:
                 if cdp.is_logged_in(cdp.get_current_url(ws_url)):
                     break
-            except Exception:
+            except Exception:  # nosec B110  # transient CDP error during login-poll; retry until timeout
                 pass
             time.sleep(0.5)
         else:

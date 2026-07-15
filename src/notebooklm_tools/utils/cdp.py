@@ -560,7 +560,7 @@ def _get_process_cmdline(pid: int) -> str | None:
             return None
     if system == "Darwin":
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607 — ps with hardcoded flags; pid is int, no shell
                 ["ps", "-p", str(pid), "-o", "command="],
                 capture_output=True,
                 text=True,
@@ -573,7 +573,7 @@ def _get_process_cmdline(pid: int) -> str | None:
             return None
     if system == "Windows":
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 B607 — powershell with hardcoded cmdlet; pid is int, no shell
                 [
                     "powershell",
                     "-NoProfile",
@@ -1196,10 +1196,12 @@ def _kill_process(pid: int) -> None:
 
     try:
         if platform.system() == "Windows":
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, check=False)
+            subprocess.run(  # nosec B603 B607 — taskkill with hardcoded flags; pid is int, no shell
+                ["taskkill", "/F", "/PID", str(pid)], capture_output=True, check=False
+            )
         else:
             os.kill(pid, signal.SIGTERM)
-    except Exception:
+    except Exception:  # nosec B110  # best-effort process kill; process may already be gone
         pass
 
 

@@ -101,8 +101,7 @@ class SourceMixin(BaseClient):
                 for src in sources:
                     if match_fn(src):
                         return src
-            except Exception:
-                # If listing itself fails, don't mask the original error.
+            except Exception:  # nosec B110  # if listing itself fails, don't mask the original error
                 pass
         return None
 

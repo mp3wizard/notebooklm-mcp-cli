@@ -12,7 +12,7 @@ Bundled inside the .mcpb extension and invoked via manifest.json:
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 — required to launch uvx; list-form calls below, no shell
 import sys
 
 
@@ -75,7 +75,7 @@ def main() -> None:
     # Claude Desktop communicates with MCP servers via stdin/stdout JSON-RPC.
     cmd = [uvx, "--from", "notebooklm-mcp-cli", "notebooklm-mcp", *sys.argv[1:]]
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 — list-form exec of resolved uvx path, no shell
             cmd,
             stdin=sys.stdin,
             stdout=sys.stdout,

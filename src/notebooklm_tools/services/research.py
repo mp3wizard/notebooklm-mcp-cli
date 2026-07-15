@@ -361,7 +361,7 @@ def poll_research(
         try:
             import_research(client, notebook_id, completed_task_id)
             imported = True
-        except Exception:
+        except Exception:  # nosec B110  # best-effort auto-import; status endpoint still reports success
             pass
 
     return {
