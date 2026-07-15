@@ -12,16 +12,10 @@
 
 > **Note:** Tested with Pro/free and Google AI Ultra ($249/mo) tier accounts. May work with NotebookLM Enterprise accounts but has not been tested.
 
-<p align="center">
-  <i>If this saved you from clicking through the NotebookLM UI by hand, consider a coffee.<br>
-  If it's now doing that work through your AI agent's API bill, maybe two.</i> ☕
-</p>
-
-<p align="center">
-  <a href="https://buymeacoffee.com/jacobbd">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee at buymeacoffee.com" height="40">
-  </a>
-</p>
+> ☕ **If you find notebooklm-mcp-cli useful, consider [buying me a coffee](https://buymeacoffee.com/jacobbd).**
+> It's free and built in my spare time — but testing every NotebookLM feature takes real time and resources. A coffee helps me cover it and keep shipping. Thank you! 🙏
+>
+> <a href="https://buymeacoffee.com/jacobbd"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="42"></a>
 
 📺 **Watch the Demos**
 
