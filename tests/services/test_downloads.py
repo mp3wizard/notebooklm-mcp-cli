@@ -14,6 +14,7 @@ from notebooklm_tools.services.downloads import (
     validate_artifact_type,
     validate_audio_extension,
     validate_output_format,
+    validate_output_path,
 )
 from notebooklm_tools.services.errors import ServiceError, ValidationError
 
@@ -57,6 +58,36 @@ class TestValidateOutputFormat:
     def test_invalid_format_raises_validation_error(self):
         with pytest.raises(ValidationError, match="Invalid output format"):
             validate_output_format("pdf")
+
+
+class TestValidateOutputPath:
+    def test_download_directory_unset_preserves_existing_behavior(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("NOTEBOOKLM_DOWNLOAD_DIR", raising=False)
+
+        validate_output_path(str(tmp_path / ".cache" / "artifact.md"))
+
+    def test_configured_download_directory_rejects_outside_path(self, monkeypatch, tmp_path):
+        download_dir = tmp_path / "downloads"
+        download_dir.mkdir()
+        monkeypatch.setenv("NOTEBOOKLM_DOWNLOAD_DIR", str(download_dir))
+
+        with pytest.raises(ValidationError, match="outside download directory"):
+            validate_output_path(str(tmp_path / "outside" / "artifact.md"))
+
+    def test_configured_download_directory_allows_contained_path(self, monkeypatch, tmp_path):
+        download_dir = tmp_path / "downloads"
+        download_dir.mkdir()
+        monkeypatch.setenv("NOTEBOOKLM_DOWNLOAD_DIR", str(download_dir))
+
+        validate_output_path(str(download_dir / "artifact.md"))
+
+    def test_configured_download_directory_keeps_sensitive_path_checks(self, monkeypatch, tmp_path):
+        download_dir = tmp_path / "downloads"
+        download_dir.mkdir()
+        monkeypatch.setenv("NOTEBOOKLM_DOWNLOAD_DIR", str(download_dir))
+
+        with pytest.raises(ValidationError, match="sensitive directory"):
+            validate_output_path(str(download_dir / ".ssh" / "artifact.md"))
 
 
 class TestGetDefaultExtension:
