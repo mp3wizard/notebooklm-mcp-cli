@@ -34,6 +34,36 @@ class _NotebookLookupProtocol(Protocol):
     def get_notebook(self, notebook_id: str) -> Any: ...
 
 
+def _validate_file_path_allowed(file_path: Path) -> None:
+    """Validate that file_path is within allowed directories.
+
+    By default, only the current working directory is allowed.
+    Set NOTEBOOKLM_ALLOWED_FILE_DIRS (colon-separated) to expand.
+    This prevents an LLM agent from reading arbitrary files via source_add.
+    """
+    import os
+
+    allowed_env = os.environ.get("NOTEBOOKLM_ALLOWED_FILE_DIRS", "")
+    if allowed_env:
+        allowed_dirs = [Path(d).expanduser().resolve() for d in allowed_env.split(":") if d]
+    else:
+        allowed_dirs = [Path.cwd().resolve()]
+
+    resolved = file_path.resolve()
+    for allowed in allowed_dirs:
+        try:
+            resolved.relative_to(allowed)
+            return  # Path is within an allowed directory
+        except ValueError:
+            continue
+
+    raise FileValidationError(
+        f"File path '{resolved}' is outside allowed directories. "
+        f"Allowed: {[str(a) for a in allowed_dirs]}. "
+        f"Set NOTEBOOKLM_ALLOWED_FILE_DIRS to expand."
+    )
+
+
 def _resolve_source_type_name(source_type: object, metadata: list[Any]) -> str:
     """Resolve ambiguous source codes using explicit MIME metadata when available."""
     if source_type == constants.SOURCE_TYPE_WORD_DOC:
@@ -960,6 +990,9 @@ class SourceMixin(BaseClient):
             FileUploadError: If upload fails
         """
         file_path = Path(file_path).expanduser().resolve()
+
+        # Validate file path is within allowed directories (opt-in security)
+        _validate_file_path_allowed(file_path)
 
         # Validate file
         if not file_path.exists():
