@@ -1,12 +1,14 @@
 """Shared test fixtures."""
 
+import os
+
 import pytest
 
 from notebooklm_tools.core.cookie_rotation import DISABLE_ROTATE_COOKIES_ENV
 
 
 @pytest.fixture(autouse=True)
-def _isolate_storage(monkeypatch, tmp_path):
+def _isolate_storage(monkeypatch, tmp_path, request):
     """Point all storage (~/.notebooklm-mcp-cli) at a per-test temp dir.
 
     Several code paths (e.g. BaseClient._update_cached_tokens, headless auth)
@@ -14,7 +16,12 @@ def _isolate_storage(monkeypatch, tmp_path):
     that exercise them corrupt the developer's real login (see
     test_refresh_auth_tokens_success, which used to overwrite auth.json with
     fake test tokens).
+
+    Explicitly enabled E2E tests need the real authenticated profile.
     """
+    if os.environ.get("NOTEBOOKLM_E2E") and request.node.get_closest_marker("e2e"):
+        return
+
     monkeypatch.setenv("NOTEBOOKLM_MCP_CLI_PATH", str(tmp_path / "storage"))
 
 

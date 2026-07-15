@@ -207,6 +207,35 @@ def test_close():
         assert client._client is None
 
 
+def test_update_cached_tokens_persists_refreshed_cookies():
+    """Rotated cookies must be cached with the refreshed request tokens."""
+    from notebooklm_tools.core.auth import AuthTokens
+    from notebooklm_tools.core.base import BaseClient
+
+    cached = AuthTokens(
+        cookies={"SID": "old"},
+        csrf_token="old-csrf",
+        session_id="old-session",
+    )
+
+    with (
+        patch.object(BaseClient, "_refresh_auth_tokens"),
+        patch("notebooklm_tools.core.auth.load_cached_tokens", return_value=cached),
+        patch("notebooklm_tools.core.auth.save_tokens_to_cache") as mock_save,
+    ):
+        client = BaseClient(
+            cookies={"SID": "rotated"},
+            csrf_token="new-csrf",
+            session_id="new-session",
+        )
+        client._update_cached_tokens()
+
+    saved = mock_save.call_args.args[0]
+    assert saved.cookies == {"SID": "rotated"}
+    assert saved.csrf_token == "new-csrf"
+    assert saved.session_id == "new-session"
+
+
 def test_constants_available():
     """Test that RPC and API constants are available on BaseClient."""
     from notebooklm_tools.core.base import BaseClient
