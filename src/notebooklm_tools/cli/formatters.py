@@ -179,6 +179,7 @@ class TableFormatter(Formatter):
         table.add_column("ID", style="cyan", min_width=36, no_wrap=True)
         table.add_column("Title", max_width=30, overflow="ellipsis")
         table.add_column("Type")
+        table.add_column("Status", justify="center")
 
         if full:
             table.add_column("URL", overflow="fold", max_width=80)
@@ -192,17 +193,20 @@ class TableFormatter(Formatter):
                 src_type = src.get("source_type_name") or src.get("type", "unknown")
                 src_url = src.get("url", "")
                 is_stale = src.get("is_stale", False)
+                status = src.get("status")
             else:
                 src_id = str(src.id)
                 src_title = src.title
                 src_type = src.type
                 src_url = getattr(src, "url", "") or ""
                 is_stale = getattr(src, "is_stale", False)
+                status = getattr(src, "status", None)
 
             row = [
                 src_id,
                 src_title,
                 src_type,
+                str(status) if status is not None else "-",
             ]
             if full:
                 row.extend([src_url or "-", "⚠️" if is_stale else ""])
@@ -347,6 +351,7 @@ class JsonFormatter(Formatter):
                     "title": src.get("title", ""),
                     "type": src.get("source_type_name") or src.get("type", ""),
                     "url": src.get("url", ""),
+                    "status": src.get("status"),
                 }
                 if full:
                     item["is_stale"] = src.get("is_stale", False)
@@ -356,6 +361,7 @@ class JsonFormatter(Formatter):
                     "title": src.title,
                     "type": src.type,
                     "url": getattr(src, "url", "") or "",
+                    "status": getattr(src, "status", None),
                 }
                 if full:
                     item["is_stale"] = getattr(src, "is_stale", False)

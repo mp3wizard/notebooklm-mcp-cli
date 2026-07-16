@@ -312,6 +312,17 @@ class TestAddSource:
             wait_timeout=60,
         )
 
+    def test_file_processing_failure_preserves_actionable_hint(self, mock_client):
+        from notebooklm_tools.core.exceptions import SourceProcessingError
+
+        mock_client.add_file.side_effect = SourceProcessingError("source-failed")
+
+        with pytest.raises(ServiceError) as exc_info:
+            add_source(mock_client, "nb-1", "file", file_path="/tmp/failed.txt", wait=True)
+
+        assert "source-failed" in exc_info.value.user_message
+        assert "retained" in exc_info.value.hint
+
 
 class TestListDriveSources:
     """Test list_drive_sources function."""
@@ -321,6 +332,21 @@ class TestListDriveSources:
         assert result["drive_count"] == 1
         assert len(result["other_sources"]) == 1
         assert result["drive_sources"][0]["id"] == "s2"
+
+    def test_preserves_processing_status(self, mock_client):
+        mock_client.get_notebook_sources_with_types.return_value = [
+            {
+                "id": "s1",
+                "title": "failed.txt",
+                "source_type_name": "unknown",
+                "can_sync": False,
+                "status": 3,
+            }
+        ]
+
+        result = list_drive_sources(mock_client, "nb-1", skip_freshness=True)
+
+        assert result["other_sources"][0]["status"] == 3
 
     def test_stale_count(self, mock_client):
         mock_client.check_source_freshness.return_value = False

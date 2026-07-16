@@ -64,6 +64,17 @@ def test_json_formatter_format_notebooks_preserves_non_ascii(capsys):
     assert "\\u00e9" not in output
 
 
+def test_json_formatter_format_sources_includes_processing_status(capsys):
+    formatter = JsonFormatter()
+
+    formatter.format_sources(
+        [{"id": "source-1", "title": "failed.txt", "source_type_name": "unknown", "status": 3}]
+    )
+
+    data = json.loads(capsys.readouterr().out)
+    assert data[0]["status"] == 3
+
+
 def test_json_formatter_format_artifacts_full_preserves_rich_fields(capsys):
     formatter = JsonFormatter()
     artifacts = [
