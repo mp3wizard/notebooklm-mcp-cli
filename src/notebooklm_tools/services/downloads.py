@@ -1,6 +1,7 @@
 """Downloads service — shared validation and routing for artifact downloads."""
 
 import inspect
+import os
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, cast
@@ -96,8 +97,18 @@ def validate_output_path(output_path: str) -> None:
     """Validate that output_path is safe and does not escape to sensitive locations.
 
     Raises ValidationError if the path resolves to a dangerous location.
+    When NOTEBOOKLM_DOWNLOAD_DIR is set, output must be within that directory.
     """
     resolved = Path(output_path).expanduser().resolve()
+
+    download_dir_env = os.environ.get("NOTEBOOKLM_DOWNLOAD_DIR", "")
+    if download_dir_env:
+        download_root = Path(download_dir_env).expanduser().resolve()
+        if not resolved.is_relative_to(download_root):
+            raise ValidationError(
+                f"Output path '{resolved}' is outside download directory "
+                f"'{download_root}'. Set NOTEBOOKLM_DOWNLOAD_DIR to change."
+            )
 
     # Block writes into sensitive dotfile directories
     for part in resolved.parts:

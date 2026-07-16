@@ -1,5 +1,6 @@
 """Tests for services.sources module."""
 
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -121,6 +122,51 @@ class TestAddSource:
         result = add_source(mock_client, "nb-1", "file", file_path="/tmp/doc.pdf")
         assert result["source_type"] == "file"
         assert result["source_id"] == "src-4"
+
+    def test_add_file_source_is_unrestricted_without_allowlist(self, mock_client, monkeypatch):
+        monkeypatch.delenv("NOTEBOOKLM_ALLOWED_FILE_DIRS", raising=False)
+
+        add_source(mock_client, "nb-1", "file", file_path="/outside/doc.pdf")
+
+        mock_client.add_file.assert_called_once_with(
+            "nb-1", "/outside/doc.pdf", wait=False, wait_timeout=120.0
+        )
+
+    def test_add_file_source_rejects_path_outside_configured_allowlist(
+        self, mock_client, monkeypatch, tmp_path
+    ):
+        allowed_dir = tmp_path / "allowed"
+        allowed_dir.mkdir()
+        monkeypatch.setenv("NOTEBOOKLM_ALLOWED_FILE_DIRS", str(allowed_dir))
+
+        with pytest.raises(ValidationError, match="outside allowed directories"):
+            add_source(
+                mock_client,
+                "nb-1",
+                "file",
+                file_path=str(tmp_path / "outside" / "doc.pdf"),
+            )
+
+        mock_client.add_file.assert_not_called()
+
+    def test_add_file_source_accepts_path_in_any_configured_root(
+        self, mock_client, monkeypatch, tmp_path
+    ):
+        first_dir = tmp_path / "first"
+        second_dir = tmp_path / "second"
+        first_dir.mkdir()
+        second_dir.mkdir()
+        monkeypatch.setenv(
+            "NOTEBOOKLM_ALLOWED_FILE_DIRS",
+            os.pathsep.join((str(first_dir), str(second_dir))),
+        )
+
+        file_path = second_dir / "doc.pdf"
+        add_source(mock_client, "nb-1", "file", file_path=str(file_path))
+
+        mock_client.add_file.assert_called_once_with(
+            "nb-1", str(file_path), wait=False, wait_timeout=120.0
+        )
 
     def test_add_file_source_without_title_does_not_rename(self, mock_client):
         """When no title is supplied, we must not call rename_source."""

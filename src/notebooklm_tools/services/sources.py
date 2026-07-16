@@ -1,7 +1,9 @@
 """Sources service — shared validation and logic for source management."""
 
+import os
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Any
 
 from ..core.client import NotebookLMClient
@@ -23,6 +25,26 @@ DRIVE_MIME_TYPES = {
     "sheets": "application/vnd.google-apps.spreadsheet",
     "pdf": "application/pdf",
 }
+
+
+def _validate_file_path_allowlist(file_path: str) -> None:
+    configured_dirs = os.environ.get("NOTEBOOKLM_ALLOWED_FILE_DIRS", "")
+    if not configured_dirs:
+        return
+
+    resolved_path = Path(file_path).expanduser().resolve()
+    allowed_dirs = [
+        Path(directory).expanduser().resolve()
+        for directory in configured_dirs.split(os.pathsep)
+        if directory
+    ]
+    if any(resolved_path.is_relative_to(directory) for directory in allowed_dirs):
+        return
+
+    raise ValidationError(
+        f"File path '{resolved_path}' is outside allowed directories configured by "
+        "NOTEBOOKLM_ALLOWED_FILE_DIRS."
+    )
 
 
 class AddSourceResult(TypedDict):
@@ -190,6 +212,7 @@ def add_source(
         elif source_type == "file":
             if not file_path:
                 raise ValidationError("file_path is required for source_type='file'")
+            _validate_file_path_allowlist(file_path)
             # If a custom title was supplied we must wait for the source to be
             # registered server-side before renaming — the NotebookLM rename
             # RPC accepts the call and returns success data for a source that
