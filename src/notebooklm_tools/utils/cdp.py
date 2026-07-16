@@ -1015,8 +1015,8 @@ def execute_cdp_command(
                 retry=False,
                 response_timeout=response_timeout,
             )
-        except Exception:
-            pass  # Fall through to reconnect below
+        except Exception:  # nosec B110 — stale cached connection retry; fall through to reconnect
+            pass
 
     with _cdp_ws_lock:
         if ws_url != _cached_ws_url or not _cached_ws:
