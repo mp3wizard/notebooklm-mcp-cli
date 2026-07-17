@@ -10,6 +10,22 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.8.8 — July 2026)
+- **Opt-in file upload directory allowlist** — `NOTEBOOKLM_ALLOWED_FILE_DIRS` restricts local file uploads to approved directories (comma/OS-path-separator-delimited). Disabled by default (#260). Thanks to **@failsafesecurity**!
+- **Opt-in download output directory** — `NOTEBOOKLM_DOWNLOAD_DIR` keeps downloaded artifacts inside one approved directory, on top of the existing sensitive-directory protections. Disabled by default (#261). Thanks again to **@failsafesecurity**!
+- **Rejected document uploads fail fast** — Non-media files NotebookLM immediately rejects now fail on the first terminal status instead of waiting out the full processing timeout; the error includes the source ID and deletion guidance (#257). Thanks to **@ericvael**!
+- **Refreshed auth cookies persisted correctly** — Rotated cookies are now saved together with refreshed CSRF/session tokens, so a successful refresh no longer leaves stale credentials on disk.
+- **Regular notes no longer misclassified as mind maps** — Mind-map discovery now excludes ordinary saved notes (#258). Thanks to **@hansschenker**!
+- **Newer (type-4) Studio mind maps download correctly** — Classified by subtype and downloaded as their embedded JSON instead of being treated as quizzes/flashcards (#258). Thanks again to **@hansschenker**!
+
+### Security scan (July 2026 — v0.8.8)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/Secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit, mcp-exfil-scan
+- **1 High dependency vulnerability found and fixed** — `mcp` 1.27.0 → 1.28.1 (CVE-2026-52869, CVE-2026-52870, CVE-2026-59950; auth-bypass/task-access/WebSocket Origin-validation issues), confirmed by both Trivy and OSV-Scanner. Fixed via `uv lock --upgrade-package mcp`; full test suite (1150 tests) passes after the bump.
+- **0 secrets** in git history (665 commits, 10.32 MB; Gitleaks + TruffleHog verified)
+- **0 SAST findings** in project source — Semgrep OWASP+Python+Secrets clean; Bandit 0 High/Medium in src/ (Medium findings confined to test fixtures)
+- **mcps-audit/skill-audit high scores reviewed, no fix needed** — same known false-positive pattern as prior scans: heuristics flag the project's own CDP-based cookie-extraction scripts/docs as "dangerous execution", which is the tool's documented, intentional auth mechanism, not a real vulnerability
+- Full report: [`docs/security-scan-report-2026-07-17.md`](docs/security-scan-report-2026-07-17.md)
+
 ### Upstream sync (v0.8.4 / v0.8.5 — July 2026)
 - **Opt-in MCP tool group gating** — Restrict the tools exposed to your AI agent via the `NOTEBOOKLM_DISABLED_GROUPS` env var, saving significant context-window tokens for agents that only need a subset of functionality (#254). Thanks to **@KoscheiiB**!
 - **Flaky Drive-source freshness test fixed** — Resolved a race condition in the parallel freshness-check test suite (#255). Thanks to **@KoscheiiB**!
