@@ -147,6 +147,20 @@ class FileValidationError(NLMError):
     pass
 
 
+class SourceProcessingError(NLMError):
+    """Raised when NotebookLM retains a source that failed processing."""
+
+    def __init__(self, source_id: str) -> None:
+        self.source_id = source_id
+        super().__init__(
+            f"Source {source_id} failed to process in NotebookLM.",
+            hint=(
+                "The failed source entry was retained for inspection. "
+                f"Delete it with 'nlm source delete {source_id}' if it is no longer needed."
+            ),
+        )
+
+
 def handle_api_error(status_code: int, response_data: dict[str, Any] | None = None) -> NLMError:
     """Convert API error response to appropriate exception."""
     if status_code == 401:

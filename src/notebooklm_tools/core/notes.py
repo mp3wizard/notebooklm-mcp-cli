@@ -8,9 +8,8 @@ This mixin provides note-related operations:
 - get_note: Get a single note's details
 """
 
-import json
-
 from .base import BaseClient
+from .utils import is_mind_map_json
 
 
 class NotesMixin(BaseClient):
@@ -108,21 +107,8 @@ class NotesMixin(BaseClient):
                     content = note_data[1] if len(note_data) > 1 else ""
                     title = note_data[4] if len(note_data) > 4 else "Untitled"
 
-                    # Distinguish notes from mind maps by checking if content is JSON
-                    # Mind maps have JSON with "children" or "nodes" keys
-                    is_mind_map = False
-                    if content:
-                        try:
-                            parsed = json.loads(content)
-                            if isinstance(parsed, dict) and (
-                                "children" in parsed or "nodes" in parsed
-                            ):
-                                is_mind_map = True
-                        except (json.JSONDecodeError, TypeError):
-                            pass
-
                     # Only include notes, not mind maps
-                    if not is_mind_map:
+                    if not is_mind_map_json(content):
                         notes.append(
                             {
                                 "id": note_id,

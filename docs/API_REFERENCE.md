@@ -1086,6 +1086,8 @@ params = [
 
 **Key Difference from Flashcards:** Quiz uses format code `2` at the first position of the options array, while Flashcards use `1`.
 
+**Mind maps share type code 4 too:** newer mind maps are stored as type-4 studio artifacts with format code `4` at `artifact[9][1][0]` (older mind maps live in the notes store via the `cFji9` RPC). The status parser classifies format code 4 as `mind_map`, and downloading one fetches the artifact's interactive HTML (`v9rmvd`) and extracts the mind map JSON (`{"name": ..., "children": [...]}`) from the `data-app-data` attribute — the same mechanism quiz/flashcards use.
+
 ---
 
 ## Data Table RPCs

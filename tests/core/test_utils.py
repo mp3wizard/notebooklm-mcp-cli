@@ -1,6 +1,7 @@
 from notebooklm_tools.core.utils import (
     RPC_NAMES,
     extract_cookies_from_chrome_export,
+    is_mind_map_json,
     parse_timestamp,
 )
 
@@ -44,3 +45,24 @@ def test_extract_cookies_from_chrome_export_json_list_prefers_google_com():
 
 def test_rpc_names_exists():
     assert "wXbhsf" in RPC_NAMES
+
+
+class TestIsMindMapJson:
+    def test_children_key_is_mind_map(self):
+        assert is_mind_map_json('{"name": "Root", "children": []}') is True
+
+    def test_nodes_key_is_mind_map(self):
+        assert is_mind_map_json('{"nodes": []}') is True
+
+    def test_prose_note_is_not_mind_map(self):
+        assert is_mind_map_json("To run Docling locally, follow these steps...") is False
+
+    def test_json_without_mind_map_keys_is_not_mind_map(self):
+        assert is_mind_map_json('{"name": "just a dict"}') is False
+
+    def test_json_list_is_not_mind_map(self):
+        assert is_mind_map_json('[{"children": []}]') is False
+
+    def test_empty_and_none_are_not_mind_maps(self):
+        assert is_mind_map_json("") is False
+        assert is_mind_map_json(None) is False

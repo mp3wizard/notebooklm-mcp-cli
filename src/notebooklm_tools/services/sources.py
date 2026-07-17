@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.client import NotebookLMClient
+from ..core.exceptions import SourceProcessingError
 from ._compat import TypedDict
 from .errors import ServiceError, ValidationError
 
@@ -63,6 +64,7 @@ class DriveSourceInfo(TypedDict, total=False):
     type: str
     stale: bool | None
     drive_doc_id: str | None
+    status: int | None
 
 
 class SyncResult(TypedDict):
@@ -244,6 +246,12 @@ def add_source(
 
     except (ValidationError, ServiceError):
         raise
+    except SourceProcessingError as e:
+        raise ServiceError(
+            e.message,
+            user_message=e.message,
+            hint=e.hint,
+        ) from e
     except Exception as e:
         if source_type == "file" and file_path:
             user_message = f"Could not add file source: {e}"
@@ -439,6 +447,7 @@ def list_drive_sources(
             "id": source.get("id"),
             "title": source.get("title"),
             "type": source.get("source_type_name"),
+            "status": source.get("status"),
         }
 
         if source.get("can_sync"):
@@ -454,6 +463,7 @@ def list_drive_sources(
                 "type": source_type_name if isinstance(source_type_name, str) else "unknown",
                 "stale": (not is_fresh) if is_fresh is not None else None,
                 "drive_doc_id": source.get("drive_doc_id"),
+                "status": source.get("status"),
             }
             drive_sources.append(drive_info)
         else:

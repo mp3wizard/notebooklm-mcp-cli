@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-07-16
+
+### Added
+- **Opt-in file upload directory allowlist (#260)** — Set `NOTEBOOKLM_ALLOWED_FILE_DIRS` to restrict local file uploads to approved directories. The setting accepts multiple directories separated by the operating system's path separator and is disabled by default, so existing installations keep their current behavior. Thanks to **@failsafesecurity** for the contribution!
+- **Opt-in download output directory (#261)** — Set `NOTEBOOKLM_DOWNLOAD_DIR` to keep downloaded artifacts inside one approved directory. The setting is disabled by default, while the existing protections against sensitive system directories remain active. Thanks again to **@failsafesecurity** for the contribution!
+
+### Fixed
+- **Rejected document uploads now fail fast (#257)** — When NotebookLM immediately rejects a non-media file, `nlm` now reports the failure on the first terminal status instead of waiting for the full processing timeout. The error includes the source ID and deletion guidance, and source listings expose the numeric processing status for diagnosis. Audio and video uploads retain their transient-processing tolerance. Thanks to **@ericvael** for the detailed reproduction data!
+- **Refreshed authentication cookies are persisted** — Rotated cookies are now saved together with refreshed CSRF and session tokens, preventing a successful refresh from leaving stale credentials on disk.
+- **Regular notes no longer appear as mind maps (#258)** — Mind-map discovery now excludes ordinary saved notes. Thanks to **@hansschenker** for the contribution!
+- **Newer Studio mind maps download correctly (#258)** — Mind maps returned through NotebookLM's shared type-4 Studio format are now classified by subtype and downloaded as their embedded JSON instead of being treated as quizzes or flashcards. Thanks again to **@hansschenker** for the contribution!
+
+### Documentation
+- Documented the opt-in upload and download directory controls and the observed type-4 mind-map format.
+
 ## [0.8.7] - 2026-07-14
 
 ### Added

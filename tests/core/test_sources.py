@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def test_source_mixin_import():
     """Test that SourceMixin can be imported."""
@@ -163,3 +165,44 @@ def test_get_source_fulltext_identifies_drive_picker_pdf_by_mime_type():
     source = mixin.get_source_fulltext("source-1")
 
     assert source["source_type"] == "pdf"
+
+
+def test_wait_for_source_ready_fails_unknown_non_media_source_immediately():
+    from notebooklm_tools.core.exceptions import SourceProcessingError
+    from notebooklm_tools.core.sources import SourceMixin
+
+    mixin = SourceMixin(cookies={"test": "cookie"}, csrf_token="test")
+    mixin.get_notebook_sources_with_types = MagicMock(
+        return_value=[{"id": "source-1", "source_type": None, "status": 3}]
+    )
+
+    with pytest.raises(SourceProcessingError, match="source-1"):
+        mixin.wait_for_source_ready(
+            "notebook-1",
+            "source-1",
+            allow_transient_error=False,
+        )
+
+    mixin.get_notebook_sources_with_types.assert_called_once_with("notebook-1")
+
+
+def test_wait_for_source_ready_allows_transient_unknown_audio_state():
+    from notebooklm_tools.core.sources import SourceMixin
+
+    ready = {"id": "source-1", "source_type": 10, "status": 2}
+    mixin = SourceMixin(cookies={"test": "cookie"}, csrf_token="test")
+    mixin.get_notebook_sources_with_types = MagicMock(
+        side_effect=[
+            [{"id": "source-1", "source_type": None, "status": 3}],
+            [ready],
+        ]
+    )
+
+    result = mixin.wait_for_source_ready(
+        "notebook-1",
+        "source-1",
+        poll_interval=0,
+        allow_transient_error=True,
+    )
+
+    assert result == ready

@@ -6,7 +6,7 @@ from typing import Any, Protocol, cast
 
 from . import constants
 from .base import BaseClient
-from .utils import parse_timestamp
+from .utils import is_mind_map_json, parse_timestamp
 
 
 class _SourceLookupProtocol(Protocol):
@@ -1354,6 +1354,12 @@ class StudioMixin(BaseClient):
                     mind_map_json = details[1] if len(details) > 1 else None
                     title = details[4] if len(details) > 4 else "Mind Map"
                     metadata = details[2] if len(details) > 2 else []
+
+                    # The notes store holds both regular notes (prose content)
+                    # and mind maps (JSON content) — keep only real mind maps,
+                    # mirroring the inverse filter in NotesMixin.list_notes.
+                    if not is_mind_map_json(mind_map_json):
+                        continue
 
                     created_at = None
                     if isinstance(metadata, list) and len(metadata) > 2:

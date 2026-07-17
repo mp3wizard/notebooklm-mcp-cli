@@ -23,6 +23,7 @@ from .errors import (
 from .errors import (
     ClientAuthenticationError as AuthenticationError,
 )
+from .utils import is_mind_map_json
 
 
 class DownloadMixin(BaseClient):
@@ -670,18 +671,31 @@ class DownloadMixin(BaseClient):
             if isinstance(result[0], list):
                 mind_maps = result[0]
 
-        if not mind_maps:
-            raise ArtifactNotReadyError("mind_map")
+        # The notes store holds both regular notes (prose content) and mind
+        # maps (JSON content) — keep only real mind maps so an unqualified
+        # download can't pick a note and a note ID reports "not found".
+        mind_maps = [
+            mm
+            for mm in mind_maps
+            if isinstance(mm, list)
+            and len(mm) > 1
+            and isinstance(mm[1], list)
+            and len(mm[1]) > 1
+            and is_mind_map_json(mm[1][1])
+        ]
 
         target = None
         if artifact_id:
             target = next(
                 (mm for mm in mind_maps if isinstance(mm, list) and mm[0] == artifact_id), None
             )
-            if not target:
-                raise ArtifactNotFoundError(artifact_id, artifact_type="mind_map")
-        else:
+        elif mind_maps:
             target = mind_maps[0]
+
+        if target is None:
+            # Newer mind maps are stored as type-4 studio artifacts (format
+            # code 4) rather than in the notes store — fall back to those.
+            return self._download_studio_mind_map(notebook_id, output_path, artifact_id)
 
         try:
             # Mind map JSON is stringified in target[1][1]
@@ -701,6 +715,55 @@ class DownloadMixin(BaseClient):
 
         except (IndexError, TypeError, json.JSONDecodeError, AttributeError) as e:
             raise ArtifactParseError("mind_map", details=str(e)) from e
+
+    def _download_studio_mind_map(
+        self,
+        notebook_id: str,
+        output_path: str,
+        artifact_id: str | None = None,
+    ) -> str:
+        """Download a studio-side mind map (type-4 artifact, format code 4).
+
+        The mind map JSON ({"name": ..., "children": [...]}) is embedded in
+        the artifact's interactive HTML as data-app-data.
+        """
+        artifacts = self._list_raw(notebook_id)
+        candidates = [
+            a
+            for a in artifacts
+            if isinstance(a, list)
+            and len(a) > 4
+            and a[2] == self.STUDIO_TYPE_FLASHCARDS
+            and a[4] == 3
+            and self._interactive_format_code(a) == 4
+        ]
+
+        if artifact_id:
+            target = next((a for a in candidates if a[0] == artifact_id), None)
+            if target is None:
+                raise ArtifactNotFoundError(artifact_id, artifact_type="mind_map")
+        else:
+            if not candidates:
+                raise ArtifactNotReadyError("mind_map")
+            target = candidates[0]
+
+        html_content = self._get_artifact_content(notebook_id, target[0])
+        if not html_content:
+            raise ArtifactDownloadError("mind_map", details="Failed to fetch HTML content from API")
+
+        try:
+            app_data = self._extract_app_data(html_content)
+        except ArtifactParseError:
+            raise
+        except (ValueError, json.JSONDecodeError) as e:
+            raise ArtifactParseError("mind_map", details=str(e)) from e
+
+        output = Path(output_path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(app_data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        logger.info(f"Downloaded mind map to {output}")
+        return str(output)
 
     @staticmethod
     def _extract_cell_text(cell: Any, _depth: int = 0) -> str:
@@ -958,6 +1021,19 @@ class DownloadMixin(BaseClient):
     # =========================================================================
     # Interactive Artifact Downloads (Quiz, Flashcards)
     # =========================================================================
+
+    @staticmethod
+    def _interactive_format_code(artifact: Any) -> int | None:
+        """Read the interactive subtype of a type-4 studio artifact.
+
+        Type 4 (STUDIO_TYPE_FLASHCARDS) covers flashcards (1), quizzes (2),
+        and mind maps (4); the code lives at artifact[9][1][0].
+        """
+        try:
+            code = artifact[9][1][0]
+        except (IndexError, TypeError):
+            return None
+        return code if isinstance(code, int) else None
 
     def _get_artifact_content(self, notebook_id: str, artifact_id: str) -> str | None:
         """Fetch artifact HTML content for quiz/flashcard types.
@@ -1227,8 +1303,17 @@ class DownloadMixin(BaseClient):
         # Get all artifacts and filter for completed interactive artifacts
         artifacts = self._list_raw(notebook_id)
 
-        # Type 4 (STUDIO_TYPE_FLASHCARDS) covers both quizzes and flashcards
-        # Status 3 = completed
+        # Type 4 (STUDIO_TYPE_FLASHCARDS) covers quizzes, flashcards, AND mind
+        # maps — distinguished by the format code at [9][1][0] (1=flashcards,
+        # 2=quiz, 4=mind map). Status 3 = completed.
+        def _matches_subtype(a: Any) -> bool:
+            code = self._interactive_format_code(a)
+            if is_quiz:
+                return code == 2
+            # Flashcards: accept legacy entries without a readable code, but
+            # never quizzes or mind maps.
+            return code not in (2, 4)
+
         candidates = [
             a
             for a in artifacts
@@ -1236,6 +1321,7 @@ class DownloadMixin(BaseClient):
             and len(a) > 4
             and a[2] == self.STUDIO_TYPE_FLASHCARDS
             and a[4] == 3
+            and _matches_subtype(a)
         ]
 
         if not candidates:

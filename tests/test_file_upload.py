@@ -308,6 +308,40 @@ class TestAddFileIntegration:
         finally:
             temp_path.unlink()
 
+    @pytest.mark.parametrize(
+        ("suffix", "allow_transient_error"),
+        [(".txt", False), (".m4a", True)],
+    )
+    def test_add_file_only_tolerates_transient_error_for_media(self, suffix, allow_transient_error):
+        from notebooklm_tools.core.sources import SourceMixin
+
+        client = SourceMixin.__new__(SourceMixin)
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=suffix, delete=False) as f:
+            f.write(b"test content")
+            temp_path = Path(f.name)
+
+        try:
+            with (
+                patch.object(client, "_register_file_source", return_value="source-id"),
+                patch.object(client, "_start_resumable_upload", return_value="upload-url"),
+                patch.object(client, "_upload_file_streaming"),
+                patch.object(
+                    client,
+                    "wait_for_source_ready",
+                    return_value={"id": "source-id", "title": temp_path.name},
+                ) as mock_wait,
+            ):
+                client.add_file("notebook-1", temp_path, wait=True)
+
+            mock_wait.assert_called_once_with(
+                "notebook-1",
+                "source-id",
+                120.0,
+                allow_transient_error=allow_transient_error,
+            )
+        finally:
+            temp_path.unlink()
+
 
 @pytest.mark.e2e
 class TestFileUploadE2E:
