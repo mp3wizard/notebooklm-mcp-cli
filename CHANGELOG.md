@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-20
+
+### Added
+- **Bulk artifact download (#258, #264)** — New MCP tool `download_all_artifacts` and CLI command `nlm download all` download every completed Studio artifact of a notebook — or every notebook in the account with `--all-notebooks`/`all_notebooks=True` — into per-notebook directories named after each notebook's title. Supports an `--types`/`artifact_types` filter, `--skip-existing`/`skip_existing` for incremental re-runs, and safe cross-platform filenames (invalid characters replaced, Windows reserved names escaped, collisions deduped case-insensitively for both notebook directories and artifact filenames). A failure on one artifact or notebook is recorded and does not stop the rest; the CLI exits non-zero only when nothing was downloaded and failures occurred. Thanks to **@hansschenker** for the original contribution (PR #258), and to **@runthangs** for following up with fixes for directory collisions, case-insensitive overwrites, and the `--all-notebooks` exit code (PR #264)!
+
+### Documentation
+- Reconciled the MCP tool count (39 → 40) and added `download_all_artifacts`/`nlm download all` across the README, MCP Guide, CLI Guide, packaged skill, and command reference.
+
+## [0.8.9] - 2026-07-17
+
+### Added
+- **Bounded Studio status polling (#263)** — MCP `studio_status` now returns lean fields and at most 20 artifacts by default, supports artifact-specific lookup and pagination, and exposes rich prompts/content only with `include_details=True`.
+- **CLI status compatibility bridge (#263)** — Legacy Studio JSON remains a plain list with `id`, while also exposing `artifact_id`; `--mcp-compatible` returns the MCP envelope and `nlm video list` provides discoverable video-only status.
+
+### Fixed
+- **Short video language steering (#263)** — Non-English Short requests now add an explicit language requirement for narration, subtitles, and on-screen text without changing the reverse-engineered RPC payload.
+- **Studio rate-limit guidance (#263)** — MCP creation errors preserve the service retry hint, and documentation distinguishes brief automatic retries from minute-scale Studio quota waits.
+
+### Documentation
+- Updated CLI, MCP, API, troubleshooting, packaged skill, command reference, prompting guide, and test-plan documentation for the new Studio status, Short-language, and retry behavior.
+
 ## [0.8.8] - 2026-07-16
 
 ### Added

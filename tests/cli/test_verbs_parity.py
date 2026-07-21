@@ -63,6 +63,7 @@ def _collect_pairs():
         ("query_notebook_verb", verbs.query_notebook_verb, notebook.query_notebook, set()),
         ("content_source_verb", verbs.content_source_verb, source.get_source_content, set()),
         ("download_slides_verb", verbs.download_slides_verb, download.download_slide_deck, set()),
+        ("download_all_verb", verbs.download_all_verb, download.download_all_cmd, set()),
         ("delete_alias_verb", verbs.delete_alias_verb, alias.delete_alias, set()),
         ("research_start_verb", verbs.research_start_verb, research.start_research, set()),
     ]

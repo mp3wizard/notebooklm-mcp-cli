@@ -298,10 +298,10 @@ class StudioMixin(BaseClient):
             format_code,
         ]
         if format_code == constants.VIDEO_FORMAT_SHORT:
-            # Short Video Overviews are English-only for now (language sent as
-            # null; NotebookLM defaults it server-side) and require a trailing
-            # flag — value `1` observed in a live capture on 2026-06-30, exact
-            # meaning undocumented by Google.
+            # Live captures send null in the language slot for Short videos.
+            # The service adds a best-effort language requirement to the focus
+            # prompt when callers request a non-English language. The trailing
+            # flag value `1` was observed on 2026-06-30; its meaning is unknown.
             inner_options.extend([None, None, 1])
         elif format_code != constants.VIDEO_FORMAT_CINEMATIC:
             inner_options.append(visual_style_code)

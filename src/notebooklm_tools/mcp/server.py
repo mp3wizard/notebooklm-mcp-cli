@@ -53,6 +53,7 @@ Consolidated tools:
 - studio_create(artifact_type=audio|video|...): Create any artifact type
 - studio_revise: Revise individual slides in an existing slide deck
 - download_artifact(artifact_type=audio|video|...): Download any artifact type
+- download_all_artifacts: Download every completed artifact of a notebook into a per-notebook folder
 - note(action=create|list|update|delete): Manage notes in notebooks
 - label(action=auto|list|reorganize|create|rename|set_emoji|move_source|delete): Manage source labels""",
 )

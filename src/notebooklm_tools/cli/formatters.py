@@ -378,6 +378,7 @@ class JsonFormatter(Formatter):
             if isinstance(art, dict):
                 item = {
                     "id": art.get("artifact_id", art.get("id", "")),
+                    "artifact_id": art.get("artifact_id", art.get("id", "")),
                     "type": art.get("type", ""),
                     "status": art.get("status", ""),
                     "custom_instructions": art.get("custom_instructions", None),  # Always include
@@ -394,6 +395,7 @@ class JsonFormatter(Formatter):
             else:
                 item = {
                     "id": art.id,
+                    "artifact_id": getattr(art, "artifact_id", art.id),
                     "type": art.type,
                     "status": art.status,
                     "custom_instructions": getattr(

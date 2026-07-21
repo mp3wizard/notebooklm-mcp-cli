@@ -437,6 +437,7 @@ nlm notebook create "Research Project"         # Create a notebook
 nlm source add <notebook> --url "https://..."  # Add sources
 nlm audio create <notebook> --confirm          # Generate podcast
 nlm download audio <notebook> <artifact-id>    # Download audio file
+nlm download all <notebook> -d ./exports       # Download every artifact
 nlm share public <notebook>                    # Enable public link
 ```
 
@@ -472,6 +473,7 @@ Then use natural language: *"Create a notebook about quantum computing and gener
 | Create Studio Content (Audio, Video, etc.) | `nlm studio create` | `studio_create` |
 | Revise slide decks | `nlm slides revise` | `studio_revise` |
 | Download artifacts | `nlm download <type>` | `download_artifact` |
+| Download all artifacts (one or all notebooks) | `nlm download all` | `download_all_artifacts` |
 | Web/Drive research | `nlm research start` | `research_start` |
 | Share notebook | `nlm share public/invite` | `notebook_share_*` |
 | Sync Drive sources | `nlm source sync` | `source_sync_drive` |
@@ -486,7 +488,7 @@ Then use natural language: *"Create a notebook about quantum computing and gener
 📚 **More Documentation:**
 - **[Getting Started](docs/GETTING_STARTED.md)** — Install, login, agent setup, and migration from another NotebookLM MCP
 - **[CLI Guide](docs/CLI_GUIDE.md)** — Complete command reference
-- **[MCP Guide](docs/MCP_GUIDE.md)** — All 35 MCP tools with examples
+- **[MCP Guide](docs/MCP_GUIDE.md)** — All 40 MCP tools with examples
 - **[Authentication](docs/AUTHENTICATION.md)** — Setup and troubleshooting
 - **[Remote MCP](docs/REMOTE_MCP.md)** — Web/mobile connector feasibility, security, and authentication limitations
 - **[API Reference](docs/API_REFERENCE.md)** — Internal API docs for contributors
@@ -707,7 +709,7 @@ For detailed instructions and troubleshooting, see **[docs/AUTHENTICATION.md](do
 
 ## MCP Configuration
 
-> **⚠️ Context Window Warning:** This MCP provides **39 tools**. Disable it when not using NotebookLM to preserve context. In Claude Code: `@notebooklm-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
+> **⚠️ Context Window Warning:** This MCP provides **40 tools**. Disable it when not using NotebookLM to preserve context. In Claude Code: `@notebooklm-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
 
 ### Automatic Setup (Recommended)
 
@@ -882,6 +884,8 @@ Simply chat with your AI tool (Claude Code, Cursor, Gemini CLI) using natural la
 - "Show me all the sources in this notebook with their freshness status"
 - "Delete this source from the notebook"
 - "Check the status of my audio overview generation"
+- "Check this specific artifact without listing every Studio item"
+- "List only the generated videos in this notebook"
 
 ### Sharing & Collaboration
 

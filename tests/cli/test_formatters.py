@@ -100,6 +100,7 @@ def test_json_formatter_format_artifacts_full_preserves_rich_fields(capsys):
     assert data == [
         {
             "id": "art-1",
+            "artifact_id": "art-1",
             "type": "audio",
             "status": "completed",
             "custom_instructions": "Focus on key themes",
@@ -135,6 +136,7 @@ def test_json_formatter_format_artifacts_without_full_keeps_minimal_shape(capsys
     assert data == [
         {
             "id": "art-1",
+            "artifact_id": "art-1",
             "type": "audio",
             "status": "completed",
             "custom_instructions": None,

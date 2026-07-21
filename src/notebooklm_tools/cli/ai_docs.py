@@ -473,7 +473,8 @@ nlm create infographic <notebook-id> --orientation portrait --detail detailed --
 nlm video create <notebook-id> --confirm
 nlm video create <notebook-id> --format brief --style whiteboard --confirm
 nlm video create <notebook-id> --format short --confirm
-# Formats: explainer, brief, cinematic, short (default: explainer; short is vertical ~60s, English-only, no --style)
+# Formats: explainer, brief, cinematic, short (default: explainer; short is vertical ~60s, no --style)
+# Non-English Short output is best-effort; --language adds an explicit language requirement to the focus prompt.
 # Styles: auto_select, classic, whiteboard, kawaii, anime, watercolor, retro_print, heritage, paper_craft
 ```
 
@@ -504,6 +505,9 @@ nlm create data-table <notebook-id> "Extract all dates and events" --confirm
 nlm studio status <notebook-id>                    # List all artifacts + status
 nlm studio status <notebook-id> --json             # JSON output
 nlm studio status <notebook-id> --full             # All details
+nlm studio status <notebook-id> --artifact-id <id> # Check one artifact
+nlm studio status <notebook-id> --json --mcp-compatible  # MCP-shaped, paginated JSON
+nlm video list <notebook-id>                        # List video artifacts only
 nlm studio delete <notebook-id> <artifact-id> --confirm  # Delete artifact
 nlm slides revise <artifact-id> --slide '1 instruction' --confirm  # Revise slides
 ```
@@ -826,7 +830,7 @@ Many commands support `--json` for structured output:
 | "authentication may have expired" | Session expired | Run `nlm login` |
 | "Notebook not found" | Invalid ID | Run `nlm notebook list` |
 | "Source not found" | Invalid ID | Run `nlm source list <notebook-id>` |
-| "Rate limit exceeded" | Too many API calls | Auto-retried (up to 3x with backoff) |
+| "Rate limit exceeded" | Too many API calls | Briefly auto-retried; Studio limits may require waiting 1-2 minutes |
 | Server 503/502/500 | Google API flaky | Auto-retried (up to 3x with backoff) |
 | "Research already in progress" | Pending research | Use `--force` or import first |
 

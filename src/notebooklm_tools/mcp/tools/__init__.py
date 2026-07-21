@@ -8,7 +8,7 @@ from .chat import (
     notebook_query,
 )
 from .cross_notebook import cross_notebook_query
-from .downloads import download_artifact
+from .downloads import download_all_artifacts, download_artifact
 from .exports import (
     export_artifact,
 )
@@ -52,8 +52,9 @@ from .studio import (
 )
 
 __all__ = [
-    # Downloads (1 consolidated)
+    # Downloads (1 consolidated + 1 bulk)
     "download_artifact",
+    "download_all_artifacts",
     # Auth (2)
     "refresh_auth",
     "save_auth_tokens",

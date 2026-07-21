@@ -202,13 +202,12 @@ result = video_overview_create(
 )
 
 # Check generation status (takes several minutes)
-status = studio_status(notebook_id)
+status = studio_status(notebook_id, artifact_id=result["artifact_id"])
 for artifact in status["artifacts"]:
     print(f"{artifact['title']}: {artifact['status']}")
-    if artifact["audio_url"]:
-        print(f"  Audio: {artifact['audio_url']}")
-    if artifact["video_url"]:
-        print(f"  Video: {artifact['video_url']}")
+
+# Rich fields are opt-in and responses are paginated.
+detailed = studio_status(notebook_id, include_details=True, limit=20, offset=0)
 
 # Delete an artifact (after user confirmation)
 studio_delete(
@@ -220,8 +219,12 @@ studio_delete(
 
 **Audio Formats:** deep_dive (conversation), brief, critique, debate
 **Audio Lengths:** short, default, long
-**Video Formats:** explainer, brief, cinematic, short (vertical, ~60s, English-only, no visual style)
+**Video Formats:** explainer, brief, cinematic, short (vertical, ~60s, no visual style)
 **Video Styles:** auto_select, custom, classic, whiteboard, kawaii, anime, watercolor, retro_print, heritage, paper_craft
+
+For Short videos, language selection is best-effort. The captured RPC uses a
+null language slot, so non-English requests are reinforced through the focus
+prompt rather than an undocumented payload change.
 
 ---
 
@@ -668,9 +671,10 @@ params = [
 **Short format (code 4) — verified via live capture, 2026-06-30:** Short Video
 Overviews have no visual style picker, so the inner options list omits
 `visual_style_code`/`visual_style_prompt` entirely (matching Cinematic), and
-additionally sends `language_code` as `null` (server defaults to `"en"`;
-English-only for now) plus a trailing flag `1` whose meaning is undocumented
-by Google but required for the request to succeed:
+additionally sends `language_code` as `null` plus a trailing flag `1` whose
+meaning is undocumented by Google but required for the request to succeed.
+Current service behavior adds a best-effort language requirement to
+`focus_prompt` for non-English Short requests:
 ```python
 [
     [[source_id1], [source_id2], ...],  # Source IDs
@@ -815,7 +819,7 @@ override the accent. This is observed behavior and may change upstream.
 |--------|--------|
 | **Formats** | 1=Explainer (comprehensive), 2=Brief, 3=Cinematic, 4=Short (vertical, ~60s) |
 | **Visual Styles** | 1=Auto-select, 2=Custom, 3=Classic, 4=Whiteboard, 5=Kawaii, 6=Anime, 7=Watercolor, 8=Retro print, 9=Heritage, 10=Paper-craft (not applicable to Cinematic or Short) |
-| **Languages** | BCP-47 codes: "en", "es", "fr", "de", "ja", etc. (Short is English-only for now) |
+| **Languages** | BCP-47 codes: "en", "es", "fr", "de", "ja", etc. Short uses best-effort prompt steering because its RPC language slot is null. |
 
 #### Infographic Request
 ```python

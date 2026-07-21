@@ -565,8 +565,15 @@ Check studio content generation status for notebook [notebook_id].
 ```
 
 **Expected:**
-- List of artifacts with status (in_progress/completed) and URLs.
-- **Verify:** Artifact from Test 5.1b shows `custom_instructions: "Explain this to a 5 year old"`.
+- Default MCP response contains at most 20 artifacts and only lean status fields.
+- `pagination` contains `returned`, `offset`, `limit`, and `has_more`.
+- Polling with `artifact_id` returns only the selected artifact.
+- Calling with `include_details=True` exposes rich fields and the artifact from
+  Test 5.1b shows `custom_instructions: "Explain this to a 5 year old"`.
+- `nlm studio status [notebook_id] --json` remains a plain list containing both
+  `id` and `artifact_id`.
+- `nlm studio status [notebook_id] --json --mcp-compatible` returns the MCP envelope.
+- `nlm video list [notebook_id] --json` returns only video artifacts.
 
 ---
 
@@ -681,6 +688,42 @@ Download slide deck from notebook [notebook_id]:
 ```
 
 **Expected:** Slides downloaded as PDF.
+
+---
+
+### Test 6.6 - Download All Artifacts
+**Tool:** `download_all_artifacts`
+**CLI:** `nlm download all [notebook_id] --output-dir /tmp/exports`
+
+**Prompt:**
+```
+Download all completed artifacts from notebook [notebook_id]:
+- output_dir: /tmp/exports
+```
+
+**Expected:** A subdirectory named after the notebook title created under the
+output dir, containing every completed artifact named after its title
+(report → .md, mind_map → .json, video → .mp4, slide_deck → .pdf, ...).
+In-progress/failed artifacts are listed as skipped; result reports
+downloaded/failed/skipped counts. Also test `--types video,report` filtering.
+
+---
+
+### Test 6.7 - Sweep All Notebooks (Incremental)
+**Tool:** `download_all_artifacts` with `all_notebooks=True, skip_existing=True`
+**CLI:** `nlm download all --all-notebooks --skip-existing --output-dir /tmp/exports`
+
+**Prompt:**
+```
+Download all artifacts from every notebook into /tmp/exports, skipping
+files that already exist.
+```
+
+**Expected:** One subdirectory per notebook. On a second run with
+`skip_existing`, previously downloaded artifacts are reported as skipped
+("already downloaded") and only new artifacts are fetched. A failure on one
+notebook doesn't stop the sweep; result includes per-notebook counts and
+`errored_notebooks`.
 
 ---
 
@@ -917,7 +960,7 @@ Get NotebookLM MCP server version and check for updates.
 
 ---
 
-## Summary: 29 Consolidated Tools
+## Summary: 31 Consolidated Tools
 
 | Category | Tools | Count |
 |----------|-------|-------|
@@ -927,12 +970,12 @@ Get NotebookLM MCP server version and check for updates.
 | **Sharing** | `notebook_share_status`, `notebook_share_public`, `notebook_share_invite` | 3 |
 | **Research** | `research_start`, `research_status`, `research_import` | 3 |
 | **Studio** | `studio_create`, `studio_status`, `studio_delete`, `studio_revise` | 4 |
-| **Downloads** | `download_artifact` | 1 |
+| **Downloads** | `download_artifact`, `download_all_artifacts` | 2 |
 | **Exports** | `export_artifact` | 1 |
 | **Chat** | `notebook_query`, `chat_configure` | 2 |
 | **Notes** | `note` (unified: list, create, update, delete) | 1 |
 | **Server** | `server_info` | 1 |
-| **Total** | | **30** |
+| **Total** | | **31** |
 
 ---
 

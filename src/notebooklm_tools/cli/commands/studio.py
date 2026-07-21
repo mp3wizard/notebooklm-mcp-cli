@@ -3,13 +3,13 @@
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from notebooklm_tools.cli.formatters import detect_output_format, get_formatter
+from notebooklm_tools.cli.formatters import detect_output_format, get_formatter, print_json
 from notebooklm_tools.cli.utils import get_client, handle_error, make_console
 from notebooklm_tools.core.alias import get_alias_manager
 from notebooklm_tools.core.exceptions import NLMError
 from notebooklm_tools.services import ServiceError, ValidationError
 from notebooklm_tools.services import studio as studio_service
-from notebooklm_tools.utils.config import get_default_language
+from notebooklm_tools.utils.config import get_base_url, get_default_language
 
 console = make_console()
 
@@ -145,13 +145,55 @@ def studio_status(
     notebook_id: str = typer.Argument(..., help="Notebook ID"),
     full: bool = typer.Option(False, "--full", "-a", help="Show all details"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+    mcp_compatible: bool = typer.Option(
+        False,
+        "--mcp-compatible",
+        help="Use the MCP status envelope and artifact_id field",
+    ),
+    artifact_id: str | None = typer.Option(
+        None,
+        "--artifact-id",
+        help="Return only one artifact",
+    ),
+    limit: int | None = typer.Option(None, "--limit", help="Maximum artifacts to return (1-100)"),
+    offset: int = typer.Option(0, "--offset", help="Artifacts to skip"),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """List all studio artifacts and their status (including mind maps)."""
     try:
         notebook_id = get_alias_manager().resolve(notebook_id)
+        effective_limit = limit if limit is not None else (20 if mcp_compatible else None)
         with get_client(profile) as client:
-            result = studio_service.get_studio_status(client, notebook_id)
+            result = studio_service.get_studio_status(
+                client,
+                notebook_id,
+                artifact_id=artifact_id,
+                include_details=full if mcp_compatible else True,
+                limit=effective_limit,
+                offset=offset,
+            )
+
+        if mcp_compatible:
+            print_json(
+                {
+                    "status": "success",
+                    "notebook_id": notebook_id,
+                    "summary": {
+                        "total": result["total"],
+                        "completed": result["completed"],
+                        "in_progress": result["in_progress"],
+                    },
+                    "artifacts": result["artifacts"],
+                    "pagination": {
+                        "returned": result["returned"],
+                        "offset": result["offset"],
+                        "limit": result["limit"],
+                        "has_more": result["has_more"],
+                    },
+                    "notebook_url": f"{get_base_url()}/notebook/{notebook_id}",
+                }
+            )
+            return
 
         fmt = detect_output_format(json_output)
         formatter = get_formatter(fmt, console)
@@ -628,7 +670,7 @@ def create_video(
     language: str = typer.Option(
         "",
         "--language",
-        help="BCP-47 language code (default: NOTEBOOKLM_HL or en; short format is English-only for now)",
+        help="BCP-47 language code. Short format uses best-effort prompt steering.",
     ),
     focus: str = typer.Option(
         "",
@@ -657,6 +699,27 @@ def create_video(
         language=language,
         focus_prompt=focus,
     )
+
+
+@video_app.command("list")
+def list_videos(
+    notebook_id: str = typer.Argument(..., help="Notebook ID"),
+    full: bool = typer.Option(False, "--full", "-a", help="Show all details"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
+) -> None:
+    """List video artifacts and their status."""
+    try:
+        notebook_id = get_alias_manager().resolve(notebook_id)
+        with get_client(profile) as client:
+            result = studio_service.get_studio_status(client, notebook_id)
+
+        videos = [artifact for artifact in result["artifacts"] if artifact.get("type") == "video"]
+        fmt = detect_output_format(json_output)
+        formatter = get_formatter(fmt, console)
+        formatter.format_artifacts(videos, full=full)
+    except (ServiceError, NLMError) as e:
+        handle_error(e, json_output=locals().get("json_output", False))
 
 
 # ========== Data Table ==========

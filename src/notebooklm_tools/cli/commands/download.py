@@ -183,6 +183,173 @@ def _interactive_download(
         handle_error(e)
 
 
+# --- Bulk download ---
+
+
+def _print_download_all_result(result: dict) -> None:
+    """Human-readable output for a single-notebook download_all result."""
+    console.print(f"Notebook: [bold]{result['notebook_title']}[/bold]")
+    console.print(f"Directory: {result['output_dir']}")
+    for item in result["items"]:
+        label = item["artifact_type"].replace("_", " ")
+        if item["success"]:
+            console.print(f"[green]✓[/green] {label}: {item['path']}")
+        else:
+            console.print(f"[red]✗[/red] {label} ({item['title']}): {item['error']}")
+    for skipped in result["skipped"]:
+        if skipped["reason"] == "type not requested":
+            continue
+        label = skipped["artifact_type"].replace("_", " ")
+        console.print(
+            f"[yellow]-[/yellow] skipped {label} ({skipped['title']}): {skipped['reason']}"
+        )
+    if result["total_artifacts"] == 0:
+        console.print("No studio artifacts found in this notebook.")
+    console.print(
+        f"\n[bold]{result['downloaded']}[/bold] downloaded, "
+        f"{result['failed']} failed, {len(result['skipped'])} skipped"
+    )
+
+
+def _print_sweep_result(result: dict) -> None:
+    """Human-readable output for an all-notebooks sweep result."""
+    console.print(f"Directory: {result['output_dir']}")
+    for nb in result["notebooks"]:
+        if nb["error"]:
+            console.print(f"[red]✗[/red] {nb['notebook_title']}: {nb['error']}")
+        else:
+            console.print(
+                f"[green]✓[/green] {nb['notebook_title']}: "
+                f"{nb['downloaded']} downloaded, {nb['failed']} failed, "
+                f"{nb['skipped']} skipped"
+            )
+    console.print(
+        f"\n[bold]{result['downloaded']}[/bold] downloaded, {result['failed']} failed "
+        f"across {result['total_notebooks']} notebooks "
+        f"({result['errored_notebooks']} notebooks errored)"
+    )
+
+
+@app.command("all")
+def download_all_cmd(
+    notebook_id: str | None = typer.Argument(
+        None, help="Notebook ID or alias (omit with --all-notebooks)"
+    ),
+    output_dir: str = typer.Option(
+        ".",
+        "--output-dir",
+        "-d",
+        help="Base directory; a subdirectory named after each notebook is created inside",
+    ),
+    types: str | None = typer.Option(
+        None,
+        "--types",
+        "-t",
+        help="Comma-separated artifact types (default: all). Example: video,slide_deck,mind_map,report",
+    ),
+    slide_format: str = typer.Option(
+        "pdf", "--slide-format", help="Slide deck format: pdf (default) or pptx"
+    ),
+    interactive_format: str = typer.Option(
+        "json", "--interactive-format", help="Quiz/flashcards format: json, markdown, or html"
+    ),
+    all_notebooks: bool = typer.Option(
+        False, "--all-notebooks", "-a", help="Sweep every notebook in the account"
+    ),
+    skip_existing: bool = typer.Option(
+        False,
+        "--skip-existing",
+        help="Skip artifacts whose file already exists (incremental re-runs)",
+    ),
+    no_progress: bool = typer.Option(False, "--no-progress", help="Disable download progress bars"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output result as JSON"),
+):
+    """Download all completed artifacts into per-notebook directories.
+
+    With a notebook ID, downloads that notebook's artifacts. With
+    --all-notebooks, sweeps every notebook in the account.
+    """
+    if all_notebooks == (notebook_id is not None):
+        err_console.print(
+            "[red]Error:[/red] Provide either a notebook ID or --all-notebooks (not both)."
+        )
+        raise typer.Exit(1)
+
+    artifact_types = [t.strip() for t in types.split(",") if t.strip()] if types else None
+    client = get_client()
+
+    def _run(
+        progress_factory: Callable[[str, str], Callable[[int, int], None]] | None,
+        on_notebook: Callable[[int, int, str], None] | None,
+    ) -> dict:
+        common = {
+            "artifact_types": artifact_types,
+            "output_format": interactive_format,
+            "slide_deck_format": slide_format.lower(),
+            "skip_existing": skip_existing,
+            "progress_factory": progress_factory,
+        }
+        if all_notebooks:
+            return asyncio.run(
+                downloads_service.download_all_notebooks(
+                    client, output_dir, on_notebook=on_notebook, **common
+                )
+            )
+        resolved = get_alias_manager().resolve(notebook_id)
+        return asyncio.run(downloads_service.download_all(client, resolved, output_dir, **common))
+
+    try:
+        if no_progress or json_output:
+            result = _run(None, None)
+        else:
+            with Progress(
+                TextColumn("[bold blue]{task.description}"),
+                BarColumn(bar_width=None),
+                "[progress.percentage]{task.percentage:>3.0f}%",
+                DownloadColumn(),
+                TransferSpeedColumn(),
+                TimeRemainingColumn(),
+                console=console,
+                transient=True,
+            ) as progress:
+
+                def _progress_factory(
+                    artifact_type: str, filename: str
+                ) -> Callable[[int, int], None]:
+                    task_id = progress.add_task(f"Downloading {filename}", total=None)
+
+                    def update_progress(current: int, total: int | None):
+                        if total:
+                            progress.update(task_id, completed=current, total=total)
+                        else:
+                            progress.update(task_id, completed=current)
+
+                    return update_progress
+
+                def _on_notebook(index: int, total: int, title: str) -> None:
+                    progress.console.print(f"[dim][{index}/{total}][/dim] {title}")
+
+                result = _run(_progress_factory, _on_notebook)
+    except ServiceError as e:
+        err_console.print(f"[red]Error:[/red] {e.user_message}")
+        raise typer.Exit(1) from e
+    except Exception as e:
+        handle_error(e)
+        return
+
+    if json_output:
+        console.print_json(data=result)
+    elif all_notebooks:
+        _print_sweep_result(result)
+    else:
+        _print_download_all_result(result)
+
+    if result["downloaded"] == 0 and (
+        result["failed"] > 0 or result.get("errored_notebooks", 0) > 0
+    ):
+        raise typer.Exit(1)
+
+
 # --- Streaming downloads (with progress bars) ---
 
 

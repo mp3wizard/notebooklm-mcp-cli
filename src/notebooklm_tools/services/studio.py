@@ -103,6 +103,10 @@ class StatusResult(TypedDict):
     total: int
     completed: int
     in_progress: int
+    returned: int
+    offset: int
+    limit: int | None
+    has_more: bool
 
 
 class RenameResult(TypedDict):
@@ -312,6 +316,22 @@ def create_artifact(
             else:
                 focus_prompt = video_style_prompt
             video_style_prompt = ""
+
+        language_code = language.strip()
+        if (
+            video_format == "short"
+            and language_code
+            and language_code.split("-", 1)[0].lower() != "en"
+        ):
+            language_requirement = (
+                f"Language requirement: Generate the entire Short in {language_code}, including "
+                "narration, subtitles, and all on-screen text."
+            )
+            focus_prompt = (
+                f"{language_requirement}\n\n{focus_prompt}"
+                if focus_prompt
+                else language_requirement
+            )
 
         _normalize_video_style(
             video_format=video_format,
@@ -602,6 +622,11 @@ def _derive_error_reason(raw_artifact: dict[str, Any]) -> str | None:
 def get_studio_status(
     client: NotebookLMClient,
     notebook_id: str,
+    *,
+    artifact_id: str | None = None,
+    include_details: bool = True,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> StatusResult:
     """Get status of all studio artifacts including mind maps.
 
@@ -611,6 +636,11 @@ def get_studio_status(
     Raises:
         ServiceError: If polling fails
     """
+    if limit is not None and not 1 <= limit <= 100:
+        raise ValidationError("limit must be between 1 and 100")
+    if offset < 0:
+        raise ValidationError("offset must be 0 or greater")
+
     try:
         raw_artifacts = client.poll_studio_status(notebook_id)
     except Exception as e:
@@ -680,18 +710,18 @@ def get_studio_status(
                 sid for sid in (raw_artifact.get("source_ids") or []) if isinstance(sid, str)
             ],
         }
-        artifact_id = raw_artifact.get("artifact_id")
-        if isinstance(artifact_id, str):
-            artifact["artifact_id"] = artifact_id
+        raw_artifact_id = raw_artifact.get("artifact_id")
+        if isinstance(raw_artifact_id, str):
+            artifact["artifact_id"] = raw_artifact_id
         artifacts.append(artifact)
 
     # Also fetch mind maps
     try:
         mind_maps = client.list_mind_maps(notebook_id)
         known_artifact_ids = {
-            artifact_id
+            known_id
             for artifact in artifacts
-            if isinstance((artifact_id := artifact.get("artifact_id")), str)
+            if isinstance((known_id := artifact.get("artifact_id")), str)
         }
         for mm in mind_maps:
             mind_map_id = mm.get("mind_map_id")
@@ -717,11 +747,38 @@ def get_studio_status(
     completed = [a for a in artifacts if a.get("status") == "completed"]
     in_progress = [a for a in artifacts if a.get("status") == "in_progress"]
 
+    selected = artifacts
+    if artifact_id:
+        selected = [a for a in artifacts if a.get("artifact_id") == artifact_id]
+        offset = 0
+        limit = 1
+
+    page = selected[offset : offset + limit if limit is not None else None]
+    has_more = offset + len(page) < len(selected)
+
+    if not include_details:
+        lean_fields = {
+            "artifact_id",
+            "type",
+            "title",
+            "status",
+            "created_at",
+            "error_reason",
+        }
+        page = [
+            {key: value for key, value in artifact.items() if key in lean_fields}
+            for artifact in page
+        ]
+
     return StatusResult(
-        artifacts=artifacts,
+        artifacts=page,
         total=len(artifacts),
         completed=len(completed),
         in_progress=len(in_progress),
+        returned=len(page),
+        offset=offset,
+        limit=limit,
+        has_more=has_more,
     )
 
 

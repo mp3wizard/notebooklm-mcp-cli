@@ -1,6 +1,6 @@
 """Optional group-based gating of MCP tools.
 
-The server registers a large tool set (39 tools). Clients that only need a
+The server registers a large tool set (40 tools). Clients that only need a
 subset can hide the rest to save context, without editing code, by toggling
 named groups or individual tools through environment variables.
 
@@ -94,6 +94,7 @@ TOOL_GROUPS: dict[str, set[str]] = {
         "studio_delete",
         "studio_revise",
         "download_artifact",
+        "download_all_artifacts",
         "export_artifact",
     },
 }

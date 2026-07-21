@@ -1,6 +1,6 @@
 # MCP Guide
 
-Complete reference for the NotebookLM MCP server — **39 tools** for AI assistants.
+Complete reference for the NotebookLM MCP server — **40 tools** for AI assistants.
 
 ## Installation
 
@@ -115,11 +115,12 @@ source_add(
 - `infographic` - Visual infographic
 - `data_table` - Structured data table
 
-### Downloads (1 tool)
+### Downloads (2 tools)
 
 | Tool | Description |
 |------|-------------|
 | `download_artifact` | **Unified** - Download any artifact type |
+| `download_all_artifacts` | Download every completed artifact of a notebook — or every notebook with `all_notebooks=True` — into per-notebook folders |
 
 **`download_artifact` types:**
 `audio`, `video`, `report`, `mind_map`, `slide_deck`, `infographic`, `data_table`, `quiz`, `flashcards`
@@ -237,9 +238,14 @@ tag(action="select", query="ai research")  # Find notebooks by tag match
 2a. research_status(notebook_id)  # waits up to 15 min, returns next_action hint
 2b. research_import(notebook_id, task_id, cited_only=True, timeout=600)  # optional cited subset
 4. studio_create(notebook_id, artifact_type="audio", confirm=True)
-5. studio_status(notebook_id)  # poll until complete
+5. studio_status(notebook_id, artifact_id=created_artifact_id)  # poll one artifact
 6. download_artifact(notebook_id, artifact_type="audio", output_path="podcast.mp3")
 ```
+
+`studio_status` returns lean fields and at most 20 artifacts by default. Poll a
+new artifact with `artifact_id`, page large notebooks with `limit`/`offset`, and
+set `include_details=True` only when prompts, source IDs, report content, or media
+details are required.
 
 ### Add Sources with Wait
 
@@ -327,11 +333,11 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 ## Context Window Tips
 
-This MCP has **39 tools** which consume context. Best practices:
+This MCP has **40 tools** which consume context. Best practices:
 
 - **Disable when not using**: In Claude Code, use `@notebooklm-mcp` to toggle
 - **Hide tools you don't need**: See [Selective tool exposure](#selective-tool-exposure) below to expose only a subset
-- **Use unified tools**: `source_add`, `studio_create`, `download_artifact` handle multiple operations each
+- **Use unified tools**: `source_add`, `studio_create`, `download_artifact`, `download_all_artifacts` handle multiple operations each
 - **Poll wisely**: Use `studio_status` sparingly - artifacts take 1-5 minutes
 
 ### Selective tool exposure

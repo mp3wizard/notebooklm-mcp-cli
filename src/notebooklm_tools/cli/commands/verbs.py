@@ -25,6 +25,7 @@ from notebooklm_tools.cli.commands.config import (
     show_config,
 )
 from notebooklm_tools.cli.commands.download import (
+    download_all_cmd,
     download_audio,
     download_data_table,
     download_infographic,
@@ -957,6 +958,51 @@ def configure_chat_verb(
 # =============================================================================
 
 download_app = typer.Typer(help="Download studio artifacts")
+
+
+@download_app.command("all")
+def download_all_verb(
+    notebook: str | None = typer.Argument(
+        None, help="Notebook ID or alias (omit with --all-notebooks)"
+    ),
+    output_dir: str = typer.Option(
+        ".",
+        "--output-dir",
+        "-d",
+        help="Base directory; a subdirectory named after each notebook is created inside",
+    ),
+    types: str | None = typer.Option(
+        None, "--types", "-t", help="Comma-separated artifact types (default: all)"
+    ),
+    slide_format: str = typer.Option(
+        "pdf", "--slide-format", help="Slide deck format: pdf (default) or pptx"
+    ),
+    interactive_format: str = typer.Option(
+        "json", "--interactive-format", help="Quiz/flashcards format: json, markdown, or html"
+    ),
+    all_notebooks: bool = typer.Option(
+        False, "--all-notebooks", "-a", help="Sweep every notebook in the account"
+    ),
+    skip_existing: bool = typer.Option(
+        False,
+        "--skip-existing",
+        help="Skip artifacts whose file already exists (incremental re-runs)",
+    ),
+    no_progress: bool = typer.Option(False, "--no-progress", help="Disable download progress bars"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output result as JSON"),
+) -> None:
+    """Download all completed artifacts into per-notebook directories."""
+    download_all_cmd(
+        notebook_id=notebook,
+        output_dir=output_dir,
+        types=types,
+        slide_format=slide_format,
+        interactive_format=interactive_format,
+        all_notebooks=all_notebooks,
+        skip_existing=skip_existing,
+        no_progress=no_progress,
+        json_output=json_output,
+    )
 
 
 @download_app.command("audio")

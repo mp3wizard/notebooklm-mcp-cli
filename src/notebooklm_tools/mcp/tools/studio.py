@@ -259,7 +259,7 @@ def studio_create(
     except ValidationError as e:
         return error_result(_normalize_studio_validation_error(str(e)))
     except ServiceError as e:
-        return error_result(e.user_message)
+        return error_result(e.user_message, hint=e.hint)
     except Exception as e:
         return error_result(str(e))
 
@@ -270,6 +270,9 @@ def studio_status(
     action: str = "status",
     artifact_id: str | None = None,
     new_title: str | None = None,
+    include_details: bool = False,
+    limit: int = 20,
+    offset: int = 0,
 ) -> ResultDict:
     """Check studio content generation status and get URLs, or rename an artifact.
 
@@ -279,22 +282,27 @@ def studio_status(
             - status (default): List all artifacts with their status and URLs
             - rename: Rename an artifact (requires artifact_id and new_title)
             - list_types: List all supported artifact types with their options
-        artifact_id: Required for action="rename" - the artifact UUID to rename
+        artifact_id: For status, return only this artifact. Required for action="rename".
         new_title: Required for action="rename" - the new title for the artifact
+        include_details: Include prompts, source IDs, report content, and media details
+        limit: Maximum artifacts to return for status (1-100, default 20)
+        offset: Number of artifacts to skip for status pagination
 
     Returns:
         Dictionary with status and results.
         For action="status":
             - status: "success"
-            - artifacts: List of artifacts, each containing:
+            - artifacts: Lean page of artifacts, each containing:
                 - artifact_id: UUID
                 - title: Artifact title
                 - type: audio, video, report, etc.
                 - status: completed, in_progress, failed
-                - url: URL to view/download (if applicable)
-                - custom_instructions: The custom prompt/focus instructions used to generate the artifact (if any)
-                - source_ids: List of source UUIDs the artifact was generated from
+                - created_at: Creation timestamp
+                - error_reason: Failure guidance when status is failed
+              With include_details=True, artifacts also include prompts, source IDs,
+              report content, media URLs, and other rich fields.
             - summary: Counts of total, completed, in_progress
+            - pagination: returned, offset, limit, and has_more
     """
     try:
         if action == "list_types":
@@ -317,7 +325,14 @@ def studio_status(
                 **rename_result,
             }
 
-        status_result = studio_service.get_studio_status(client, notebook_id)
+        status_result = studio_service.get_studio_status(
+            client,
+            notebook_id,
+            artifact_id=artifact_id,
+            include_details=include_details,
+            limit=limit,
+            offset=offset,
+        )
         return {
             "status": "success",
             "notebook_id": notebook_id,
@@ -327,6 +342,12 @@ def studio_status(
                 "in_progress": status_result["in_progress"],
             },
             "artifacts": status_result["artifacts"],
+            "pagination": {
+                "returned": status_result["returned"],
+                "offset": status_result["offset"],
+                "limit": status_result["limit"],
+                "has_more": status_result["has_more"],
+            },
             "notebook_url": f"{get_base_url()}/notebook/{notebook_id}",
         }
     except (ValidationError, ServiceError) as e:

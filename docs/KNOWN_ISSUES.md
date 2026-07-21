@@ -79,7 +79,10 @@ The free tier of NotebookLM has usage limits enforced server-side.
 
 ### Mitigation
 - Space out operations when possible
+- Create videos sequentially. Brief automatic retries only cover transient
+  failures; after a Studio rate-limit error, wait 1-2 minutes before retrying.
 - Avoid tight polling loops
+- Poll a known Studio artifact by ID instead of repeatedly listing the notebook.
 - Consider batching queries where the API supports it
 
 ---
@@ -135,4 +138,3 @@ When reporting issues, include:
 2. The error message (redact any sensitive info)
 3. Whether the operation worked before
 4. The current date (to correlate with potential Google deployments)
-

@@ -254,7 +254,7 @@ No visual style picker. Full creative brief in `focus_prompt`. CLI `--style-prom
 
 ### Short: new, fast-track eligible
 
-A ~60-second, vertical "bite-sized overview" — like Cinematic, it has no visual style picker, so CLI `--style-prompt` remaps into `focus_prompt`. Rolling out gradually: English-only, 18+, Pro/Ultra subscribers first. If NotebookLM rejects the request, the account/region may not have access yet.
+A ~60-second, vertical "bite-sized overview" — like Cinematic, it has no visual style picker, so CLI `--style-prompt` remaps into `focus_prompt`. Language selection is best-effort: non-English `--language` values add an explicit requirement covering narration, subtitles, and on-screen text because the captured RPC language slot is null. If NotebookLM rejects the request, the account/region may not have access yet.
 
 **Fast-track prompt:** 1–2 sentences naming the core concept to distill — shorter than explainer/brief prompts since the output itself is short.
 
