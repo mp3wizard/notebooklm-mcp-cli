@@ -161,6 +161,8 @@ New in v0.4.6+: `batch`, `cross_notebook_query`, `pipeline`, `tag` (consolidated
 
 New in v0.9.0: `download_all_artifacts` — downloads every completed artifact of a notebook, or every notebook with `all_notebooks=True`, into per-notebook directories named after notebook titles. Optional `artifact_types` filter and `skip_existing` for incremental re-runs; a failure on one artifact/notebook doesn't stop the rest. CLI: `nlm download all [--all-notebooks] [--skip-existing]`.
 
+New in v0.9.1: `chat_list`/`chat_get`/`chat_export` MCP tools and `nlm chats list/get/export/to-note` — chat session transcripts fetched from NotebookLM's server RPC.
+
 ## Troubleshooting
 
 | Error | Cause | Fix |

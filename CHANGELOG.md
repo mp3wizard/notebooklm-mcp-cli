@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-07-23
+
+### Fixed
+- **Desktop extension finds uvx installed via `pip install --user` on Windows (#267)** — the `.mcpb` launcher could fail to start with `Error: Could not find 'uvx'` even when uv was installed, because `pip install --user uv` places `uvx.exe` in `%APPDATA%\Python\Python3XX\Scripts`, which Windows does not add to PATH and which was missing from the launcher's search list. The launcher now checks the per-user Scripts directory of every installed CPython version. No behavior change on macOS/Linux. Thanks to **@onexoluxion** for the fix!
+
+### Security
+- **Bumped locked dependencies with published CVEs (#268)** — `uv.lock` now pins mcp 1.28.1, starlette 1.3.1, python-multipart 0.0.32, cryptography 49.0.0, and pyjwt 2.13.0. Lockfile-only change: no source or constraint changes, and end users installing via `uv tool install` were already resolving patched versions from PyPI — this brings the committed lockfile (used by CI and contributors) up to date. Thanks to **@onexoluxion** for the precise report and verified fix command!
+
+## [0.9.1] - 2026-07-22
+
+### Added
+- **Chat session management (#256)** — list, view, export, and save past notebook chats.
+  - CLI: `nlm chats list <notebook>`, `nlm chats get <notebook> [conversation_id]`, `nlm chats export <notebook> [conversation_id] --format md|json --output file`, and `nlm chats to-note <notebook> <conversation_id> [--turn N] [--title ...]`.
+  - MCP tools: `chat_list`, `chat_get`, `chat_export`.
+  - Transcripts are fetched from NotebookLM's server (a newly-documented `khqZz` RPC, see `docs/API_REFERENCE.md`), so past chats are visible even from a fresh CLI invocation or MCP session — not just chats made earlier in the same process.
+  - Documented in `SKILL.md`, `AGENTS_SECTION.md`'s `command_reference.md`, `docs/CLI_GUIDE.md`, `docs/MCP_GUIDE.md`, `README.md`, and `AGENTS.md`.
+
+### Fixed
+- **Preserve profile email across token updates (#266)** — `AuthManager.save_profile()` now preserves the existing stored profile email from `metadata.json` when `email=None` is passed during background CSRF updates, token refreshes, and `save_tokens_to_cache()` calls.
+- **Chat session tools now respect the configured default profile** — `services/chats.py` no longer hardcodes profile `"default"`; it now falls back to `get_config().auth.default_profile` like the rest of the CLI/MCP client resolution, so `chat_list`/`chat_get`/`chat_export` and `nlm chats ...` work correctly for accounts using `nlm login switch`.
+- **`nlm chats to-note` / `save_chat_to_note` now creates the note correctly** — it was calling `notes_service.create_note()` with the wrong signature (`notebook=`/`profile=` keyword args instead of the required `(client, notebook_id, content, title)`), which raised a `TypeError` at runtime. Never shipped, caught before release via live testing.
+- **`chat_list`/`chat_get`/`chat_export` are now hideable via `NOTEBOOKLM_DISABLED_GROUPS`** — added to the `chat` tool group in `tool_groups.py`, which previously covered only `notebook_query`/`chat_configure`/`notebook_query_start`/`notebook_query_status`.
+- **Tool count corrected to 43 across all docs** — `label`, `notebook_query_start`, and `notebook_query_status` were registered MCP tools missing from `mcp/tools/__init__.py`'s `__all__` and from `docs/MCP_GUIDE.md` (which also separately lacked `source_rename` and `notebook_share_batch`). Fixed the export list and documented every tool; updated the stale "40 tools" (and one "39 tools") count in README.md, the desktop extension manifest, `SKILL.md`, and `docs/MCP_CLI_TEST_PLAN.md`. Added a regression test (`test_groups_cover_every_registered_tool`) so a new tool shipping without a `tool_groups.py` entry fails CI instead of silently drifting.
+
 ## [0.9.0] - 2026-07-20
 
 ### Added

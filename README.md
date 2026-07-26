@@ -470,6 +470,7 @@ Then use natural language: *"Create a notebook about quantum computing and gener
 | Create notebook | `nlm notebook create` | `notebook_create` |
 | Add Sources (URL, Text, Drive, File) | `nlm source add` | `source_add` |
 | Query notebook (persists to web UI) | `nlm notebook query` | `notebook_query` |
+| List/view/export chat sessions | `nlm chats list/get/export` | `chat_list`/`chat_get`/`chat_export` |
 | Create Studio Content (Audio, Video, etc.) | `nlm studio create` | `studio_create` |
 | Revise slide decks | `nlm slides revise` | `studio_revise` |
 | Download artifacts | `nlm download <type>` | `download_artifact` |
@@ -488,7 +489,7 @@ Then use natural language: *"Create a notebook about quantum computing and gener
 📚 **More Documentation:**
 - **[Getting Started](docs/GETTING_STARTED.md)** — Install, login, agent setup, and migration from another NotebookLM MCP
 - **[CLI Guide](docs/CLI_GUIDE.md)** — Complete command reference
-- **[MCP Guide](docs/MCP_GUIDE.md)** — All 40 MCP tools with examples
+- **[MCP Guide](docs/MCP_GUIDE.md)** — All 43 MCP tools with examples
 - **[Authentication](docs/AUTHENTICATION.md)** — Setup and troubleshooting
 - **[Remote MCP](docs/REMOTE_MCP.md)** — Web/mobile connector feasibility, security, and authentication limitations
 - **[API Reference](docs/API_REFERENCE.md)** — Internal API docs for contributors
@@ -709,7 +710,7 @@ For detailed instructions and troubleshooting, see **[docs/AUTHENTICATION.md](do
 
 ## MCP Configuration
 
-> **⚠️ Context Window Warning:** This MCP provides **40 tools**. Disable it when not using NotebookLM to preserve context. In Claude Code: `@notebooklm-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
+> **⚠️ Context Window Warning:** This MCP provides **43 tools**. Disable it when not using NotebookLM to preserve context. In Claude Code: `@notebooklm-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
 
 ### Automatic Setup (Recommended)
 

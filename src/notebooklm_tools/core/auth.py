@@ -473,6 +473,14 @@ class AuthManager:
         with f:
             json.dump(cookies, f, indent=2, ensure_ascii=False)
 
+        # Preserve existing email if new email is None
+        if email is None and self.metadata_file.exists():
+            try:
+                existing_metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
+                email = existing_metadata.get("email")
+            except Exception:
+                pass
+
         # Save metadata with restrictive permissions from creation
         metadata = {
             "csrf_token": csrf_token,

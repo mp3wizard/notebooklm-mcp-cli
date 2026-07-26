@@ -2,7 +2,7 @@
 
 This document contains detailed API documentation for the internal NotebookLM APIs. Only read this file when debugging API issues or adding new features.
 
-**For general project info, see [CLAUDE.md](./CLAUDE.md)**
+**For general project info, see [CLAUDE.md](../CLAUDE.md)**
 
 ---
 
@@ -289,6 +289,7 @@ The `f.req` structure:
 | `b7Wfje` | Rename source | `[null, ["source_id"], [[["new_title"]]]]` - path: `/notebook/<notebook_id>` |
 | `tGMBJ` | Delete source | `[[["source_id"]], [2]]` - deletion is IRREVERSIBLE |
 | `hPTbtc` | Get conversation IDs | `[notebook_id]` |
+| `khqZz` | Get conversation turns (full Q&A history) | See "Conversation Turns (khqZz)" below |
 | `hT54vc` | User preferences | - |
 | `ZwVcOc` | Settings | - |
 | `ozz5Z` | Add source v2 (Unified) | See source types below |
@@ -464,6 +465,54 @@ Streaming JSON with multiple chunks:
 1. **Thinking steps** - "Understanding...", "Exploring...", etc.
 2. **Final answer** - Markdown formatted with citations
 3. **Source references** - Links to specific passages in sources
+
+---
+
+## Conversation Turns (`khqZz`)
+
+Discovered via Chrome DevTools capture of the web UI loading a notebook's chat panel
+(2026-07-22). This is a `batchexecute` RPC (unlike the streaming query endpoint above)
+that fetches the **full Q&A history for a past conversation from the server** — it's
+what lets the same chat re-appear after closing and reopening a notebook, and it's what
+`nlm chats get` / `chat_get` / `chat_export` use to show real transcripts even on a
+fresh CLI invocation or MCP server session (`get_conversation_turns()` in
+`core/conversation.py`, wrapping `RPC_GET_CONVERSATION_TURNS`).
+
+Companion to `hPTbtc` (`get_conversation_id`), which only returns the conversation
+UUID — `khqZz` is the RPC that returns the actual turn content for that UUID.
+
+### Request
+```python
+params = [
+    [2, None, [1], [1, None, None, None, None, None, None, None, None, None, [1, 3]]],  # boilerplate client-capability descriptor, same shape used by hPTbtc
+    None,
+    None,
+    "conversation-uuid",  # from get_conversation_id()
+    20,                   # max turns to return (page size; no pagination implemented yet)
+]
+```
+
+### Response
+```
+[[turn, turn, ...], "continuation_token"]
+```
+Turns are returned **newest-first**, alternating **answer then query** per turn pair
+(the same `[answer, None, 2]` / `[query, None, 1]` shape the client already builds
+locally in `_build_conversation_history()` for follow-up queries):
+
+- **Answer turn**: `[turn_id, [unix_sec, nanos], 2, None, content]` where
+  `content[0] = [answer_text, None, [conv_id, conv_id, num]]` — the answer text is
+  nested **one level inside `content[0]`** (`content[0][0]`), not `content[0]` directly.
+  The remaining `content` entries (`content[1]`, `content[3]`, ...) carry rich
+  formatting/citation spans.
+- **Query turn**: `[turn_id, [unix_sec, nanos], 1, "query_text"]`
+
+`get_conversation_turns()` pairs consecutive `(answer, query)` entries, reverses them
+to chronological order, and returns `[{"turn": 1, "query": ..., "answer": ...}, ...]` —
+the same shape as the local-cache-based `get_conversation_history()`. Only plain
+answer/query text is extracted; the rich formatting and citation spans are not yet
+parsed. The `continuation_token` for fetching turns beyond the requested `limit` is
+not yet used (no pagination).
 
 ---
 

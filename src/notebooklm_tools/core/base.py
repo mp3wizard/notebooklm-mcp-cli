@@ -178,6 +178,7 @@ class BaseClient:
 
     # Misc
     RPC_GET_CONVERSATIONS = "hPTbtc"
+    RPC_GET_CONVERSATION_TURNS = "khqZz"  # Fetch full Q&A turn history for a conversation ID
     RPC_DELETE_CHAT_HISTORY = "J7Gthc"
     RPC_PREFERENCES = "hT54vc"
     RPC_SETTINGS = "ZwVcOc"

@@ -19,6 +19,7 @@ RPC_NAMES = {
     "tGMBJ": "delete_source",
     "b7Wfje": "rename_source",
     "hPTbtc": "get_conversations",
+    "khqZz": "get_conversation_turns",
     "J7Gthc": "delete_chat_history",
     "hT54vc": "preferences",
     "ozz5Z": "add_source_v2",

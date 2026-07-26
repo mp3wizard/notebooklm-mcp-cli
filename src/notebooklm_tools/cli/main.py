@@ -10,6 +10,7 @@ from notebooklm_tools import __version__
 from notebooklm_tools.cli.commands.alias import app as alias_app
 from notebooklm_tools.cli.commands.batch import app as batch_app
 from notebooklm_tools.cli.commands.chat import app as chat_app
+from notebooklm_tools.cli.commands.chats import chats_app
 from notebooklm_tools.cli.commands.config import app as config_app
 from notebooklm_tools.cli.commands.cross import app as cross_app
 from notebooklm_tools.cli.commands.doctor import app as doctor_app
@@ -752,6 +753,7 @@ app.add_typer(notebook_app, name="notebook", help="Manage notebooks")
 app.add_typer(label_app, name="label", help="Manage source labels")
 app.add_typer(note_app, name="note", help="Manage notes")
 app.add_typer(source_app, name="source", help="Manage sources")
+app.add_typer(chats_app, name="chats", help="Manage chat sessions")
 app.add_typer(chat_app, name="chat", help="Configure chat settings")
 app.add_typer(studio_app, name="studio", help="Manage studio artifacts")
 app.add_typer(research_app, name="research", help="Research and discover sources")

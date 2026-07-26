@@ -148,6 +148,9 @@ src/notebooklm_tools/
 | `notebook_delete` | Delete a notebook (REQUIRES confirmation) |
 | `source_add` | Add source (url, text, drive, file) |
 | `notebook_query` | Ask questions (AI answers!) |
+| `chat_list` | List chat sessions for a notebook |
+| `chat_get` | Get full transcript of a chat session (defaults to latest) |
+| `chat_export` | Export a chat transcript to Markdown or JSON |
 | `source_list_drive` | List sources with types, check Drive freshness |
 | `source_sync_drive` | Sync stale Drive sources (REQUIRES confirmation) |
 | `source_rename` | Rename a source in a notebook |

@@ -100,6 +100,85 @@ class TestGetConversationId:
         )
 
 
+class TestGetConversationTurns:
+    """Test get_conversation_turns, which fetches full Q&A history from the
+    server (RPC_GET_CONVERSATION_TURNS / khqZz), discovered via Chrome DevTools
+    capture on 2026-07-22. See docs/API_REFERENCE.md for the raw response shape.
+    """
+
+    def _make_mixin(self):
+        return ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+
+    def _answer_turn(self, turn_id: str, ts: int, text: str) -> list:
+        # Real server shape: content[0] wraps the text one level deep as
+        # [text, None, [conv_id, conv_id, num]] — not the bare string.
+        return [turn_id, [ts, 0], 2, None, [[text, None, ["conv-id", "conv-id", 1]]]]
+
+    def _query_turn(self, turn_id: str, ts: int, text: str) -> list:
+        return [turn_id, [ts, 0], 1, text]
+
+    def test_pairs_and_orders_turns_chronologically(self):
+        """Server returns turns newest-first as [answer, query] pairs; the
+        method should pair them and return oldest-first with 1-indexed turns."""
+        mixin = self._make_mixin()
+        raw_turns = [
+            self._answer_turn("a2", 200, "Second answer"),
+            self._query_turn("q2", 200, "Second question"),
+            self._answer_turn("a1", 100, "First answer"),
+            self._query_turn("q1", 100, "First question"),
+        ]
+        with patch.object(mixin, "_call_rpc", return_value=[raw_turns, "token"]):
+            result = mixin.get_conversation_turns("nb-123", "conv-abc")
+
+        assert result == [
+            {"turn": 1, "query": "First question", "answer": "First answer"},
+            {"turn": 2, "query": "Second question", "answer": "Second answer"},
+        ]
+
+    def test_returns_none_on_empty_turns(self):
+        mixin = self._make_mixin()
+        with patch.object(mixin, "_call_rpc", return_value=[[], None]):
+            result = mixin.get_conversation_turns("nb-123", "conv-abc")
+        assert result is None
+
+    def test_returns_none_on_null_response(self):
+        mixin = self._make_mixin()
+        with patch.object(mixin, "_call_rpc", return_value=None):
+            result = mixin.get_conversation_turns("nb-123", "conv-abc")
+        assert result is None
+
+    def test_returns_none_on_rpc_exception(self):
+        mixin = self._make_mixin()
+        with patch.object(mixin, "_call_rpc", side_effect=Exception("network error")):
+            result = mixin.get_conversation_turns("nb-123", "conv-abc")
+        assert result is None
+
+    def test_ignores_unpaired_answer(self):
+        """A trailing answer with no matching query (e.g. mid-stream) is dropped
+        rather than crashing or fabricating an empty query."""
+        mixin = self._make_mixin()
+        raw_turns = [self._answer_turn("a1", 100, "Orphan answer")]
+        with patch.object(mixin, "_call_rpc", return_value=[raw_turns, None]):
+            result = mixin.get_conversation_turns("nb-123", "conv-abc")
+        assert result is None
+
+    def test_calls_correct_rpc(self):
+        mixin = self._make_mixin()
+        with patch.object(mixin, "_call_rpc", return_value=None) as mock_rpc:
+            mixin.get_conversation_turns("nb-123", "conv-abc", limit=5)
+        mock_rpc.assert_called_once_with(
+            mixin.RPC_GET_CONVERSATION_TURNS,
+            [
+                [2, None, [1], [1, None, None, None, None, None, None, None, None, None, [1, 3]]],
+                None,
+                None,
+                "conv-abc",
+                5,
+            ],
+            path="/notebook/nb-123",
+        )
+
+
 class TestDeleteChatHistory:
     """Test delete_chat_history method."""
 

@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.9.0"
+version: "0.9.2"
 description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any NotebookLM-related automation task."
 ---
 
@@ -65,7 +65,7 @@ nlm --version           # Check installed version
 12. **Use `--help` when unsure**: Run `nlm <command> --help` to see available options and flags for any command.
 13. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
 
-**Current MCP surface:** 40 tools. Consolidated action tools include `note`,
+**Current MCP surface:** 43 tools. Consolidated action tools include `note`,
 `label`, `studio_status`, `batch`, `pipeline`, and `tag`. Consolidated type
 tools include `source_add`, `studio_create`, and `download_artifact`.
 
@@ -101,6 +101,9 @@ User wants to...
 │   └─► nlm notebook query <nb-id> "question"
 │       (Use --conversation-id for follow-ups)
 │       ⚠️ Do NOT use `nlm chat start` - it's a REPL for humans only
+│
+├─► Review or export a past chat
+│   └─► nlm chats list <nb-id> → nlm chats get/export <nb-id> [conversation-id]
 │
 ├─► Check generation status
 │   └─► nlm studio status <nb-id>
@@ -521,11 +524,18 @@ not confirmed expiration.
 nlm --version  # Shows version and update availability
 ```
 
-### 7. Chat Configuration and Notes
+### 7. Chat Configuration, Chat Sessions, and Notes
 
 #### MCP Tools
 
 Use `chat_configure` with `goal`: default/learning_guide/custom. Use `note` with `action`: create/list/update/delete. Delete requires `confirm=True`.
+
+Use `chat_list`, `chat_get`, and `chat_export` to list/view/export a
+notebook's chat history. Transcripts are fetched from NotebookLM's server
+(not just this process's cache), so past chats are visible even from a fresh
+MCP session. `chat_get`'s `conversation_id` is optional and defaults to the
+notebook's latest session. There is no MCP tool for saving a chat to a note
+yet — use the CLI's `nlm chats to-note` for that.
 
 #### CLI Commands
 
@@ -557,6 +567,19 @@ nlm note create <nb-id> --content "Content" --title "Title"
 nlm note list <nb-id>
 nlm note update <nb-id> <note-id> --content "New content"
 nlm note delete <nb-id> <note-id> --confirm
+```
+
+**Chat sessions** (list/view/export past chats, resume, or save to a note):
+```bash
+nlm chats list <nb-id>                              # List chat sessions
+nlm chats get <nb-id>                               # Latest session's transcript
+nlm chats get <nb-id> <conversation-id>              # Specific session
+nlm chats export <nb-id> --format md -o chat.md      # Export to file
+nlm chats to-note <nb-id> <conversation-id> --turn 3 # Save one turn as a Note
+nlm chats to-note <nb-id> <conversation-id>          # Save the full chat as a Note
+
+# Resume a listed conversation with a follow-up question:
+nlm notebook query <nb-id> "follow-up question" --conversation-id <conversation-id>
 ```
 
 ### 8. Notebook Sharing

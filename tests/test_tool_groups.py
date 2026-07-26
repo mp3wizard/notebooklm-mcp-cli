@@ -82,3 +82,21 @@ def test_groups_are_disjoint():
         for name in names:
             assert name not in seen, f"{name} in both {seen.get(name)} and {group}"
             seen[name] = group
+
+
+def test_groups_cover_every_registered_tool():
+    """TOOL_GROUPS must cover every tool the server actually registers.
+
+    A tool missing from every group can never be hidden via
+    NOTEBOOKLM_DISABLED_GROUPS, silently breaking the "opt-in gating" promise
+    for that tool. This caught chat_list/chat_get/chat_export shipping without
+    a group assignment.
+    """
+    import notebooklm_tools.mcp.server  # noqa: F401 — populates the tool registry on import
+    from notebooklm_tools.mcp.tools._utils import _tool_registry
+
+    registered = {name for name, _ in _tool_registry}
+    grouped = set().union(*tool_groups.TOOL_GROUPS.values())
+
+    assert registered - grouped == set(), f"Registered but ungrouped: {registered - grouped}"
+    assert grouped - registered == set(), f"Grouped but not registered: {grouped - registered}"

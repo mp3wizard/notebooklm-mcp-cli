@@ -2,7 +2,10 @@
 
 **Purpose:** Verify all **30 consolidated MCP tools** work correctly.
 
-**Version:** 2.4 (Updated 2026-06-20 - synchronized current MCP surface)
+**Version:** 2.5 (Updated 2026-07-22 - synchronized current MCP surface)
+
+**Changes from v2.4:**
+- Current tool count: 43 tools — added `chat_list`, `chat_get`, `chat_export` (list/view/export notebook chat sessions)
 
 **Changes from v2.1:**
 - Current tool count: 39 tools (including consolidated notes, labels, async query, batch, pipeline, tags, and server_info)

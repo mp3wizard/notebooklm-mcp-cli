@@ -1,6 +1,6 @@
 # MCP Guide
 
-Complete reference for the NotebookLM MCP server — **40 tools** for AI assistants.
+Complete reference for the NotebookLM MCP server — **43 tools** for AI assistants.
 
 ## Installation
 
@@ -53,7 +53,7 @@ nlm login
 | `notebook_rename` | Rename a notebook |
 | `notebook_delete` | Delete notebook (requires `confirm=True`) |
 
-### Sources (6 tools)
+### Sources (7 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -63,6 +63,7 @@ nlm login
 | `source_delete` | Delete source (requires `confirm=True`) |
 | `source_describe` | Get AI summary with keywords |
 | `source_get_content` | Get raw text content |
+| `source_rename` | Rename a source in a notebook |
 
 **`source_list_drive` parameters:**
 ```python
@@ -88,12 +89,22 @@ source_add(
 )
 ```
 
-### Querying (2 tools)
+### Querying (4 tools)
 
 | Tool | Description |
 |------|-------------|
 | `notebook_query` | Ask AI about sources in notebook |
+| `notebook_query_start` | Start a query asynchronously for large notebooks that may time out |
+| `notebook_query_status` | Poll an async query started with `notebook_query_start` |
 | `chat_configure` | Set chat goal and response length |
+
+### Chat Sessions (3 tools)
+
+| Tool | Description |
+|------|-------------|
+| `chat_list` | List chat sessions for a notebook |
+| `chat_get` | Get full transcript of a chat session (defaults to latest) |
+| `chat_export` | Export a chat transcript to Markdown or JSON |
 
 ### Studio Content (4 tools)
 
@@ -153,13 +164,30 @@ note(notebook_id, action="update", note_id="...", content="...")
 note(notebook_id, action="delete", note_id="...", confirm=True)
 ```
 
-### Sharing (3 tools)
+### Labels (1 tool)
+
+| Tool | Description |
+|------|-------------|
+| `label` | **Unified** - Manage source labels (action: auto, list, reorganize, create, rename, set_emoji, move_source, delete) |
+
+**`label` actions:**
+```python
+label(notebook_id="abc", action="auto")           # AI auto-labels all sources
+label(notebook_id="abc", action="list")           # List current labels
+label(notebook_id="abc", action="reorganize", unlabeled_only=True)
+label(notebook_id="abc", action="create", name="Research", emoji="📚")
+label(notebook_id="abc", action="move_source", label_id="...", source_id="...")
+label(notebook_id="abc", action="delete", label_id="...", confirm=True)
+```
+
+### Sharing (4 tools)
 
 | Tool | Description |
 |------|-------------|
 | `notebook_share_status` | Get sharing settings |
 | `notebook_share_public` | Enable/disable public link |
 | `notebook_share_invite` | Invite collaborator by email |
+| `notebook_share_batch` | Invite multiple collaborators in a single request |
 
 ### Auth (2 tools)
 
@@ -333,7 +361,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 ## Context Window Tips
 
-This MCP has **40 tools** which consume context. Best practices:
+This MCP has **43 tools** which consume context. Best practices:
 
 - **Disable when not using**: In Claude Code, use `@notebooklm-mcp` to toggle
 - **Hide tools you don't need**: See [Selective tool exposure](#selective-tool-exposure) below to expose only a subset

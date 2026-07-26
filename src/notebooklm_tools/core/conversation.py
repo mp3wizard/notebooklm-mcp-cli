@@ -237,6 +237,92 @@ class ConversationMixin(BaseClient):
                 pass
         return None
 
+    def get_conversation_turns(
+        self, notebook_id: str, conversation_id: str, limit: int = 20
+    ) -> list[dict[str, str | int]] | None:
+        """Fetch the full Q&A turn history for a conversation from the server.
+
+        Unlike get_conversation_history() (which only returns turns cached in
+        this process's memory), this calls NotebookLM's server-side
+        conversation-turns RPC, so past chat turns are visible even from a
+        fresh CLI invocation or MCP session that hasn't run any queries yet
+        (e.g. for `nlm chats get` / `chat_get`).
+
+        Args:
+            notebook_id: The notebook UUID (used for the source-path request
+                param only; NotebookLM keys the lookup by conversation_id)
+            conversation_id: The conversation UUID (from get_conversation_id)
+            limit: Max number of turns to fetch from the server (default: 20)
+
+        Returns:
+            List of {"turn": int, "query": str, "answer": str} dicts in
+            chronological order (oldest first), or None if the server
+            returned no turns (new/empty conversation) or the call failed.
+        """
+        try:
+            result = self._call_rpc(
+                self.RPC_GET_CONVERSATION_TURNS,
+                [
+                    [
+                        2,
+                        None,
+                        [1],
+                        [1, None, None, None, None, None, None, None, None, None, [1, 3]],
+                    ],
+                    None,
+                    None,
+                    conversation_id,
+                    limit,
+                ],
+                path=f"/notebook/{notebook_id}",
+            )
+        except Exception:
+            logger.debug(
+                "Failed to fetch server conversation turns for conversation %s",
+                conversation_id,
+            )
+            return None
+
+        # Response format: [[turn, turn, ...], continuation_token]. Turns
+        # alternate newest-first: [answer_turn, query_turn, answer_turn, ...]
+        #   answer_turn = [turn_id, [sec, nsec], 2, None, [[answer_text, ...], ...]]
+        #   query_turn  = [turn_id, [sec, nsec], 1, query_text]
+        # The answer text is nested one level inside content[0] (itself
+        # [answer_text, None, [conv_id, conv_id, num]]), not content[0] directly.
+        if not result or not isinstance(result, list):
+            return None
+        raw_turns = result[0] if result else None
+        if not isinstance(raw_turns, list) or not raw_turns:
+            return None
+
+        pairs: list[tuple[str, str]] = []  # (query, answer), newest first
+        pending_answer: str | None = None
+        for entry in raw_turns:
+            if not isinstance(entry, list) or len(entry) < 3:
+                continue
+            turn_type = entry[2]
+            if turn_type == 2 and len(entry) > 4 and isinstance(entry[4], list) and entry[4]:
+                answer_wrapper = entry[4][0]
+                if (
+                    isinstance(answer_wrapper, list)
+                    and answer_wrapper
+                    and isinstance(answer_wrapper[0], str)
+                ):
+                    pending_answer = answer_wrapper[0]
+                else:
+                    pending_answer = ""
+            elif turn_type == 1 and len(entry) > 3 and isinstance(entry[3], str):
+                if pending_answer is not None:
+                    pairs.append((entry[3], pending_answer))
+                    pending_answer = None
+
+        if not pairs:
+            return None
+
+        # Server returns newest-first; reverse to chronological order.
+        pairs.reverse()
+        return [{"turn": i, "query": q, "answer": a} for i, (q, a) in enumerate(pairs, start=1)]
+
     def delete_chat_history(self, notebook_id: str, conversation_id: str) -> bool:
         """Delete the chat history for a notebook.
 

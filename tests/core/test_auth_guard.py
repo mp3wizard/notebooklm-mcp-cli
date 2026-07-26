@@ -137,6 +137,7 @@ class TestSaveProfileMismatchGuard:
         )
         # Should keep the old email when new is None
         assert profile is not None
+        assert profile.email == "work@company.com"
 
     def test_save_allows_on_fresh_profile(self, tmp_path, monkeypatch):
         """save_profile should work on a brand new profile with no existing data."""

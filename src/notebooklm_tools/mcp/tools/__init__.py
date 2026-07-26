@@ -6,12 +6,16 @@ from .batch import batch
 from .chat import (
     chat_configure,
     notebook_query,
+    notebook_query_start,
+    notebook_query_status,
 )
+from .chats import chat_export, chat_get, chat_list
 from .cross_notebook import cross_notebook_query
 from .downloads import download_all_artifacts, download_artifact
 from .exports import (
     export_artifact,
 )
+from .labels import label
 from .notebooks import (
     notebook_create,
     notebook_delete,
@@ -87,13 +91,20 @@ __all__ = [
     "studio_status",
     "studio_delete",
     "studio_revise",
-    # Chat (2)
+    # Chat (7)
     "notebook_query",
+    "notebook_query_start",
+    "notebook_query_status",
     "chat_configure",
+    "chat_list",
+    "chat_get",
+    "chat_export",
     # Exports (1)
     "export_artifact",
     # Notes (1 consolidated)
     "note",
+    # Labels (1 consolidated — action: auto|list|reorganize|create|rename|set_emoji|move_source|delete)
+    "label",
     # Server (1)
     "server_info",
     # Batch (1 consolidated — action: query|add_source|create|delete|studio)

@@ -827,6 +827,66 @@ nlm chat configure <notebook-id> [OPTIONS]
 | `--response-length` | `default`, `longer`, `shorter` |
 | `--profile` | Use specific profile |
 
+### nlm chats list
+
+List chat sessions for a notebook (alias: `nlm chat list`).
+
+```bash
+nlm chats list <notebook-id> [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--limit` | `-l` | Max chat sessions to display (default: 20) |
+| `--json` | | Output raw JSON |
+| `--profile` | `-p` | Use specific profile |
+
+### nlm chats get
+
+Retrieve the full Q&A transcript for a chat session. Transcripts are fetched
+from the NotebookLM server, so past chats are visible even from a fresh CLI
+invocation — not just chats made earlier in the same process.
+
+```bash
+nlm chats get <notebook-id> [conversation-id] [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| (positional) | | Conversation ID; defaults to the notebook's latest session |
+| `--json` | | Output raw JSON |
+| `--profile` | `-p` | Use specific profile |
+
+### nlm chats export
+
+Export a chat transcript to Markdown or JSON.
+
+```bash
+nlm chats export <notebook-id> [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--conversation-id` | `-c` | Conversation ID; defaults to the latest session |
+| `--format` | `-f` | `md` (default) or `json` |
+| `--output` | `-o` | File path to save the export (prints to stdout if omitted) |
+| `--profile` | `-p` | Use specific profile |
+
+### nlm chats to-note
+
+Save a chat turn or the full chat session as a Note in the notebook.
+
+```bash
+nlm chats to-note <notebook-id> <conversation-id> [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--turn` | `-t` | 1-indexed turn to save (default: entire chat) |
+| `--title` | | Note title |
+| `--json` | | Output raw JSON |
+| `--profile` | `-p` | Use specific profile |
+
 ---
 
 ## Alias Commands
