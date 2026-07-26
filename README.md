@@ -10,6 +10,31 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.9.2 — July 2026)
+- **Chat session management** — `nlm chats list/get/export/to-note` and MCP tools `chat_list`/`chat_get`/`chat_export` (#256). Transcripts are fetched from NotebookLM's server via RPC `khqZz`, so past chats are visible from a fresh CLI invocation or MCP session, not just the in-process cache.
+- **`uvx` discovery fix for Windows** — the desktop extension now finds `uvx` installed via `pip install --user uv` on Windows (`%APPDATA%\Python\Python3XX\Scripts\uvx.exe`), fixing a "Could not find 'uvx'" startup failure (#267).
+- **Dependency CVE fixes** — locked versions bumped: `mcp` 1.27.0→1.28.1, `starlette` 1.0.0→1.3.1, `python-multipart` 0.0.26→0.0.32, `cryptography` 46.0.7→49.0.0, `pyjwt` 2.12.1→2.13.0 (#268).
+
+### Security scan (July 2026 — v0.9.2)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python), Trivy, TruffleHog, mcps-audit
+- **0 dependency vulnerabilities**, **0 secrets**, **0 SAST findings** — clean across every tool (one pre-existing Bandit Low, intentional fallback, no action needed)
+- Trivy confirms the upstream CVE dependency bumps landed clean in `uv.lock`
+- mcps-audit high score reviewed (10 Critical, 113 High sampled), all confirmed false positives — same documented pattern as every prior scan
+- Full report: [`docs/security-scan-report-2026-07-26.md`](docs/security-scan-report-2026-07-26.md)
+
+### Upstream sync (v0.9.0 — July 2026)
+- **`nlm download all` — bulk artifact download** — Downloads every completed Studio artifact of a notebook into a directory named after the notebook title, files named after artifact titles; individual failures don't stop the rest (#258). Thanks to **@hansschenker** for the original contribution!
+- **`--all-notebooks` sweep and `--skip-existing`** — Run the bulk download across every notebook in the account, and skip artifacts whose target file already exists so repeated runs are incremental (#264).
+- New MCP tool `download_all_artifacts` — same capability exposed to AI agents, with `artifact_types` filtering and `skip_existing`.
+- Docs reconciled (tool count 39 → 40) and MCP/CLI tests added for the new download surface (#265).
+
+### Security scan (July 2026 — v0.9.0)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python), Trivy, TruffleHog, OSV-Scanner, mcps-audit
+- **0 dependency vulnerabilities**, **0 secrets**, **0 SAST findings** — clean across every tool
+- **Manual path-traversal review of the new `download_all` feature** — `sanitize_filename()`/`validate_output_path()` correctly sandbox notebook/artifact-title-derived filenames; no escape found
+- mcps-audit high score reviewed, no fix needed — same known false-positive pattern as every prior scan (CDP auth-extraction scripts flagged as "dangerous execution")
+- Full report: [`docs/security-scan-report-2026-07-21.md`](docs/security-scan-report-2026-07-21.md)
+
 ### Upstream sync (v0.8.8 — July 2026)
 - **Opt-in file upload directory allowlist** — `NOTEBOOKLM_ALLOWED_FILE_DIRS` restricts local file uploads to approved directories (comma/OS-path-separator-delimited). Disabled by default (#260). Thanks to **@failsafesecurity**!
 - **Opt-in download output directory** — `NOTEBOOKLM_DOWNLOAD_DIR` keeps downloaded artifacts inside one approved directory, on top of the existing sensitive-directory protections. Disabled by default (#261). Thanks again to **@failsafesecurity**!
