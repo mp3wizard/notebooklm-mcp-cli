@@ -4,7 +4,7 @@ Windows consoles often default to cp1252. Typer/Rich then raise UnicodeEncodeErr
 for characters such as arrows and smart quotes from API text, which terminates
 the MCP server on stdio and surfaces as client EOF disconnects.
 
-See: https://github.com/jacob-bd/notebooklm-mcp-cli/issues/156
+See: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/156
 """
 
 from __future__ import annotations

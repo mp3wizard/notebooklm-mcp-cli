@@ -80,7 +80,7 @@ class StudioMixin(BaseClient):
           ``=m140``     (priority 1, streaming transcode — slow CDN)
         Prefer the ``-dv`` variant for downloads.
 
-        See: https://github.com/jacob-bd/notebooklm-mcp-cli/issues/158
+        See: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/158
         """
         if len(artifact_data) <= 6:
             return None

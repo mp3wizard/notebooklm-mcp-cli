@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**NotebookLM MCP Server & CLI** - Provides programmatic access to NotebookLM (notebooklm.google.com) via both a Model Context Protocol server and a comprehensive command-line interface.
+**Gemini Notebook (formerly Google NotebookLM) MCP Server & CLI** - Provides programmatic access to Gemini Notebook (notebook.google.com) via both a Model Context Protocol server and a comprehensive command-line interface.
 
 Tested with personal/free tier accounts. May work with Google Workspace accounts but has not been tested.
 
@@ -161,7 +161,7 @@ New in v0.4.6+: `batch`, `cross_notebook_query`, `pipeline`, `tag` (consolidated
 
 New in v0.9.0: `download_all_artifacts` — downloads every completed artifact of a notebook, or every notebook with `all_notebooks=True`, into per-notebook directories named after notebook titles. Optional `artifact_types` filter and `skip_existing` for incremental re-runs; a failure on one artifact/notebook doesn't stop the rest. CLI: `nlm download all [--all-notebooks] [--skip-existing]`.
 
-New in v0.9.1: `chat_list`/`chat_get`/`chat_export` MCP tools and `nlm chats list/get/export/to-note` — chat session transcripts fetched from NotebookLM's server RPC.
+New in v0.9.1: `chat_list`/`chat_get`/`chat_export` MCP tools and `nlm chats list/get/export/to-note` — chat session transcripts fetched from Gemini Notebook's server RPC.
 
 ## Troubleshooting
 

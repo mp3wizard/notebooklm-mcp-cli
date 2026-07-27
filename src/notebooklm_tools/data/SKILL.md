@@ -1,12 +1,12 @@
 ---
 name: nlm-skill
-version: "0.9.2"
-description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any NotebookLM-related automation task."
+version: "0.9.4"
+description: "Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"Gemini Notebook\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any Gemini Notebook-related automation task."
 ---
 
-# NotebookLM CLI & MCP Expert
+# Gemini Notebook CLI & MCP Expert
 
-This skill provides comprehensive guidance for using NotebookLM via both the `nlm` CLI and MCP tools.
+This skill provides comprehensive guidance for using Gemini Notebook via both the `nlm` CLI and MCP tools.
 
 ## Tool Detection (CRITICAL - Read First!)
 
@@ -899,7 +899,7 @@ nlm pipeline run ingest-and-podcast --notebook <id> --input-url "https://example
 | "Google API error code 3" | Transient deep research error | Retry in a few minutes, or use `--mode fast` |
 | Browser doesn't launch | Port conflict | Close browser, retry |
 | `nlm login` crashes with `ClientAuthenticationError` | (Fixed in 0.6.14) Disk tokens fully expired | `nlm login` now works directly, no manual `nlm login profile delete` needed |
-| `RPCDriftError` / rotated method ID | NotebookLM changed an internal RPC ID | Run with `--debug`, apply the suggested `NOTEBOOKLM_RPC_OVERRIDES` JSON mapping, then restart the MCP server |
+| `RPCDriftError` / rotated method ID | Gemini Notebook changed an internal RPC ID | Run with `--debug`, apply the suggested `NOTEBOOKLM_RPC_OVERRIDES` JSON mapping, then restart the MCP server |
 | File upload path not found | Path exists on the client but not the CLI/MCP host | Use a path accessible on the machine running `nlm` or the MCP server |
 
 ## Rate Limiting

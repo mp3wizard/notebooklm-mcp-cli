@@ -28,7 +28,7 @@ def safe_mkdir(
     On Python 3.14 + Windows, ``pathlib.mkdir(parents=True, exist_ok=True)``
     can raise ``FileExistsError`` (WinError 183) even when the directory
     already exists.  This wrapper catches that specific failure.
-    See: https://github.com/jacob-bd/notebooklm-mcp-cli/issues/169
+    See: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/169
     """
     try:
         path.mkdir(parents=parents, exist_ok=exist_ok, mode=mode)
@@ -45,25 +45,41 @@ def safe_mkdir(
 
 _ALLOWED_BASE_HOSTS = {
     "notebooklm.google.com",
+    "notebook.google.com",
     "notebooklm.cloud.google.com",
+    "notebook.cloud.google.com",
 }
 
 
-def get_base_url() -> str:
+def get_base_url(profile_host: str | None = None) -> str:
     """Get the NotebookLM base URL.
 
-    Defaults to the personal URL (https://notebooklm.google.com).
+    Resolution order:
+      1. NOTEBOOKLM_BASE_URL env var, if set.
+      2. profile_host, if given and it's a recognized host (issue #269: the
+         host a signed-in account was last seen on, e.g. after Google's
+         notebook.google.com rebrand rollout).
+      3. The default personal URL (https://notebooklm.google.com).
+
     Set NOTEBOOKLM_BASE_URL to override, e.g. for enterprise:
         export NOTEBOOKLM_BASE_URL=https://notebooklm.cloud.google.com
     """
-    url = os.environ.get("NOTEBOOKLM_BASE_URL", "https://notebooklm.google.com").rstrip("/")
     from urllib.parse import urlparse
 
-    parsed = urlparse(url)
-    if parsed.scheme != "https" or parsed.hostname not in _ALLOWED_BASE_HOSTS:
-        raise ValueError(
-            f"NOTEBOOKLM_BASE_URL must use https and one of: {_ALLOWED_BASE_HOSTS}. Got: {url}"
-        )
+    env_override = os.environ.get("NOTEBOOKLM_BASE_URL")
+    if env_override:
+        url = env_override.rstrip("/")
+        parsed = urlparse(url)
+        if parsed.scheme != "https" or parsed.hostname not in _ALLOWED_BASE_HOSTS:
+            raise ValueError(
+                f"NOTEBOOKLM_BASE_URL must use https and one of: {_ALLOWED_BASE_HOSTS}. Got: {url}"
+            )
+        return url
+
+    if profile_host and profile_host in _ALLOWED_BASE_HOSTS:
+        return f"https://{profile_host}"
+
+    url = "https://notebooklm.google.com"
     return url
 
 

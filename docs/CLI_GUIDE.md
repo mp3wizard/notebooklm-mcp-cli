@@ -116,11 +116,11 @@ nlm infographic create <notebook> --orientation landscape --style professional -
 nlm data-table create <notebook> --description "Sales by region" --confirm
 ```
 
-For Audio Overviews, NotebookLM has been observed using the BCP-47 region
+For Audio Overviews, Gemini Notebook (formerly Google NotebookLM) has been observed using the BCP-47 region
 subtag to select the voice accent. For example, `es` and `es-ES` produce
 Spain Spanish, while `es-US` and `es-419` produce Latin-American Spanish.
 Changing the focus prompt does not reliably change the accent. This is
-observed NotebookLM behavior, not a guaranteed API contract.
+observed Gemini Notebook behavior, not a guaranteed API contract.
 
 Set `NOTEBOOKLM_HL=es-419` to use a regional locale as the default artifact
 language, or pass `--language es-419` for a specific generation.
@@ -299,7 +299,7 @@ nlm skill install alef-agent
 
 ### Setup (MCP Server Configuration)
 
-Configure the NotebookLM MCP server for AI tools in one command:
+Configure the Gemini Notebook MCP server for AI tools in one command:
 
 ```bash
 nlm setup add claude-code       # Configure via `claude mcp add`

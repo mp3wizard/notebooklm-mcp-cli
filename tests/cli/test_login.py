@@ -85,6 +85,7 @@ def test_login_force_bypasses_saved_profile_validation(monkeypatch, tmp_path):
             "email": "user@example.com",
             "force": True,
             "build_label": "build",
+            "base_host": "",
         }
     ]
     assert "Successfully authenticated!" in result.output
@@ -205,7 +206,11 @@ def test_best_effort_notebook_count_returns_count(monkeypatch):
 
     monkeypatch.setattr("notebooklm_tools.core.client.NotebookLMClient", FakeClient)
     profile = SimpleNamespace(
-        cookies={"SID": "sid"}, csrf_token="csrf", session_id="session", build_label="build"
+        cookies={"SID": "sid"},
+        csrf_token="csrf",
+        session_id="session",
+        build_label="build",
+        base_host="",
     )
 
     assert _best_effort_notebook_count(profile) == 3

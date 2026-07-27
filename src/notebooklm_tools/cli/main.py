@@ -143,6 +143,7 @@ def _best_effort_notebook_count(profile: Any) -> int | None:
             csrf_token=profile.csrf_token or "",
             session_id=profile.session_id or "",
             build_label=profile.build_label or "",
+            base_host=profile.base_host or "",
         ) as client:
             return len(client.list_notebooks())
     except Exception:
@@ -510,6 +511,7 @@ def login_callback(
         session_id = result.get("session_id", "")
         email = result.get("email", "")
         build_label = result.get("build_label", "")
+        base_host = result.get("base_host", "")
 
         # Save to profile
         auth.save_profile(
@@ -519,6 +521,7 @@ def login_callback(
             email=email,
             force=force,
             build_label=build_label,
+            base_host=base_host,
         )
 
         # Close builtin auth Chrome to release profile lock (enables headless auth later)
@@ -569,6 +572,7 @@ def login_callback(
                 session_id = result.get("session_id", "")
                 email = result.get("email", "")
                 build_label = result.get("build_label", "")
+                base_host = result.get("base_host", "")
 
                 auth.save_profile(
                     cookies=cookies,
@@ -577,6 +581,7 @@ def login_callback(
                     email=email,
                     force=True,  # Allow overwrite on retry
                     build_label=build_label,
+                    base_host=base_host,
                 )
 
                 if launched_local_chrome:
@@ -694,6 +699,7 @@ def profile_rename(
             session_id=profile_data.session_id,
             email=profile_data.email,
             build_label=profile_data.build_label,
+            base_host=profile_data.base_host,
         )
 
         # Delete old profile

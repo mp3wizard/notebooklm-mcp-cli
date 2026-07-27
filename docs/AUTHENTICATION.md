@@ -1,6 +1,6 @@
 # Authentication Guide
 
-This guide explains how to authenticate with NotebookLM MCP and CLI.
+This guide explains how to authenticate with Gemini Notebook (formerly Google NotebookLM) MCP and CLI.
 
 > For public HTTP deployment or Claude web/mobile connectors, see
 > [Remote MCP Deployment](REMOTE_MCP.md). Remote use introduces a separate MCP
@@ -9,7 +9,7 @@ This guide explains how to authenticate with NotebookLM MCP and CLI.
 
 ## Overview
 
-NotebookLM uses browser cookies for authentication (there is no official API). The CLI/MCP extracts these cookies automatically from a managed browser session:
+Gemini Notebook uses browser cookies for authentication (there is no official API). The CLI/MCP extracts these cookies automatically from a managed browser session:
 - Chromium-family browsers use Chrome DevTools Protocol (CDP)
 
 **Supported browsers**: Google Chrome, Arc (macOS), Brave, Microsoft Edge, Chromium, Vivaldi, Opera.
@@ -56,7 +56,7 @@ nlm login --devtools-timeout 15
 1. The first available supported browser is detected (or your preferred browser if configured)
 2. A dedicated browser profile is created for authentication
 3. The browser launches with the appropriate automation backend
-4. You log in to NotebookLM via the browser
+4. You log in to Gemini Notebook via the browser
 5. Cookies, CSRF token, and account email are extracted and cached
 6. The browser is closed automatically
 
@@ -126,7 +126,7 @@ This means you can stay logged into multiple Google accounts simultaneously with
 
 ## Enterprise / Google Workspace
 
-If your organization uses **Google Workspace** with a managed NotebookLM instance (e.g., `notebooklm.cloud.google.com` instead of `notebooklm.google.com`), set the `NOTEBOOKLM_BASE_URL` environment variable before authenticating:
+If your organization uses **Google Workspace** with a managed Gemini Notebook instance (e.g., `notebooklm.cloud.google.com` instead of `notebook.google.com`), set the `NOTEBOOKLM_BASE_URL` environment variable before authenticating:
 
 ```bash
 # Set the enterprise URL
@@ -136,7 +136,7 @@ export NOTEBOOKLM_BASE_URL=https://notebooklm.cloud.google.com
 nlm login
 ```
 
-All CLI commands, MCP tools, and internal API calls will use this URL automatically. If the variable is not set, the default personal URL (`https://notebooklm.google.com`) is used.
+All CLI commands, MCP tools, and internal API calls will use this URL automatically. If the variable is not set, the default personal URL (`https://notebook.google.com`) is used.
 
 > **Tip:** Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) so it persists across sessions.
 
@@ -154,6 +154,18 @@ For MCP server configuration, pass the variable in your client config:
   }
 }
 ```
+
+---
+
+## The "Gemini Notebook" rebrand (`notebook.google.com`)
+
+Google is rolling out a rebrand of Gemini Notebook that redirects some signed-in accounts to `notebook.google.com` instead of `notebook.google.com`. This is handled automatically as of v0.9.3: `nlm login` records whichever host your account actually lands on (per-profile, in `metadata.json`), and every CLI/MCP request is routed to that host afterward. No configuration is needed.
+
+Resolution order, if you need to override it manually:
+
+1. `NOTEBOOKLM_BASE_URL` env var, if set (see Enterprise section above).
+2. The host your account last signed in on (auto-detected).
+3. The default `https://notebook.google.com`.
 
 ---
 
@@ -176,7 +188,7 @@ nlm login --manual --file /path/to/cookies.txt
 
 ### How to Extract Cookies Manually
 
-1. Open Chrome and go to https://notebooklm.google.com
+1. Open Chrome and go to https://notebook.google.com
 2. Make sure you're logged in
 3. Press **F12** (or **Cmd+Option+I** on Mac) to open DevTools
 4. Click the **Network** tab
@@ -384,8 +396,8 @@ For MCP clients, add the same environment variable to the server config:
 }
 ```
 
-This runs supported NotebookLM form POSTs through `fetch` inside the saved
-NotebookLM browser profile, so the browser supplies its live cookies. It is
+This runs supported Gemini Notebook form POSTs through `fetch` inside the saved
+Gemini Notebook browser profile, so the browser supplies its live cookies. It is
 off by default and currently targets normal batchexecute RPCs plus notebook
 chat. Uploads, downloads, and artifact file transfers still use the existing
 HTTP paths.
@@ -410,6 +422,6 @@ No action required from users.
 ## Security Notes
 
 - Cookies are stored locally in `~/.notebooklm-mcp-cli/profiles/<name>/auth.json`
-- Each browser profile contains your Google login for NotebookLM
+- Each browser profile contains your Google login for Gemini Notebook
 - Never share your `auth.json` files or commit them to version control
 - The `cookies.txt` file in the repo is a template - don't commit real cookies

@@ -1,8 +1,8 @@
-# NotebookLM MCP Server: Multi-User Analysis
+# Gemini Notebook (formerly Google NotebookLM) MCP Server: Multi-User Analysis
 
 ## Executive Summary
 
-This document focuses on enabling **multiple users to share a single NotebookLM account** while maintaining conversation isolation. This is the recommended approach for teams sharing a NotebookLM Plus subscription through Open WebUI or similar chatbot interfaces.
+This document focuses on enabling **multiple users to share a single Gemini Notebook account** while maintaining conversation isolation. This is the recommended approach for teams sharing a Gemini Notebook Plus subscription through Open WebUI or similar chatbot interfaces.
 
 **Key Goal:** Multiple users query the same notebooks, but each user has isolated conversation context.
 
@@ -65,7 +65,7 @@ When Open WebUI connects to the MCP server, there's no built-in way to identify 
 
 ### Shared Account with User Isolation
 
-**Architecture:** Single NotebookLM account, with application-level user isolation for conversations.
+**Architecture:** Single Gemini Notebook account, with application-level user isolation for conversations.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -101,7 +101,7 @@ When Open WebUI connects to the MCP server, there's no built-in way to identify 
 ```
 
 **What's Shared:**
-- NotebookLM account authentication
+- Gemini Notebook account authentication
 - All notebooks and sources
 - Rate limits (distributed fairly)
 
@@ -118,11 +118,11 @@ For reference, there are alternative multi-user approaches. These are **not the 
 
 | Approach | Description | Best For |
 |----------|-------------|----------|
-| **Per-User Accounts** | Each user authenticates their own NotebookLM account | Enterprise with separate subscriptions |
+| **Per-User Accounts** | Each user authenticates their own Gemini Notebook account | Enterprise with separate subscriptions |
 | **Stateless Requests** | Token passed in every request, no server state | API/microservices architecture |
 | **Session-Based** | HTTP sessions with per-session client instances | Traditional web applications |
 
-**This document focuses on Shared Account mode** - ideal for teams sharing one NotebookLM Plus subscription.
+**This document focuses on Shared Account mode** - ideal for teams sharing one Gemini Notebook Plus subscription.
 
 ---
 
@@ -566,7 +566,7 @@ This ensures conversation history is properly isolated per user.
 
 ## Quick Start Guide
 
-### Step 1: Authenticate NotebookLM Account
+### Step 1: Authenticate Gemini Notebook Account
 
 ```bash
 # Run authentication (one-time setup)
@@ -645,7 +645,7 @@ volumes:
 
 ### Good Fit ✓
 
-- Team sharing a single NotebookLM Plus subscription
+- Team sharing a single Gemini Notebook Plus subscription
 - Internal knowledge base accessible to multiple users
 - Development and testing environments
 - Users who collaborate on the same notebooks
@@ -694,7 +694,7 @@ Already implemented - prevents any single user from consuming the entire account
 | Aspect | Description |
 |--------|-------------|
 | **Setup Complexity** | Low - single account authentication |
-| **Cost** | Low - one NotebookLM subscription for all users |
+| **Cost** | Low - one Gemini Notebook subscription for all users |
 | **Notebook Visibility** | Shared - all users see all notebooks |
 | **Conversation Isolation** | Yes - each user has separate context |
 | **Rate Limits** | Distributed fairly per user |

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-07-25
+
+### Fixed
+- **Misleading "Cannot connect to browser on port" error when Chrome is already running (#272)** — if Chrome was already running (but not on a port `nlm login` recognized), the browser we launched would hand off to the existing instance and exit immediately, so the remote-debugging port never bound. The resulting error named a port number that had nothing to do with the actual problem, leaving users chasing the wrong lead. The error now detects this hand-off case and tells you to fully quit Chrome and retry. Thanks to **@argonaut-cm** for the detailed repro with live CDP target output that pinned this down!
+
+### Added
+- **`notebook.cloud.google.com` recognized as a Gemini Notebook (formerly Google NotebookLM) host** — the Workspace/enterprise variant of the "Gemini Notebook" rebrand host added in 0.9.3. Covers login detection and `NOTEBOOKLM_BASE_URL` for Workspace accounts landing on the new cloud domain. Thanks to **@conexaoarteiro** for reporting the rebrand issue on a Workspace account.
+
+## [0.9.3] - 2026-07-25
+
+### Fixed
+- **Support Google's "Gemini Notebook (formerly Google NotebookLM)" rebrand at `notebook.google.com` (#269)** — Google is rolling out a rebrand of Gemini Notebook that redirects some signed-in accounts from `notebooklm.google.com` to `notebook.google.com`. Previously this broke every auth path for migrated accounts: `nlm login` timed out because sign-in detection only recognized the old host; API calls failed because the httpx client always targeted `notebooklm.google.com` regardless of where the account actually landed; and the `NOTEBOOKLM_BASE_URL` escape hatch rejected the new host outright.
+  - `notebook.google.com` is now a recognized Gemini Notebook host for login detection (`is_logged_in`) and for `NOTEBOOKLM_BASE_URL`.
+  - The CLI now records which host a signed-in session actually landed on (`base_host`, persisted per-profile in `metadata.json`) and every client construction path — CLI, MCP, chat sessions, and the `nlm doctor auth-replay` diagnostic — routes requests to that host automatically. No configuration is needed for migrated accounts; non-migrated accounts see no change, since the default host is still `notebook.google.com`.
+  - Precedence: `NOTEBOOKLM_BASE_URL` env var (if set) > the account's persisted `base_host` > the default host.
+  - Thanks to **@grergea** for the detailed report and reproduction steps!
+
 ## [0.9.2] - 2026-07-23
 
 ### Fixed
@@ -19,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Chat session management (#256)** — list, view, export, and save past notebook chats.
   - CLI: `nlm chats list <notebook>`, `nlm chats get <notebook> [conversation_id]`, `nlm chats export <notebook> [conversation_id] --format md|json --output file`, and `nlm chats to-note <notebook> <conversation_id> [--turn N] [--title ...]`.
   - MCP tools: `chat_list`, `chat_get`, `chat_export`.
-  - Transcripts are fetched from NotebookLM's server (a newly-documented `khqZz` RPC, see `docs/API_REFERENCE.md`), so past chats are visible even from a fresh CLI invocation or MCP session — not just chats made earlier in the same process.
+  - Transcripts are fetched from Gemini Notebook's server (a newly-documented `khqZz` RPC, see `docs/API_REFERENCE.md`), so past chats are visible even from a fresh CLI invocation or MCP session — not just chats made earlier in the same process.
   - Documented in `SKILL.md`, `AGENTS_SECTION.md`'s `command_reference.md`, `docs/CLI_GUIDE.md`, `docs/MCP_GUIDE.md`, `README.md`, and `AGENTS.md`.
 
 ### Fixed
@@ -57,10 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Opt-in download output directory (#261)** — Set `NOTEBOOKLM_DOWNLOAD_DIR` to keep downloaded artifacts inside one approved directory. The setting is disabled by default, while the existing protections against sensitive system directories remain active. Thanks again to **@failsafesecurity** for the contribution!
 
 ### Fixed
-- **Rejected document uploads now fail fast (#257)** — When NotebookLM immediately rejects a non-media file, `nlm` now reports the failure on the first terminal status instead of waiting for the full processing timeout. The error includes the source ID and deletion guidance, and source listings expose the numeric processing status for diagnosis. Audio and video uploads retain their transient-processing tolerance. Thanks to **@ericvael** for the detailed reproduction data!
+- **Rejected document uploads now fail fast (#257)** — When Gemini Notebook immediately rejects a non-media file, `nlm` now reports the failure on the first terminal status instead of waiting for the full processing timeout. The error includes the source ID and deletion guidance, and source listings expose the numeric processing status for diagnosis. Audio and video uploads retain their transient-processing tolerance. Thanks to **@ericvael** for the detailed reproduction data!
 - **Refreshed authentication cookies are persisted** — Rotated cookies are now saved together with refreshed CSRF and session tokens, preventing a successful refresh from leaving stale credentials on disk.
 - **Regular notes no longer appear as mind maps (#258)** — Mind-map discovery now excludes ordinary saved notes. Thanks to **@hansschenker** for the contribution!
-- **Newer Studio mind maps download correctly (#258)** — Mind maps returned through NotebookLM's shared type-4 Studio format are now classified by subtype and downloaded as their embedded JSON instead of being treated as quizzes or flashcards. Thanks again to **@hansschenker** for the contribution!
+- **Newer Studio mind maps download correctly (#258)** — Mind maps returned through Gemini Notebook's shared type-4 Studio format are now classified by subtype and downloaded as their embedded JSON instead of being treated as quizzes or flashcards. Thanks again to **@hansschenker** for the contribution!
 
 ### Documentation
 - Documented the opt-in upload and download directory controls and the observed type-4 mind-map format.
@@ -72,8 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Notebook emoji and query context in JSON (#256)** — `nlm notebook get --json` now includes the notebook emoji, and `nlm notebook query --json` includes the original question alongside the answer and citations.
 
 ### Fixed
-- **Mind maps mislabeled as flashcards in Studio status** — NotebookLM now returns saved mind maps through the shared Studio type code `4` with subtype `4`. Status parsing now identifies them as `mind_map`, avoids counting their metadata as flashcards, and deduplicates entries returned by both status paths.
-- **Drive-picker PDFs mislabeled as Word documents** — When NotebookLM returns the ambiguous source type code `14`, source listing and content metadata now prefer an explicit `application/pdf` MIME type. The raw numeric code remains unchanged for compatibility.
+- **Mind maps mislabeled as flashcards in Studio status** — Gemini Notebook now returns saved mind maps through the shared Studio type code `4` with subtype `4`. Status parsing now identifies them as `mind_map`, avoids counting their metadata as flashcards, and deduplicates entries returned by both status paths.
+- **Drive-picker PDFs mislabeled as Word documents** — When Gemini Notebook returns the ambiguous source type code `14`, source listing and content metadata now prefer an explicit `application/pdf` MIME type. The raw numeric code remains unchanged for compatibility.
 
 ### Documentation
 - Updated the CLI and AI-facing command references for the new JSON output options and documented the live-observed Studio mind-map subtype.
@@ -109,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Experimental browser-backed RPC transport (`NOTEBOOKLM_RPC_TRANSPORT=cdp`)** — Routes normal batchexecute RPCs and notebook chat through `fetch` inside the saved NotebookLM browser profile so Chrome supplies live browser-bound cookies. Off by default; use only when `nlm doctor auth-replay` shows `cdp_in_page` succeeds but normal replay fails. See `docs/AUTHENTICATION.md` for usage.
+- **Experimental browser-backed RPC transport (`NOTEBOOKLM_RPC_TRANSPORT=cdp`)** — Routes normal batchexecute RPCs and notebook chat through `fetch` inside the saved Gemini Notebook browser profile so Chrome supplies live browser-bound cookies. Off by default; use only when `nlm doctor auth-replay` shows `cdp_in_page` succeeds but normal replay fails. See `docs/AUTHENTICATION.md` for usage.
 - **CDP transport support for notebook chat** — `GenerateFreeFormStreamed` queries are routed through the experimental CDP transport when the flag is enabled, with longer CDP response waits to handle long answers.
 - **Tests for CDP transport** — Focused tests for transport routing, streamed query routing, long CDP timeouts, and browser lifecycle cleanup.
 
@@ -132,17 +149,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Auth replay diagnostic HTTP probes matched to normal RPC headers** — Bare `httpx` requests were producing false `browser_bound_replay` verdicts; probes now use the same headers as normal NotebookLM RPC calls.
-- **`nlm login --check` confirms auth redirects with a real RPC (Fixes #250)** — The homepage probe now validates with a lightweight NotebookLM RPC before reporting cookies as expired, eliminating false-positive expiry reports. Thanks to **@laofun** for reporting and contributing this fix!
+- **Auth replay diagnostic HTTP probes matched to normal RPC headers** — Bare `httpx` requests were producing false `browser_bound_replay` verdicts; probes now use the same headers as normal Gemini Notebook RPC calls.
+- **`nlm login --check` confirms auth redirects with a real RPC (Fixes #250)** — The homepage probe now validates with a lightweight Gemini Notebook RPC before reporting cookies as expired, eliminating false-positive expiry reports. Thanks to **@laofun** for reporting and contributing this fix!
 - **Preserved raw Chrome cookie-list handling across auth checks** — Cookie lists were being flattened too early, causing duplicate cookies to clobber each other before auth checks ran.
 - **Preferred exact `.google.com` cookie values when flattening duplicates (Fixes #249)** — When browser cookies contain duplicates, the `.google.com`-domain value is now preferred, preventing stale subdomain values from overriding the correct one. Thanks to **@laofun** for reporting and contributing this fix!
-- **Persisted NotebookLM build label from profile metadata** — Diagnostics and replay checks now use the current saved build label instead of always re-fetching it.
+- **Persisted Gemini Notebook build label from profile metadata** — Diagnostics and replay checks now use the current saved build label instead of always re-fetching it.
 
 ## [0.8.1] - 2026-07-01 - Happy Canada Day 🇨🇦
 
 ### Fixed
 
-- **`nlm login --check` crash on slow accounts (Fixes #243, PR #245)** — Auth checks now use the lightweight NotebookLM homepage probe instead of the full notebook-list RPC, and notebook counts are fetched as a best-effort extra so large accounts no longer crash the command with a raw timeout. Connect-phase RPC failures are retried safely without retrying read/write timeouts that may have already reached NotebookLM. Thanks to **@LesleyMurfin** for the report, careful fix, and regression coverage!
+- **`nlm login --check` crash on slow accounts (Fixes #243, PR #245)** — Auth checks now use the lightweight Gemini Notebook homepage probe instead of the full notebook-list RPC, and notebook counts are fetched as a best-effort extra so large accounts no longer crash the command with a raw timeout. Connect-phase RPC failures are retried safely without retrying read/write timeouts that may have already reached Gemini Notebook. Thanks to **@LesleyMurfin** for the report, careful fix, and regression coverage!
 - **CDP reuse with foreign Chrome on port 9222 (Fixes #244, PR #246)** — `find_existing_nlm_chrome()` now verifies mapped Chrome PIDs still use the NLM profile's `--user-data-dir` and the expected `--remote-debugging-port`, skips headless automation browsers on all platforms, and clears stale port-map entries instead of reconnecting to unrelated CDP listeners such as agent-browser or Playwright. Thanks to **@syf2211** for the focused Windows CDP fix and tests!
 - **Exact CDP ownership matching** — Tightened the follow-up validation for mapped Chrome processes so `--user-data-dir` and `--remote-debugging-port` must match exactly, preventing prefix matches such as `chrome-profile-other` or port `92222` from being accepted as the intended NLM profile/port.
 
@@ -150,8 +167,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Short Video Overview format** — `video_format="short"` (CLI: `nlm video create <id> --format short`) generates NotebookLM's new ~60-second, vertical "bite-sized overview" video format, announced by Google on 2026-06-30. Like Cinematic, Short has no visual style picker (`--style`/`--style-prompt` map into `--focus`) and is currently English-only, 18+, and rolling out gradually to Pro/Ultra accounts. The request payload was verified via a live network capture against a production NotebookLM account.
-- **Studio artifact source provenance (PR #240)** — `studio_status` and `nlm studio status --json --full` now include each artifact's `source_ids`, allowing callers to trace generated podcasts, videos, reports, slide decks, infographics, quizzes, flashcards, and data tables back to their source documents. The parser handles the nested source-ID shapes returned by current NotebookLM responses. Thanks to **@tonhuu96** for identifying the missing capability and contributing the end-to-end implementation!
+- **Short Video Overview format** — `video_format="short"` (CLI: `nlm video create <id> --format short`) generates Gemini Notebook's new ~60-second, vertical "bite-sized overview" video format, announced by Google on 2026-06-30. Like Cinematic, Short has no visual style picker (`--style`/`--style-prompt` map into `--focus`) and is currently English-only, 18+, and rolling out gradually to Pro/Ultra accounts. The request payload was verified via a live network capture against a production Gemini Notebook account.
+- **Studio artifact source provenance (PR #240)** — `studio_status` and `nlm studio status --json --full` now include each artifact's `source_ids`, allowing callers to trace generated podcasts, videos, reports, slide decks, infographics, quizzes, flashcards, and data tables back to their source documents. The parser handles the nested source-ID shapes returned by current Gemini Notebook responses. Thanks to **@tonhuu96** for identifying the missing capability and contributing the end-to-end implementation!
 
 ### Fixed
 
@@ -159,9 +176,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **Closed-loop "Refactor with NotebookLM" workflow (#239)** — Added a reference workflow and a corresponding skill trigger for iteratively refactoring documents using NotebookLM as the editing loop.
+- **Closed-loop "Refactor with Gemini Notebook" workflow (#239)** — Added a reference workflow and a corresponding skill trigger for iteratively refactoring documents using Gemini Notebook as the editing loop.
 - **Regional audio accent locales** — Documented the observed BCP-47 region behavior for Audio Overviews: `es`/`es-ES` selects Spain Spanish, while `es-US`/`es-419` selects Latin-American Spanish. The same regional locale can be supplied through `NOTEBOOKLM_HL`.
-- **Packaged skill capability audit** — Brought the installable NotebookLM skill and references in sync with the current 39-tool MCP surface and CLI. Updated authentication semantics, async query tools, research auto-import and 15-minute polling, labels, bulk source and sharing operations, artifact source provenance, server-local file paths, remote MCP security, RPC drift recovery, current command syntax, pipeline/batch examples, and consolidated tool contracts.
+- **Packaged skill capability audit** — Brought the installable Gemini Notebook skill and references in sync with the current 39-tool MCP surface and CLI. Updated authentication semantics, async query tools, research auto-import and 15-minute polling, labels, bulk source and sharing operations, artifact source provenance, server-local file paths, remote MCP security, RPC drift recovery, current command syntax, pipeline/batch examples, and consolidated tool contracts.
 
 ## [0.7.7] - 2026-06-19
 
@@ -234,7 +251,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **`server_info` reported `"stale"` for valid semi-stale cookies (PR #219)** — Google enforces different session lifecycles for the NotebookLM homepage (a navigation endpoint) and the RPC API endpoints. Cookies that are "semi-stale" — rejected by the homepage with a redirect to `accounts.google.com`, but still 100% accepted by the RPC API — were causing the MCP `server_info` tool (and `nlm login --check`) to falsely report `"stale"` even though every actual API tool would work fine. The new `AuthHealthChecker` runs a homepage probe first and, on `expired` / `http_401` / `http_403`, falls back to a live `NotebookLMClient.list_notebooks()` call before deciding. The homepage headers were also upgraded to use the full browser-like `_PAGE_FETCH_HEADERS` (including `Sec-Fetch-Dest` / `Sec-Fetch-Mode` / `Sec-Fetch-Site` / `Sec-Fetch-User`) — without them Google was bot-detecting the homepage check and redirecting even fresh cookies, producing false `"stale"` reports on first probe. Results are cached for 30 seconds with mtime-based bypass, so an external `nlm login` is reflected without waiting for the TTL. The CLI and MCP now share the cache via the `get_auth_health_checker()` singleton in `services/auth.py`. Thanks to **@SERDAR-AKIN** for the original multi-probe design and PR #219!
+- **`server_info` reported `"stale"` for valid semi-stale cookies (PR #219)** — Google enforces different session lifecycles for the Gemini Notebook homepage (a navigation endpoint) and the RPC API endpoints. Cookies that are "semi-stale" — rejected by the homepage with a redirect to `accounts.google.com`, but still 100% accepted by the RPC API — were causing the MCP `server_info` tool (and `nlm login --check`) to falsely report `"stale"` even though every actual API tool would work fine. The new `AuthHealthChecker` runs a homepage probe first and, on `expired` / `http_401` / `http_403`, falls back to a live `NotebookLMClient.list_notebooks()` call before deciding. The homepage headers were also upgraded to use the full browser-like `_PAGE_FETCH_HEADERS` (including `Sec-Fetch-Dest` / `Sec-Fetch-Mode` / `Sec-Fetch-Site` / `Sec-Fetch-User`) — without them Google was bot-detecting the homepage check and redirecting even fresh cookies, producing false `"stale"` reports on first probe. Results are cached for 30 seconds with mtime-based bypass, so an external `nlm login` is reflected without waiting for the TTL. The CLI and MCP now share the cache via the `get_auth_health_checker()` singleton in `services/auth.py`. Thanks to **@SERDAR-AKIN** for the original multi-probe design and PR #219!
 
 ### Changed
 
@@ -256,11 +273,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`nlm notebook create` missing `--json` (Issue #215)** — Every other notebook verb (`list`, `get`, `describe`, `query`) already supported `--json`, but `create` did not. This was a real friction point for agent workflows that need to capture the new notebook ID reliably. Added the flag; the output is the same `notebook_id` / `title` / `url` / `message` dict that other verbs return, so scripting just works. Thanks to **@SimonMallas** for the report and end-to-end test in the issue!
 - **`auth_status = "stale"` was misleading (Issue #215)** — The MCP `server_info` tool (and `nlm login --check`) reported `"stale"` for any non-`configured` / non-`not_configured` outcome, which silently grouped three very different conditions together: (a) credentials are actually expired and operations will fail, (b) the live check hit a network error/timeout/non-200 and cached creds may still work, and (c) the saved profile failed to load. The new state machine splits this into two distinct values: `"stale"` is reserved for cases (a) and (c) where the user genuinely needs to `nlm login`, and a new `"unverified"` reports case (b) so agents don't pester users to re-auth on transient network blips. Unknown future reasons stay conservative (`"stale"`). No raw `AuthCheckResult.reason` strings are exposed; only the 5 stable status values. The new `Understanding auth_status` section in `docs/AUTHENTICATION.md` documents each state and what to do.
 - **`format_item` silently discarded plain-dict results** — All three formatter classes (`TableFormatter`, `JsonFormatter`, `CompactFormatter`) checked for `model_dump` / `__dict__` before `isinstance(item, dict)`. Because `TypedDict` instances are plain `dict` at runtime (no `model_dump`, no per-instance `__dict__` in CPython), they fell through to the worst-case path: `JsonFormatter` wrapped the payload as `{"value": {...}}` instead of printing it flat, and `CompactFormatter` emitted `str(item)` (the raw dict repr) instead of the notebook ID. Fixed by adding `isinstance(item, dict)` as the first branch in all three `format_item` methods. `nlm notebook create --json` and pipe capture now work correctly.
-- **HTTP 401/403 misclassified as `"unverified"` in `server_info`** — The `reason.startswith("http_")` catch-all in `_check_auth_status` mapped every non-200 response — including definitive credential-rejection codes 401 and 403 — to `"unverified"` ("cached credentials may still work, do not prompt re-auth"). Added explicit `http_401` / `http_403` → `"stale"` guards before the general `http_` branch so agents correctly prompt re-authentication when cookies are genuinely rejected by NotebookLM.
+- **HTTP 401/403 misclassified as `"unverified"` in `server_info`** — The `reason.startswith("http_")` catch-all in `_check_auth_status` mapped every non-200 response — including definitive credential-rejection codes 401 and 403 — to `"unverified"` ("cached credentials may still work, do not prompt re-auth"). Added explicit `http_401` / `http_403` → `"stale"` guards before the general `http_` branch so agents correctly prompt re-authentication when cookies are genuinely rejected by Gemini Notebook.
 
 ### Documentation
 
-- **New `docs/GETTING_STARTED.md` guide** — First-time setup, agent registration, and a full 5-step migration path from a browser-automation–based NotebookLM MCP (the kind of setup reported in Issue #215). The migration section explicitly calls out removing any legacy `notebooklm` server config as the #1 cause of "Hermes picked the wrong tool" symptoms. README is no longer carrying the migration content; the docs index now points at the new guide. (Issue #215, items 3 and 5)
+- **New `docs/GETTING_STARTED.md` guide** — First-time setup, agent registration, and a full 5-step migration path from a browser-automation–based Gemini Notebook MCP (the kind of setup reported in Issue #215). The migration section explicitly calls out removing any legacy `notebooklm` server config as the #1 cause of "Hermes picked the wrong tool" symptoms. README is no longer carrying the migration content; the docs index now points at the new guide. (Issue #215, items 3 and 5)
 - **`MCP_GUIDE.md` server-naming note** — Recommends the default `notebooklm-mcp` server name and warns against generic names that collide with legacy MCPs. (Issue #215, item 5)
 
 ## [0.6.15] - 2026-06-01
@@ -269,7 +286,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Auth-guard stale-TTL window when tokens change on disk during the cached period** — The 60s auth-guard introduced in 0.6.14 cached the "auth is valid" result for 60s. If you ran `nlm login` (or any flow that rewrote the auth file) during that window, the guard would still report valid and your server would use the stale tokens until the TTL elapsed. Fixed by `services.auth.get_active_auth_mtime()`: the guard now records the latest mtime of the active auth storage (the legacy `auth.json` plus every `cookies.json` under `profiles/`) and invalidates the cache when any of them changes. A write to ANY profile's file invalidates the guard, regardless of which profile the CLI/MCP session is using. 5 new tests cover modern profile layout, legacy fallback, mid-migration (both files exist), fresh install (no files), and config-error defensiveness.
 
-- **Auth-guard mtime check was watching the wrong file (caught by live testing)** — The first iteration of the mtime fix only watched the config's `default_profile`'s `cookies.json`. But the active profile for a CLI/MCP session can be overridden with `--profile`, while the config-level `default_profile` stays put. If you ran `nlm login --profile <other>` externally, the active profile's `cookies.json` would be rewritten but the guard never saw it. The fix above resolves this by globbing all `profiles/*/cookies.json` files. Live testing against a real Chrome login + real NotebookLM API confirmed the fix.
+- **Auth-guard mtime check was watching the wrong file (caught by live testing)** — The first iteration of the mtime fix only watched the config's `default_profile`'s `cookies.json`. But the active profile for a CLI/MCP session can be overridden with `--profile`, while the config-level `default_profile` stays put. If you ran `nlm login --profile <other>` externally, the active profile's `cookies.json` would be rewritten but the guard never saw it. The fix above resolves this by globbing all `profiles/*/cookies.json` files. Live testing against a real Chrome login + real Gemini Notebook API confirmed the fix.
 
 ### Changed
 
@@ -332,9 +349,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **False-negative errors on `source_add` and `research_import` (Issue #196)** — `source_add` (text, URL, Drive) and `research_import` were reporting `"Could not add ... source."` errors even when NotebookLM had successfully accepted the source for asynchronous processing. Root cause: NotebookLM uses the same gRPC error code `3` in the `wrb.fr` response envelope for both "accepted-pending" (async processing started) and "genuine rejection". Added a `_reconcile_source()` helper that polls `get_notebook_sources_with_types()` after a code 3 or 9 error to verify whether the source actually landed. If found → returns success. If not found after polling → re-raises the original error so genuine failures still surface. Also fixed a secondary double-submission bug where URL sources on accounts using the v1 (`izAoDd`) RPC would trigger a spurious v2 (`ozz5Z`) call when v1 returned an accepted-pending code 3 — reconciliation now short-circuits the fallback if v1 actually delivered. 12 new unit tests added (total: 875 tests). Thanks to **@mdshearer** for the detailed report and excellent root cause analysis!
+- **False-negative errors on `source_add` and `research_import` (Issue #196)** — `source_add` (text, URL, Drive) and `research_import` were reporting `"Could not add ... source."` errors even when Gemini Notebook had successfully accepted the source for asynchronous processing. Root cause: Gemini Notebook uses the same gRPC error code `3` in the `wrb.fr` response envelope for both "accepted-pending" (async processing started) and "genuine rejection". Added a `_reconcile_source()` helper that polls `get_notebook_sources_with_types()` after a code 3 or 9 error to verify whether the source actually landed. If found → returns success. If not found after polling → re-raises the original error so genuine failures still surface. Also fixed a secondary double-submission bug where URL sources on accounts using the v1 (`izAoDd`) RPC would trigger a spurious v2 (`ozz5Z`) call when v1 returned an accepted-pending code 3 — reconciliation now short-circuits the fallback if v1 actually delivered. 12 new unit tests added (total: 875 tests). Thanks to **@mdshearer** for the detailed report and excellent root cause analysis!
 - **Snap Chromium profile directory (PR #195)** — On Ubuntu and other distros, Chromium installed as a Snap package is confined by AppArmor and can only write to `~/snap/<snap-name>/common/`. Launching with `--user-data-dir=~/.notebooklm-mcp-cli/` was failing with `Exit code 21: Failed to create a ProcessSingleton`. Snap browsers are now detected via `/snap/` in the resolved binary path and automatically redirected to `~/snap/chromium/common/notebooklm-mcp-cli/chrome-profiles/`. Profile lock, headless auth, and cache cleanup are all snap-aware. Thanks to **@ildella** for the contribution!
-- **Audio download 403 on cross-domain CDN (PR #193)** — Audio artifacts downloaded via `nlm download audio` were returning HTTP 403 from Google's CDN (`lh3.google.com`) because `_download_url` inherited `Sec-Fetch-Site: none` from the page fetch headers. Google's audio CDN treats that value as an unauthorized address-bar navigation and rejects the request regardless of valid cookies. The fix mirrors the header shape Chrome uses for `window.open()` — setting `Sec-Fetch-Site: cross-site` and `Referer: https://notebooklm.google.com/` on all cross-domain artifact downloads. Verified: same notebook that returned `"Download failed for audio."` now produces a complete 41.7 MB AAC file. Thanks to **@responsiblefleet** for the thorough root cause analysis and fix!
+- **Audio download 403 on cross-domain CDN (PR #193)** — Audio artifacts downloaded via `nlm download audio` were returning HTTP 403 from Google's CDN (`lh3.google.com`) because `_download_url` inherited `Sec-Fetch-Site: none` from the page fetch headers. Google's audio CDN treats that value as an unauthorized address-bar navigation and rejects the request regardless of valid cookies. The fix mirrors the header shape Chrome uses for `window.open()` — setting `Sec-Fetch-Site: cross-site` and `Referer: https://notebook.google.com/` on all cross-domain artifact downloads. Verified: same notebook that returned `"Download failed for audio."` now produces a complete 41.7 MB AAC file. Thanks to **@responsiblefleet** for the thorough root cause analysis and fix!
 
 ## [0.6.10] - 2026-05-15
 
@@ -352,7 +369,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Hermes Agent Support** — `nlm skill install hermes` now installs the NotebookLM skill for [Hermes Agent](https://github.com/NousResearch/hermes-agent) by NousResearch. Respects the `$HERMES_HOME` environment variable for custom install paths.
+- **Hermes Agent Support** — `nlm skill install hermes` now installs the Gemini Notebook skill for [Hermes Agent](https://github.com/NousResearch/hermes-agent) by NousResearch. Respects the `$HERMES_HOME` environment variable for custom install paths.
 - **EPUB File Upload Support (PR #191)** — `.epub` files can now be uploaded as notebook sources. Thanks to **@mateogon** for the contribution!
 
 ### Fixed
@@ -394,7 +411,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Opaque error on capacity throttle (Issue #182)** — When NotebookLM returns `RPCError code=8` (RESOURCE_EXHAUSTED) with a `UserDisplayableError` payload, the error message now surfaces the human-readable text instead of the raw protobuf type URL. Added `ResourceExhaustedError(RPCError)` subclass so callers can catch throttle errors distinctly. Studio artifact creation now provides retry-specific hints. Thanks to **@nikolaykazakovvs-ux** for the detailed report!
+- **Opaque error on capacity throttle (Issue #182)** — When Gemini Notebook returns `RPCError code=8` (RESOURCE_EXHAUSTED) with a `UserDisplayableError` payload, the error message now surfaces the human-readable text instead of the raw protobuf type URL. Added `ResourceExhaustedError(RPCError)` subclass so callers can catch throttle errors distinctly. Studio artifact creation now provides retry-specific hints. Thanks to **@nikolaykazakovvs-ux** for the detailed report!
 
 - **Cinematic video silently ignores --style-prompt (Issue #183)** — `--style-prompt` with cinematic format now maps to `custom_instructions` (same API field as the web UI's "Customize Video Overview" dialog) instead of being silently dropped. `--style` still rejects for cinematic since visual style codes don't apply. Validation now runs before source resolution for faster feedback. Thanks to **@guia-matthieu** for the report!
 
@@ -632,7 +649,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.11] - 2026-03-27
 
 ### Added
-- **Enterprise / Google Workspace support (PR #114)** — Configurable base URL via `NOTEBOOKLM_BASE_URL` environment variable. Set to `https://notebooklm.cloud.google.com` (or your organization's URL) to use NotebookLM with managed Workspace accounts. All API calls, authentication, file uploads, and URL detection are updated to use the configured base URL. Default remains `https://notebooklm.google.com` for personal accounts (fully backward compatible). Thanks to **@Robiton** for this contribution!
+- **Enterprise / Google Workspace support (PR #114)** — Configurable base URL via `NOTEBOOKLM_BASE_URL` environment variable. Set to `https://notebooklm.cloud.google.com` (or your organization's URL) to use NotebookLM with managed Workspace accounts. All API calls, authentication, file uploads, and URL detection are updated to use the configured base URL. Default remains `https://notebook.google.com` for personal accounts (fully backward compatible). Thanks to **@Robiton** for this contribution!
 
 ### Documentation
 - Added "Enterprise / Google Workspace" section to `docs/AUTHENTICATION.md`
@@ -667,7 +684,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.6] - 2026-03-24
 
 ### Fixed
-- **Windows: manual cookies rejected after import (Issue #105)** — `nlm login --manual --file` saved cookies correctly, but subsequent requests to `notebooklm.google.com` were rejected by Google (302 → login page) because the page-fetch headers included macOS-specific Client Hints (`sec-ch-ua-platform: "macOS"`, `sec-ch-ua`, `sec-ch-ua-mobile`). When cookies were captured from a Windows Chrome session, the OS fingerprint mismatch caused Google to reject the session. Removed all three `sec-ch-ua*` headers (they're optional per spec) and switched to a platform-neutral Linux Chrome UA — making auth platform-agnostic. Also added a multi-pattern CSRF token fallback (`SNlM0e` → `at=` → `FdrFJe`) in `_refresh_auth_tokens`, and a `make_console(safe_box=True)` factory to prevent `UnicodeEncodeError` crashes on Windows `cp1251`/`cp1252` codepage terminals. Thanks to **@pakulyaev** for the detailed diagnosis and debug output! (5 new regression tests added)
+- **Windows: manual cookies rejected after import (Issue #105)** — `nlm login --manual --file` saved cookies correctly, but subsequent requests to `notebook.google.com` were rejected by Google (302 → login page) because the page-fetch headers included macOS-specific Client Hints (`sec-ch-ua-platform: "macOS"`, `sec-ch-ua`, `sec-ch-ua-mobile`). When cookies were captured from a Windows Chrome session, the OS fingerprint mismatch caused Google to reject the session. Removed all three `sec-ch-ua*` headers (they're optional per spec) and switched to a platform-neutral Linux Chrome UA — making auth platform-agnostic. Also added a multi-pattern CSRF token fallback (`SNlM0e` → `at=` → `FdrFJe`) in `_refresh_auth_tokens`, and a `make_console(safe_box=True)` factory to prevent `UnicodeEncodeError` crashes on Windows `cp1251`/`cp1252` codepage terminals. Thanks to **@pakulyaev** for the detailed diagnosis and debug output! (5 new regression tests added)
 - **Windows: IPv6 WebSocket connection error during `nlm login` (Issue #108)** — On Windows, Chrome's DevTools debugger binds to `127.0.0.1` (IPv4), but `websocket-client` resolves `localhost` to `::1` (IPv6), causing `PermissionError: [WinError 10013]`. Added a `_normalize_ws_url()` helper that explicitly rewrites `ws://localhost:` to `ws://127.0.0.1:` at all 4 WebSocket connection sites in `cdp.py`. Thanks to **@theteleporter** for the spot-on diagnosis!
 
 ## [0.5.5] - 2026-03-23
@@ -726,11 +743,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.8] - 2026-03-14
 
 ### Added
-- **Native Chat History Persistence** — Both the CLI (`nlm notebook query`) and the MCP server now perfectly persist their chat history directly into the NotebookLM web UI. All prompts sent via CLI or MCP agents will now appear in the notebook's native chat panel, sharing the same conversational context as the web UI. (Closes #92)
-- **OpenCode Support** — Full support for OpenCode in the `nlm setup` command (`nlm setup add opencode`) to automatically configure the NotebookLM MCP server for OpenCode. Includes smart config array injection and parsing. Thanks to **@woohyun212** for the comprehensive implementation and thorough unit tests (PR #95, closes #95).
+- **Native Chat History Persistence** — Both the CLI (`nlm notebook query`) and the MCP server now perfectly persist their chat history directly into the Gemini Notebook web UI. All prompts sent via CLI or MCP agents will now appear in the notebook's native chat panel, sharing the same conversational context as the web UI. (Closes #92)
+- **OpenCode Support** — Full support for OpenCode in the `nlm setup` command (`nlm setup add opencode`) to automatically configure the Gemini Notebook MCP server for OpenCode. Includes smart config array injection and parsing. Thanks to **@woohyun212** for the comprehensive implementation and thorough unit tests (PR #95, closes #95).
 
 ### Fixed
-- **MCP Profile Switching** — Fixed a bug where the MCP server wouldn't respect dynamic authentication profile changes made via `nlm login switch <profile>`. The server now automatically detects token file changes and gracefully reloads the NotebookLM client in real-time, matching the active profile perfectly.
+- **MCP Profile Switching** — Fixed a bug where the MCP server wouldn't respect dynamic authentication profile changes made via `nlm login switch <profile>`. The server now automatically detects token file changes and gracefully reloads the Gemini Notebook client in real-time, matching the active profile perfectly.
 - **CC-Claw Skill Support** — Added `cc-claw` as a supported tool for `nlm skill install cc-claw` (`~/.cc-claw/workspace/skills/nlm-skill/`).
 ## [0.4.7] - 2026-03-13
 
@@ -793,7 +810,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.3] - 2026-03-08
 
 ### Removed
-- **`nlm setup add claude-desktop` removed** — Claude Desktop users should install via the `.mcpb` extension (download from [Releases](https://github.com/jacob-bd/notebooklm-mcp-cli/releases/latest), double-click to install). The CLI-based config file editing was unreliable compared to the extension approach. `nlm setup add claude-code` (for the Claude Code CLI) is unchanged.
+- **`nlm setup add claude-desktop` removed** — Claude Desktop users should install via the `.mcpb` extension (download from [Releases](https://github.com/jacob-bd/gemini-notebook-mcp-cli/releases/latest), double-click to install). The CLI-based config file editing was unreliable compared to the extension approach. `nlm setup add claude-code` (for the Claude Code CLI) is unchanged.
 
 ## [0.4.2] - 2026-03-08
 
@@ -806,11 +823,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Each reference includes `source_id`, `citation_number`, and `cited_text`
   - Backward-compatible: existing `sources_used` and `citations` fields unchanged
   - Flows through MCP and CLI automatically
-- **`nlm setup add all` — Interactive multi-tool setup** — Scans the system for installed AI tools, shows detection status, and lets you interactively choose which ones to configure with NotebookLM MCP
+- **`nlm setup add all` — Interactive multi-tool setup** — Scans the system for installed AI tools, shows detection status, and lets you interactively choose which ones to configure with Gemini Notebook MCP
   - Detects: Claude Code, Claude Desktop, Gemini CLI, Cursor, Windsurf, Cline, Antigravity, Codex
   - Shows which tools are already configured vs. newly detected
   - Select `all`, specific numbers, or `none`
-- **`nlm setup remove all`** — Remove NotebookLM MCP from all configured tools at once, with explicit confirmation and safety warnings. Uses CLI-first removal (e.g., `claude mcp remove`) where available.
+- **`nlm setup remove all`** — Remove Gemini Notebook MCP from all configured tools at once, with explicit confirmation and safety warnings. Uses CLI-first removal (e.g., `claude mcp remove`) where available.
 
 ### Changed
 - **Codex skill path updated** — `nlm skill install codex` now installs to `~/.agents/skills/nlm-skill/SKILL.md` per [official Codex docs](https://developers.openai.com/codex/skills/), replacing the old `~/.codex/AGENTS.md` path. Users with the old installation should run `nlm skill install codex` to reinstall at the correct location.
@@ -818,11 +835,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.1] - 2026-03-07
 
 ### Added
-- **Cinematic Video Format (Experimental)** — Added support for NotebookLM's new "Cinematic" video format (`video_format="cinematic"`, format code `3`). This format produces higher-fidelity video overviews and is available to NotebookLM Plus/Ultra subscribers. Thanks to **@ovai-felix** for the detailed reverse-engineering and verified payload structure (Issue #79).
+- **Cinematic Video Format (Experimental)** — Added support for Gemini Notebook's new "Cinematic" video format (`video_format="cinematic"`, format code `3`). This format produces higher-fidelity video overviews and is available to Gemini Notebook Plus/Ultra subscribers. Thanks to **@ovai-felix** for the detailed reverse-engineering and verified payload structure (Issue #79).
   - Core: Cinematic payloads use a 5-element inner options array (omitting `visual_style_code`), while Explainer/Brief continue to use 6 elements
   - MCP: `studio_create` with `video_format="cinematic"` 
   - CLI: `nlm video create <notebook> --format cinematic`
-  - ⚠️ **Note for free/Pro users:** Cinematic is gated behind NotebookLM Plus/Ultra. Free and Pro tier users will see: `"NotebookLM rejected video creation. Try again later or create from NotebookLM UI for diagnosis."` — this is expected behavior, not a bug.
+  - ⚠️ **Note for free/Pro users:** Cinematic is gated behind Gemini Notebook Plus/Ultra. Free and Pro tier users will see: `"NotebookLM rejected video creation. Try again later or create from NotebookLM UI for diagnosis."` — this is expected behavior, not a bug.
 
 ### Fixed
 - **Claude Desktop `.mcpb` extension disconnects (Issue #78)** — The `.mcpb` bundle was incomplete (only contained `manifest.json` with no entrypoint) and relied on `uvx` being in PATH, which Claude Desktop's restricted macOS environment doesn't expose. Fixed by bundling a cross-platform Python launcher (`run_server.py`) that defensively resolves `uvx` across common install locations (`~/.local/bin`, `~/.cargo/bin`, `/opt/homebrew/bin`, etc.) and using `${__dirname}` for reliable path resolution. Thanks to **@abanoub-ashraf** for the detailed diagnosis and reproduction steps.
@@ -858,7 +875,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.18] - 2026-03-02
 
 ### Added
-- **Infographic visual styles** — Infographics now support 11 visual styles matching the NotebookLM web UI: `auto_select`, `sketch_note`, `professional`, `bento_grid`, `editorial`, `instructional`, `bricks`, `clay`, `anime`, `kawaii`, `scientific`. Available via MCP (`infographic_style` parameter on `studio_create`), CLI (`--style` flag on `nlm infographic create`), and Python API (`visual_style_code` on `create_infographic()`). Default is `auto_select` for backward compatibility.
+- **Infographic visual styles** — Infographics now support 11 visual styles matching the Gemini Notebook web UI: `auto_select`, `sketch_note`, `professional`, `bento_grid`, `editorial`, `instructional`, `bricks`, `clay`, `anime`, `kawaii`, `scientific`. Available via MCP (`infographic_style` parameter on `studio_create`), CLI (`--style` flag on `nlm infographic create`), and Python API (`visual_style_code` on `create_infographic()`). Default is `auto_select` for backward compatibility.
 
 ## [0.3.17] - 2026-03-02
 
@@ -912,7 +929,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.11] - 2026-02-22
 
 ### Added
-- **Auto-extract build label (`bl`)** - The `bl` URL parameter is now automatically extracted from the NotebookLM page during `nlm login` and CSRF token refresh, instead of using a hardcoded value that goes stale every few weeks. This keeps API requests current with Google's latest build without any manual steps. The `NOTEBOOKLM_BL` env var still works as an override. The `save_auth_tokens` MCP tool also extracts `bl` from the `request_url` parameter when provided.
+- **Auto-extract build label (`bl`)** - The `bl` URL parameter is now automatically extracted from the Gemini Notebook page during `nlm login` and CSRF token refresh, instead of using a hardcoded value that goes stale every few weeks. This keeps API requests current with Google's latest build without any manual steps. The `NOTEBOOKLM_BL` env var still works as an override. The `save_auth_tokens` MCP tool also extracts `bl` from the `request_url` parameter when provided.
 
 ### Fixed
 - **`sources_used` now populated in query responses** - The `sources_used` field was always returning `[]` even when the AI's answer contained citation markers like `[1]`, `[2]`. Google's response includes citation-to-source mapping data that was present but never parsed. Query responses now correctly return `sources_used` (list of cited source IDs) and `citations` (dict mapping each citation number to its parent source ID). This also enables the REPL's citation legend feature. Thanks to **@MinhDung2209** for reporting (issue #57).
@@ -1049,7 +1066,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.20] - 2026-02-11
 
 ### Added
-- **Claude Desktop Extension detection** — `nlm setup list` and `nlm doctor` now detect NotebookLM when installed as a Claude Desktop Extension (`.mcpb`), showing version and enabled state.
+- **Claude Desktop Extension detection** — `nlm setup list` and `nlm doctor` now detect Gemini Notebook when installed as a Claude Desktop Extension (`.mcpb`), showing version and enabled state.
 
 ### Fixed
 - **Shell tab completion crash** — Fixed `nlm setup add <TAB>` crashing with `TypeError` due to incorrect completion callback signature.
@@ -1081,7 +1098,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.17] - 2026-02-08
 
 ### Added
-- **`nlm setup` command** - Automatically configure NotebookLM MCP for AI tools (Claude Code, Claude Desktop, Gemini CLI, Cursor, Windsurf). No more manual JSON editing! Thanks to **@997unix** for this contribution (PR #39)
+- **`nlm setup` command** - Automatically configure Gemini Notebook MCP for AI tools (Claude Code, Claude Desktop, Gemini CLI, Cursor, Windsurf). No more manual JSON editing! Thanks to **@997unix** for this contribution (PR #39)
   - `nlm setup list` - Show configuration status for all supported clients
   - `nlm setup add <client>` - Add MCP server config to a client
   - `nlm setup remove <client>` - Remove MCP server config
@@ -1187,7 +1204,7 @@ This release also acknowledges past community contributions that weren't properl
 
 ### Added
 - **Skill Installer for AI Coding Assistants** (`nlm skill` commands)
-  - Install NotebookLM skills for Claude Code, OpenCode, Gemini CLI, Antigravity, Cursor, and Codex
+  - Install Gemini Notebook skills for Claude Code, OpenCode, Gemini CLI, Antigravity, Cursor, and Codex
   - Support for user-level (`~/.config`) and project-level installation
   - Parent directory validation with smart prompts (create/switch/cancel)
   - Installation status tracking with `nlm skill list`
@@ -1265,7 +1282,7 @@ This release unifies the previously separate `notebooklm-cli` and `notebooklm-mc
 
 #### AI Coding Assistant Integration
 - Skill installer for Claude Code, Cursor, Gemini CLI, Codex, OpenCode, Antigravity
-- `nlm skill install <tool>` adds NotebookLM expertise to AI assistants
+- `nlm skill install <tool>` adds Gemini Notebook expertise to AI assistants
 - User-level and project-level installation options
 
 #### MCP Server Improvements
@@ -1415,7 +1432,7 @@ These fixes resolve "Authentication expired" errors that occurred even after use
 
 ### Added
 - Initial release
-- Full NotebookLM API client with 31 MCP tools
+- Full Gemini Notebook API client with 31 MCP tools
 - Authentication via Chrome DevTools or manual cookie extraction
 - Notebook, source, query, and studio management
 - Research (web/Drive) with source import

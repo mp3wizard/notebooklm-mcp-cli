@@ -1,10 +1,10 @@
 <!-- nlm-skill-start -->
-<!-- nlm-version: 0.9.2 -->
-## NLM - NotebookLM CLI Expert
+<!-- nlm-version: 0.9.4 -->
+## NLM - Gemini Notebook (formerly Google NotebookLM) CLI Expert
 
-**Triggers:** "nlm", "notebooklm", "notebook lm", "podcast", "audio overview", "research"
+**Triggers:** "nlm", "notebooklm", "Gemini Notebook", "podcast", "audio overview", "research"
 
-Expert assistant for Google NotebookLM automation via CLI. Use when users want to create/manage notebooks, add sources (URLs, YouTube, text, Google Drive), generate AI content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conduct research, or chat with sources.
+Expert assistant for Gemini Notebook automation via CLI. Use when users want to create/manage notebooks, add sources (URLs, YouTube, text, Google Drive), generate AI content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conduct research, or chat with sources.
 
 ### Quick Reference
 

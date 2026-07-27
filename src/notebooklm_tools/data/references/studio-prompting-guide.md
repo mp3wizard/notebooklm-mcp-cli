@@ -1,6 +1,6 @@
-# NotebookLM Studio Prompting Guide
+# Gemini Notebook (formerly Google NotebookLM) Studio Prompting Guide
 
-**Target tool:** NotebookLM Studio via MCP `studio_create` / CLI `nlm * create`. Prompts go in `focus_prompt`, `custom_prompt`, or `description` — not chat messages.
+**Target tool:** Gemini Notebook Studio via MCP `studio_create` / CLI `nlm * create`. Prompts go in `focus_prompt`, `custom_prompt`, or `description` — not chat messages.
 
 **Audience:** AI agents (Claude Code, Cursor, Codex, etc.) invoking Studio on behalf of users.
 
@@ -121,7 +121,7 @@ Use in order — **call without asking the user**:
 Use only uploaded sources. Do not invent statistics, quotes, names, or examples not in the sources.
 ```
 
-This is the single highest-leverage line for NotebookLM Studio quality.
+This is the single highest-leverage line for Gemini Notebook Studio quality.
 
 ### Five-block anatomy
 
@@ -195,7 +195,7 @@ Run mentally; do not present as a questionnaire.
 
 ### Language and accent
 
-Use a regional BCP-47 locale when the requested accent matters. NotebookLM has
+Use a regional BCP-47 locale when the requested accent matters. Gemini Notebook has
 been observed producing Spain Spanish for `es`/`es-ES` and Latin-American
 Spanish for `es-US`/`es-419`. Prompt instructions do not reliably change the
 voice accent. `NOTEBOOKLM_HL` sets the default locale, while `language` can
@@ -254,7 +254,7 @@ No visual style picker. Full creative brief in `focus_prompt`. CLI `--style-prom
 
 ### Short: new, fast-track eligible
 
-A ~60-second, vertical "bite-sized overview" — like Cinematic, it has no visual style picker, so CLI `--style-prompt` remaps into `focus_prompt`. Language selection is best-effort: non-English `--language` values add an explicit requirement covering narration, subtitles, and on-screen text because the captured RPC language slot is null. If NotebookLM rejects the request, the account/region may not have access yet.
+A ~60-second, vertical "bite-sized overview" — like Cinematic, it has no visual style picker, so CLI `--style-prompt` remaps into `focus_prompt`. Language selection is best-effort: non-English `--language` values add an explicit requirement covering narration, subtitles, and on-screen text because the captured RPC language slot is null. If Gemini Notebook rejects the request, the account/region may not have access yet.
 
 **Fast-track prompt:** 1–2 sentences naming the core concept to distill — shorter than explainer/brief prompts since the output itself is short.
 
@@ -392,7 +392,7 @@ Reuse prompts via `custom_instructions` in `studio_status` output.
 |------|--------|
 | Mar 2026 | [Google Cinematic Video](https://blog.google/innovation-and-ai/products/notebooklm/generate-your-own-cinematic-video-overviews-in-notebooklm/) |
 | Dec 2025 | [Google Slide Decks Guide](https://blog.google/innovation-and-ai/models-and-research/google-labs/8-ways-to-make-the-most-out-of-slide-decks-in-notebooklm/) |
-| Mar 2026 | [Jeff Su — NotebookLM 2026](https://www.jeffsu.org/notebooklm-changed-completely-heres-what-matters-in-2026/) |
+| Mar 2026 | [Jeff Su — Gemini Notebook 2026](https://www.jeffsu.org/notebooklm-changed-completely-heres-what-matters-in-2026/) |
 | Apr 2026 | [MakeUseOf — Audio Prompts](https://www.makeuseof.com/notebooklm-audio-overviews-better-custom-prompt/) |
 | Mar 2026 | [Nova Express — Infographics](https://blog.novaexpress.ai/2026/03/25/notebooklm-infographic-the-complete-guide-to-turning-your-data-into-visual-stories/) |
 | May 2026 | [The AI Thinker — Cinematic Briefs](https://www.theaithinker.com/p/how-to-turn-work-into-cinematic-videos) |

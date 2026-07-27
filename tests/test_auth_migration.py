@@ -652,7 +652,7 @@ class TestPageFetchHeaders:
     manually imported cookies (e.g. from a Windows Chrome session) are not
     rejected by Google's servers due to a platform fingerprint mismatch.
 
-    See: https://github.com/jacob-bd/notebooklm-mcp-cli/issues/105
+    See: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/105
     """
 
     def _get_headers(self):

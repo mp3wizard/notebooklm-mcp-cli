@@ -1,4 +1,4 @@
-# NotebookLM MCP - Comprehensive Test Plan
+# Gemini Notebook (formerly Google NotebookLM) MCP - Comprehensive Test Plan
 
 **Purpose:** Verify all **30 consolidated MCP tools** work correctly.
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "notebooklm-mcp-cli"
-version = "0.9.2"
+version = "0.9.4"
 description = "Unified CLI and MCP server for Google NotebookLM"
 readme = "README.md"
 license = "MIT"
@@ -51,9 +51,9 @@ nlm = "notebooklm_tools.cli.main:cli_main"
 notebooklm-mcp = "notebooklm_tools.mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/jacob-bd/notebooklm-mcp-cli"
-Repository = "https://github.com/jacob-bd/notebooklm-mcp-cli"
-Issues = "https://github.com/jacob-bd/notebooklm-mcp-cli/issues"
+Homepage = "https://github.com/jacob-bd/gemini-notebook-mcp-cli"
+Repository = "https://github.com/jacob-bd/gemini-notebook-mcp-cli"
+Issues = "https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/notebooklm_tools"]

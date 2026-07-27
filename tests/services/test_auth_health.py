@@ -232,11 +232,14 @@ class TestCheckEndToEnd:
 
         captured: dict = {}
 
-        def capture_probe(cookies, csrf_token, *, timeout, session_id=None, build_label=None):
+        def capture_probe(
+            cookies, csrf_token, *, timeout, session_id=None, build_label=None, base_host=None
+        ):
             captured["cookies"] = cookies
             captured["csrf_token"] = csrf_token
             captured["session_id"] = session_id
             captured["build_label"] = build_label
+            captured["base_host"] = base_host
             return True, None
 
         with patch("httpx.Client") as MockClient:
@@ -383,12 +386,14 @@ class TestProbeApiErrorClassification:
                 timeout=2.0,
                 session_id="sess-1",
                 build_label="build-1",
+                base_host="notebook.google.com",
             )
         MockClient.assert_called_once_with(
             cookies={"SID": "x"},
             csrf_token="csrf",
             session_id="sess-1",
             build_label="build-1",
+            base_host="notebook.google.com",
         )
 
     def test_probe_api_timeout_emits_network_error_prefix(self):

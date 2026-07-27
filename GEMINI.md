@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**NotebookLM MCP Server & CLI**
+**Gemini Notebook (formerly Google NotebookLM) MCP Server & CLI**
 
-This project implements a Model Context Protocol (MCP) server **and a full-featured Command Line Interface (CLI)** that provides programmatic access to [NotebookLM](https://notebooklm.google.com). It allows AI agents, developers, and power users to interact with NotebookLM notebooks, sources, query capabilities, and **download generated artifacts** (Audio, Video, PDF, etc.).
+This project implements a Model Context Protocol (MCP) server **and a full-featured Command Line Interface (CLI)** that provides programmatic access to [Gemini Notebook](https://notebook.google.com). It allows AI agents, developers, and power users to interact with Gemini Notebook notebooks, sources, query capabilities, and **download generated artifacts** (Audio, Video, PDF, etc.).
 
 Tested with personal/free tier accounts. May work with Google Workspace accounts but has not been tested. This project relies on internal APIs (`batchexecute` RPCs).
 
@@ -55,7 +55,7 @@ refresh_auth()  # Reload tokens from disk or run headless auth
 
 **Fallback: Manual extraction (if CLI fails)**
 If the automated tool doesn't work, extract cookies via Chrome DevTools:
-1. Open Chrome DevTools on notebooklm.google.com
+1. Open Chrome DevTools on notebook.google.com
 2. Go to Network tab, find a batchexecute request
 3. Copy the Cookie header and call `save_auth_tokens(cookies=...)`
 

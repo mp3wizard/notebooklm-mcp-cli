@@ -1,6 +1,6 @@
 # Getting Started
 
-A practical guide to going from "just installed" to "NotebookLM is wired
+A practical guide to going from "just installed" to "Gemini Notebook (formerly Google NotebookLM) is wired
 into my agent." For background on what the project is and the full feature
 list, see the [README](../README.md). For deep command/tool reference, see
 the [CLI Guide](CLI_GUIDE.md) and [MCP Guide](MCP_GUIDE.md).
@@ -8,7 +8,7 @@ the [CLI Guide](CLI_GUIDE.md) and [MCP Guide](MCP_GUIDE.md).
 ## Contents
 
 - [First-time setup](#first-time-setup)
-- [Migrating from another NotebookLM MCP](#migrating-from-another-notebooklm-mcp)
+- [Migrating from another Gemini Notebook MCP](#migrating-from-another-notebooklm-mcp)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -45,13 +45,13 @@ For deeper coverage, jump to the relevant guide:
 
 ---
 
-## Migrating from another NotebookLM MCP
+## Migrating from another Gemini Notebook MCP
 
-If you previously used a browser-automation–based NotebookLM MCP (or any
-other third-party NotebookLM server) and want to switch to
+If you previously used a browser-automation–based Gemini Notebook MCP (or any
+other third-party Gemini Notebook server) and want to switch to
 `notebooklm-mcp-cli` for direct API access, follow these steps. Most agent
 frameworks (Hermes Agent, Claude Code, Cursor, etc.) get confused when two
-NotebookLM servers are configured at the same time because their tool
+Gemini Notebook servers are configured at the same time because their tool
 names overlap (`notebook_create`, `source_add`, …), so a clean swap is
 recommended.
 
@@ -133,7 +133,7 @@ or `nlm notebook list` (via the CLI).
 - **Auth setup issues** — see the
   [Authentication Guide → Troubleshooting](AUTHENTICATION.md#troubleshooting).
 - **"Hermes picked the wrong tool"** — you almost certainly have two
-  NotebookLM servers registered. See step 4 of the
+  Gemini Notebook servers registered. See step 4 of the
   [migration section](#migrating-from-another-notebooklm-mcp) above.
 - **`auth_status` says `"stale"`** — re-run `nlm login`. See
   [Understanding `auth_status`](AUTHENTICATION.md#understanding-auth_status)

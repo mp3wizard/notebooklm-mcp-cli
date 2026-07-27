@@ -105,6 +105,7 @@ def _probe_saved_httpx_replay(profile: Any, *, timeout: float) -> AuthReplayProb
         csrf_token=profile.csrf_token or "",
         session_id=profile.session_id or "",
         build_label=profile.build_label or "",
+        base_host=profile.base_host or "",
         timeout=timeout,
     )
     return AuthReplayProbe(
@@ -129,6 +130,7 @@ def _probe_rotated_httpx_replay(manager: Any, profile: Any, *, timeout: float) -
         csrf_token=profile.csrf_token or "diagnostic-no-csrf",
         session_id=profile.session_id or "",
         build_label=profile.build_label or "",
+        base_host=profile.base_host or "",
     )
     cookies = parser._get_httpx_cookies()
     parser.close()
@@ -155,6 +157,7 @@ def _probe_rotated_httpx_replay(manager: Any, profile: Any, *, timeout: float) -
             csrf_token=profile.csrf_token or "",
             session_id=profile.session_id or "",
             build_label=profile.build_label or "",
+            base_host=profile.base_host or "",
             timeout=timeout,
         )
 
@@ -225,9 +228,11 @@ def _probe_browser_session_replay(
         if not ws_url:
             return _fail("NotebookLM page did not expose a CDP websocket URL.")
 
+        current_url = ""
         start = time.time()
         while time.time() - start < timeout:
-            if cdp.is_logged_in(cdp.get_current_url(ws_url)):
+            current_url = cdp.get_current_url(ws_url)
+            if cdp.is_logged_in(current_url):
                 break
             time.sleep(0.5)
         else:
@@ -237,9 +242,12 @@ def _probe_browser_session_replay(
         if not ready:
             return _fail("NotebookLM page loaded, but session fields were not found.")
 
+        from urllib.parse import urlparse
+
         csrf_token = cdp.extract_csrf_token(html) or profile.csrf_token or ""
         session_id = cdp.extract_session_id(html) or profile.session_id or ""
         build_label = cdp.extract_build_label(html) or profile.build_label or ""
+        base_host = (urlparse(current_url).hostname or "") or profile.base_host or ""
 
         # Probe 1: fresh cookies straight from the live browser, replayed
         # through plain httpx (no in-page execution). This is what
@@ -257,6 +265,7 @@ def _probe_browser_session_replay(
                 csrf_token=csrf_token,
                 session_id=session_id,
                 build_label=build_label,
+                base_host=base_host,
                 timeout=timeout,
             )
             httpx_fresh_probe = AuthReplayProbe(
@@ -281,6 +290,7 @@ def _probe_browser_session_replay(
             csrf_token=csrf_token or "diagnostic-no-csrf",
             session_id=session_id,
             build_label=build_label,
+            base_host=base_host,
         )
         body = parser._build_request_body(parser.RPC_LIST_NOTEBOOKS, [None, 1, None, [2]])
         url = parser._build_url(parser.RPC_LIST_NOTEBOOKS)
@@ -326,6 +336,7 @@ def _direct_list_notebooks_httpx(
     csrf_token: str,
     session_id: str,
     build_label: str,
+    base_host: str = "",
     timeout: float,
 ) -> tuple[bool, int | None, str | None]:
     """Run list_notebooks through a fresh httpx client without recovery."""
@@ -338,6 +349,7 @@ def _direct_list_notebooks_httpx(
         csrf_token=csrf_token or "diagnostic-no-csrf",
         session_id=session_id,
         build_label=build_label,
+        base_host=base_host,
     )
     cookie_jar = parser._get_httpx_cookies()
     headers = _diagnostic_rpc_headers(parser)
@@ -349,6 +361,7 @@ def _direct_list_notebooks_httpx(
             csrf_token=csrf_token,
             session_id=session_id,
             build_label=build_label,
+            base_host=base_host,
             timeout=timeout,
         )
 
@@ -359,6 +372,7 @@ def _direct_list_notebooks_httpx_client(
     csrf_token: str,
     session_id: str,
     build_label: str,
+    base_host: str = "",
     timeout: float,
 ) -> tuple[bool, int | None, str | None]:
     """Run list_notebooks through a provided httpx client without recovery."""
@@ -369,6 +383,7 @@ def _direct_list_notebooks_httpx_client(
         csrf_token=csrf_token or "diagnostic-no-csrf",
         session_id=session_id,
         build_label=build_label,
+        base_host=base_host,
     )
     body = parser._build_request_body(parser.RPC_LIST_NOTEBOOKS, [None, 1, None, [2]])
     url = parser._build_url(parser.RPC_LIST_NOTEBOOKS)

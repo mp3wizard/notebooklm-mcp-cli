@@ -109,6 +109,7 @@ def get_client() -> NotebookLMClient:
         csrf_token = ""  # nosec B105 # deprecated placeholder, not a password
         session_id = ""
         build_label = ""
+        base_host = ""
 
         if cookie_header:
             # Use environment variables
@@ -121,6 +122,7 @@ def get_client() -> NotebookLMClient:
                 csrf_token = cached.csrf_token
                 session_id = cached.session_id
                 build_label = cached.build_label or ""
+                base_host = cached.base_host or ""
             else:
                 raise ValueError(
                     "No authentication found. Either:\n"
@@ -133,6 +135,7 @@ def get_client() -> NotebookLMClient:
             csrf_token=csrf_token,
             session_id=session_id,
             build_label=build_label,
+            base_host=base_host,
         )
     return _client
 

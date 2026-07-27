@@ -1,4 +1,4 @@
-# NotebookLM CLI - Complete Workflow Sequences
+# Gemini Notebook (formerly Google NotebookLM) CLI - Complete Workflow Sequences
 
 This document provides end-to-end workflow sequences for common tasks with the `nlm` CLI.
 
@@ -440,11 +440,11 @@ nlm studio status $NOTEBOOK_ID
 
 ---
 
-## Workflow 15: Refactor a Document with NotebookLM (Closed-Loop Review)
+## Workflow 15: Refactor a Document with Gemini Notebook (Closed-Loop Review)
 
-### Goal: Iteratively improve a draft using NotebookLM as a grounded critic — critique, fix, re-critique until convergence.
+### Goal: Iteratively improve a draft using Gemini Notebook as a grounded critic — critique, fix, re-critique until convergence.
 
-**Boundary:** NotebookLM *advises*; the agent *decides and edits*. NotebookLM is a
+**Boundary:** Gemini Notebook *advises*; the agent *decides and edits*. Gemini Notebook is a
 grounded but fallible critic (it only sees its sources) and never decides what is applied.
 
 **Modes** (pick one at the start; default `lite`):

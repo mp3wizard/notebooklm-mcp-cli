@@ -1,6 +1,6 @@
 # WSL2 Authentication Guide
 
-This guide explains how to authenticate with NotebookLM MCP when running in Windows Subsystem for Linux (WSL2).
+This guide explains how to authenticate with Gemini Notebook (formerly Google NotebookLM) MCP when running in Windows Subsystem for Linux (WSL2).
 
 ## The Problem
 
@@ -13,7 +13,7 @@ This happens because WSL2 uses a virtual machine, and GUI apps crossing the Wind
 
 ## The Solution
 
-NotebookLM MCP now includes WSL2-aware authentication that:
+Gemini Notebook MCP now includes WSL2-aware authentication that:
 1. Launches Windows Chrome from your WSL terminal
 2. Waits for Chrome DevTools Protocol to be ready
 3. Extracts cookies over the WSL-Windows network bridge
@@ -90,7 +90,7 @@ This will:
 - **Check Windows Firewall setup** (prompts with instructions)
 - Launch Chrome on Windows on port 9223 with remote debugging
 - Connect via the port proxy on port 9222
-- Open NotebookLM in Chrome
+- Open Gemini Notebook in Chrome
 - Wait for you to log in
 - Extract cookies automatically
 - Close Chrome
@@ -117,7 +117,7 @@ netsh portproxy
     ↓  forwards 0.0.0.0:9222 → 127.0.0.1:9223
 WSL Auth Script
     ↓  connects to http://172.x.x.x:9222 (via port proxy)
-    ↓  opens notebooklm.google.com tab
+    ↓  opens notebook.google.com tab
     ↓  waits for login
     ↓  extracts cookies via CDP
     ↓  terminates Chrome process

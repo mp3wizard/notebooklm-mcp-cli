@@ -1,12 +1,12 @@
-# NotebookLM CLI & MCP Server
+# Gemini Notebook (formerly Google NotebookLM) CLI & MCP Server
 
-![NotebookLM MCP Header](docs/media/header.jpg)
+![Gemini Notebook MCP Header](docs/media/header.jpg)
 
 [![PyPI version](https://img.shields.io/pypi/v/notebooklm-mcp-cli)](https://pypi.org/project/notebooklm-mcp-cli/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/notebooklm-mcp-cli)](https://pypistats.org/packages/notebooklm-mcp-cli)
 [![Total downloads](https://static.pepy.tech/badge/notebooklm-mcp-cli)](https://pepy.tech/projects/notebooklm-mcp-cli)
 [![Python](https://img.shields.io/pypi/pyversions/notebooklm-mcp-cli)](https://pypi.org/project/notebooklm-mcp-cli/)
-[![License](https://img.shields.io/pypi/l/notebooklm-mcp-cli)](https://github.com/jacob-bd/notebooklm-mcp-cli/blob/main/LICENSE)
+[![License](https://img.shields.io/pypi/l/notebooklm-mcp-cli)](https://github.com/jacob-bd/gemini-notebook-mcp-cli/blob/main/LICENSE)
 
 ## What's New (mp3wizard fork)
 
@@ -420,12 +420,12 @@
 - URL source dual RPC fallback (Issue #121)
 - PEP 735 dev dependency group migration
 
-**Programmatic access to Google NotebookLM** — via command-line interface (CLI) or Model Context Protocol (MCP) server.
+**Programmatic access to Gemini Notebook** — via command-line interface (CLI) or Model Context Protocol (MCP) server.
 
-> **Note:** Tested with Pro/free and Google AI Ultra ($249/mo) tier accounts. May work with NotebookLM Enterprise accounts but has not been tested.
+> **Note:** Tested with Pro/free and Google AI Ultra ($249/mo) tier accounts. May work with Gemini Notebook Enterprise accounts but has not been tested.
 
 > ☕ **If you find notebooklm-mcp-cli useful, consider [buying me a coffee](https://buymeacoffee.com/jacobbd).**
-> It's free and built in my spare time — but testing every NotebookLM feature takes real time and resources. A coffee helps me cover it and keep shipping. Thank you! 🙏
+> It's free and built in my spare time — but testing every Gemini Notebook feature takes real time and resources. A coffee helps me cover it and keep shipping. Thank you! 🙏
 >
 > <a href="https://buymeacoffee.com/jacobbd"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="42"></a>
 
@@ -470,7 +470,7 @@ Run `nlm --ai` for comprehensive AI-assistant documentation.
 
 ### 🤖 MCP Server (for AI Agents)
 
-Connect AI assistants (Claude, Gemini, Cursor, etc.) to NotebookLM:
+Connect AI assistants (Claude, Gemini, Cursor, etc.) to Gemini Notebook:
 
 ```bash
 # Automatic setup — picks the right config for each tool
@@ -512,7 +512,7 @@ Then use natural language: *"Create a notebook about quantum computing and gener
 | Diagnose issues | `nlm doctor` | — |
 
 📚 **More Documentation:**
-- **[Getting Started](docs/GETTING_STARTED.md)** — Install, login, agent setup, and migration from another NotebookLM MCP
+- **[Getting Started](docs/GETTING_STARTED.md)** — Install, login, agent setup, and migration from another Gemini Notebook MCP
 - **[CLI Guide](docs/CLI_GUIDE.md)** — Complete command reference
 - **[MCP Guide](docs/MCP_GUIDE.md)** — All 43 MCP tools with examples
 - **[Authentication](docs/AUTHENTICATION.md)** — Setup and troubleshooting
@@ -529,7 +529,7 @@ Use at your own risk for personal/experimental purposes.
 
 ## Installation
 
-> 🆕 **Claude Desktop users:** [Download the extension](https://github.com/jacob-bd/notebooklm-mcp-cli/releases/latest) (`.mcpb` file) → double-click → done! One-click install, no config needed.
+> 🆕 **Claude Desktop users:** [Download the extension](https://github.com/jacob-bd/gemini-notebook-mcp-cli/releases/latest) (`.mcpb` file) → double-click → done! One-click install, no config needed.
 
 Install from PyPI. This single package includes **both the CLI and MCP server**:
 
@@ -563,7 +563,7 @@ pipx install notebooklm-mcp-cli
 
 ```bash
 # Clone the repository
-git clone https://github.com/jacob-bd/notebooklm-mcp-cli.git
+git clone https://github.com/jacob-bd/gemini-notebook-mcp-cli.git
 cd notebooklm-mcp
 
 # Install with uv
@@ -652,10 +652,10 @@ nlm login
 ## Getting Started
 
 If you are setting up the tool for the first time — or migrating from a
-browser-based NotebookLM MCP — see the
+browser-based Gemini Notebook MCP — see the
 [Getting Started Guide](docs/GETTING_STARTED.md). It covers install,
 login, agent registration, and a step-by-step migration path that avoids
-the "two NotebookLM servers registered" trap.
+the "two Gemini Notebook servers registered" trap.
 
 ## Uninstalling
 
@@ -685,7 +685,7 @@ nlm setup remove cursor
 
 ## Authentication
 
-Before using the CLI or MCP, you need to authenticate with NotebookLM:
+Before using the CLI or MCP, you need to authenticate with Gemini Notebook:
 
 ### CLI Authentication (Recommended)
 
@@ -735,7 +735,7 @@ For detailed instructions and troubleshooting, see **[docs/AUTHENTICATION.md](do
 
 ## MCP Configuration
 
-> **⚠️ Context Window Warning:** This MCP provides **43 tools**. Disable it when not using NotebookLM to preserve context. In Claude Code: `@notebooklm-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
+> **⚠️ Context Window Warning:** This MCP provides **43 tools**. Disable it when not using Gemini Notebook to preserve context. In Claude Code: `@notebooklm-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
 
 ### Automatic Setup (Recommended)
 
@@ -762,7 +762,7 @@ nlm doctor
 
 ### Install AI Skills (Optional)
 
-Install the NotebookLM expert guide for your AI assistant to help it use the tools effectively. Supported for **Cline**, **Antigravity**, **OpenClaw**, **Codex**, **OpenCode**, **Claude Code**, and **Gemini CLI**.
+Install the Gemini Notebook expert guide for your AI assistant to help it use the tools effectively. Supported for **Cline**, **Antigravity**, **OpenClaw**, **Codex**, **OpenCode**, **Claude Code**, and **Gemini CLI**.
 
 ```bash
 # Install skill files
@@ -870,7 +870,7 @@ Simply chat with your AI tool (Claude Code, Cursor, Gemini CLI) using natural la
 
 ### Research & Discovery
 
-- "List all my NotebookLM notebooks"
+- "List all my Gemini Notebook notebooks"
 - "Create a new notebook called 'AI Strategy Research'"
 - "Start web research on 'enterprise AI ROI metrics' and show me what sources it finds"
 - "Do a deep research on 'cloud marketplace trends' and import the top 10 sources"
@@ -891,7 +891,7 @@ Simply chat with your AI tool (Claude Code, Cursor, Gemini CLI) using natural la
 - "Get an AI summary of what this notebook is about"
 - "Configure the chat to use a learning guide style with longer responses"
 
-*(All queries sent from CLI or MCP automatically persist in your NotebookLM web UI chat history!)*
+*(All queries sent from CLI or MCP automatically persist in your Gemini Notebook web UI chat history!)*
 
 ### Content Generation
 
@@ -982,7 +982,7 @@ See [CLAUDE.md](CLAUDE.md) for detailed API documentation and how to add new fea
 
 Full transparency: this project was built by a non-developer using AI coding assistants. If you're an experienced Python developer, you might look at this codebase and wince. That's okay.
 
-The goal here was to scratch an itch - programmatic access to NotebookLM - and learn along the way. The code works, but it's likely missing patterns, optimizations, or elegance that only years of experience can provide.
+The goal here was to scratch an itch - programmatic access to Gemini Notebook - and learn along the way. The code works, but it's likely missing patterns, optimizations, or elegance that only years of experience can provide.
 
 **This is where you come in.** If you see something that makes you cringe, please consider contributing rather than just closing the tab. This is open source specifically because human expertise is irreplaceable. Whether it's refactoring, better error handling, type hints, or architectural guidance - PRs and issues are welcome.
 
@@ -1001,7 +1001,7 @@ Special thanks to:
 - **Fabiana Furtado** ([@fabianafurtadoff](https://github.com/fabianafurtadoff)) for batch operations, cross-notebook query, pipelines, and smart select/tagging (PR #90).
 - **Amy-Ra-lph** ([@Amy-Ra-lph](https://github.com/Amy-Ra-lph)) for security hardening: TOCTOU-safe credential storage, sensitive cookie redaction from debug logs, and pinning all CI actions to full commit SHAs (PRs #205–207).
 - **Kyle Brodeur** ([@kylebrodeur](https://github.com/kylebrodeur)) for WSL2 authentication support with Windows Chrome integration (PR #138).
-- **Robiton** ([@Robiton](https://github.com/Robiton)) for enterprise NotebookLM support via configurable base URL (PR #114).
+- **Robiton** ([@Robiton](https://github.com/Robiton)) for enterprise Gemini Notebook support via configurable base URL (PR #114).
 - **pjeby** ([@pjeby](https://github.com/pjeby)) for connection pooling and fast startup improvements (PR #54).
 - **beausea** ([@beausea](https://github.com/beausea)) for making the interface language configurable via the `NOTEBOOKLM_HL` environment variable (PR #59).
 - **JumpLao** ([@JumpLao](https://github.com/JumpLao)) for extended audio, video, and image format support (PR #82).
@@ -1012,7 +1012,7 @@ Special thanks to:
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=jacob-bd/notebooklm-mcp-cli&type=Date)](https://star-history.com/#jacob-bd/notebooklm-mcp-cli&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=jacob-bd/gemini-notebook-mcp-cli&type=Date)](https://star-history.com/#jacob-bd/gemini-notebook-mcp-cli&Date)
 
 ## License
 

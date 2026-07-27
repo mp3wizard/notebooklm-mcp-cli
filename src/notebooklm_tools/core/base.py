@@ -130,17 +130,14 @@ class BaseClient:
     from this base class.
     """
 
-    @classmethod
-    def _get_base_url(cls) -> str:
-        return get_base_url()
+    def _get_base_url(self) -> str:
+        return get_base_url(getattr(self, "_base_host", "") or None)
 
-    @classmethod
-    def _get_batchexecute_url(cls) -> str:
-        return f"{cls._get_base_url()}/_/LabsTailwindUi/data/batchexecute"
+    def _get_batchexecute_url(self) -> str:
+        return f"{self._get_base_url()}/_/LabsTailwindUi/data/batchexecute"
 
-    @classmethod
-    def _get_upload_url(cls) -> str:
-        return f"{cls._get_base_url()}/upload/_/"
+    def _get_upload_url(self) -> str:
+        return f"{self._get_base_url()}/upload/_/"
 
     # Keep class-level attributes for backward compatibility with code that
     # reads them directly (e.g. tests). These are the defaults; runtime code
@@ -353,6 +350,7 @@ class BaseClient:
         csrf_token: str = "",  # nosec B107 — empty string means "auto-extract from page", not a hardcoded credential
         session_id: str = "",
         build_label: str = "",
+        base_host: str = "",
     ):
         """
         Initialize the base client.
@@ -362,6 +360,8 @@ class BaseClient:
             csrf_token: CSRF token (optional - will be auto-extracted from page if not provided)
             session_id: Session ID (optional - will be auto-extracted from page if not provided)
             build_label: Build label / bl param (optional - auto-extracted from page if not provided)
+            base_host: Host the account is signed in on, e.g. "notebook.google.com"
+                (optional - falls back to NOTEBOOKLM_BASE_URL or the default host)
         """
         import time as _time
 
@@ -370,6 +370,7 @@ class BaseClient:
         self._client: httpx.Client | None = None
         self._session_id = session_id
         self._bl = build_label
+        self._base_host = base_host
         self._created_at: float = _time.time()
 
         # Conversation cache for follow-up queries.

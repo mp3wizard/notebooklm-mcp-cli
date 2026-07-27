@@ -1,4 +1,4 @@
-# NotebookLM CLI - Complete Command Reference
+# Gemini Notebook (formerly Google NotebookLM) CLI - Complete Command Reference
 
 This document contains the complete command signatures and all available options for every `nlm` command.
 
@@ -39,7 +39,7 @@ nlm --help             # Show help and exit
 
 ### nlm login
 
-Authenticate with NotebookLM using the managed browser auth flow.
+Authenticate with Gemini Notebook using the managed browser auth flow.
 
 ```bash
 nlm login [OPTIONS]
@@ -254,7 +254,7 @@ nlm source add <notebook-id> [OPTIONS]
 | Option | Description |
 |--------|-------------|
 | `--file` | Local path on the machine running `nlm` |
-| `--wait` | Wait until NotebookLM finishes processing |
+| `--wait` | Wait until Gemini Notebook finishes processing |
 | `--wait-timeout` | Processing timeout in seconds |
 
 | Option | Short | Description |
@@ -432,7 +432,7 @@ nlm audio create <notebook-id> [OPTIONS]
 | `--length` | `short`, `default`, `long` | `default` |
 | `--focus` | Focus text/topic | |
 
-For audio, regional locales can affect the voice accent. NotebookLM has been
+For audio, regional locales can affect the voice accent. Gemini Notebook has been
 observed using `es`/`es-ES` for Spain Spanish and `es-US`/`es-419` for
 Latin-American Spanish. `NOTEBOOKLM_HL` can set the regional default.
 
@@ -844,7 +844,7 @@ nlm chats list <notebook-id> [OPTIONS]
 ### nlm chats get
 
 Retrieve the full Q&A transcript for a chat session. Transcripts are fetched
-from the NotebookLM server, so past chats are visible even from a fresh CLI
+from the Gemini Notebook server, so past chats are visible even from a fresh CLI
 invocation — not just chats made earlier in the same process.
 
 ```bash
@@ -893,7 +893,7 @@ nlm chats to-note <notebook-id> <conversation-id> [OPTIONS]
 
 ### nlm alias set
 
-Create or update an alias for a NotebookLM ID.
+Create or update an alias for a Gemini Notebook ID.
 
 ```bash
 nlm alias set <name> <id>

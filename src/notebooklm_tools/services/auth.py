@@ -362,6 +362,7 @@ class AuthHealthChecker:
                 timeout=timeout,
                 session_id=getattr(profile, "session_id", None),
                 build_label=getattr(profile, "build_label", None),
+                base_host=getattr(profile, "base_host", None),
             )
             api_latency = (time.perf_counter() - api_start) * 1000
 
@@ -441,6 +442,7 @@ class AuthHealthChecker:
         timeout: float,
         session_id: str | None = None,
         build_label: str | None = None,
+        base_host: str | None = None,
     ) -> tuple[bool, str | None]:
         """Lightweight API probe: create a NotebookLMClient and list notebooks.
 
@@ -462,6 +464,7 @@ class AuthHealthChecker:
                 csrf_token=csrf_token or "",
                 session_id=session_id or "",
                 build_label=build_label or "",
+                base_host=base_host or "",
             ) as client:
                 client.list_notebooks()
             return True, None
@@ -518,6 +521,7 @@ class AuthHealthChecker:
                 session_id=profile.session_id,
                 email=profile.email,
                 build_label=profile.build_label,
+                base_host=profile.base_host,
             )
         except Exception as e:
             logger.debug(f"Failed to update profile on successful auth check: {e}")
@@ -586,6 +590,7 @@ def confirm_auth_via_api(profile: str | None = None) -> tuple[bool, str | None]:
             csrf_token=p.csrf_token or "",
             session_id=p.session_id or "",
             build_label=p.build_label or "",
+            base_host=p.base_host or "",
         ) as client:
             client.list_notebooks()
         return True, None

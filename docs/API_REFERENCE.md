@@ -1,6 +1,6 @@
-# NotebookLM MCP API Reference
+# Gemini Notebook (formerly Google NotebookLM) MCP API Reference
 
-This document contains detailed API documentation for the internal NotebookLM APIs. Only read this file when debugging API issues or adding new features.
+This document contains detailed API documentation for the internal Gemini Notebook APIs. Only read this file when debugging API issues or adding new features.
 
 **For general project info, see [CLAUDE.md](../CLAUDE.md)**
 
@@ -231,7 +231,7 @@ prompt rather than an undocumented payload change.
 ## Base Endpoint
 
 ```
-POST https://notebooklm.google.com/_/LabsTailwindUi/data/batchexecute
+POST https://notebook.google.com/_/LabsTailwindUi/data/batchexecute
 ```
 
 ## Request Format
@@ -518,7 +518,7 @@ not yet used (no pagination).
 
 ## Research RPCs (Source Discovery)
 
-NotebookLM's "Research" feature discovers and suggests sources based on a query. It supports two source types (Web and Google Drive) and two research modes (Fast and Deep).
+Gemini Notebook's "Research" feature discovers and suggests sources based on a query. It supports two source types (Web and Google Drive) and two research modes (Fast and Deep).
 
 ### Source Types
 | Type | Value | Description |
@@ -659,7 +659,7 @@ Imports selected sources from research results into the notebook.
 
 ## Studio RPCs (Audio/Video Overviews)
 
-NotebookLM's "Studio" feature generates audio podcasts and video overviews from notebook sources.
+Gemini Notebook's "Studio" feature generates audio podcasts and video overviews from notebook sources.
 
 ### `R7cb6c` - Create Studio Content
 
@@ -857,7 +857,7 @@ Returns the same structure as `R7cb6c` (Create Studio Content):
 | **Lengths** | 1=Short, 2=Default, 3=Long |
 | **Languages** | BCP-47 codes, including regional values such as `"es-ES"`, `"es-US"`, and `"es-419"` |
 
-For Audio Overviews, NotebookLM has been observed using the region subtag to
+For Audio Overviews, Gemini Notebook has been observed using the region subtag to
 select the voice accent. `es` and `es-ES` produce Spain Spanish, while `es-US`
 and `es-419` produce Latin-American Spanish. Prompt text does not reliably
 override the accent. This is observed behavior and may change upstream.
@@ -1032,7 +1032,7 @@ Returns an AI-generated summary of the notebook and suggested report topics.
 
 ### `tr032e` - Get Source Guide
 
-Generates an AI summary and keyword chips for a specific source. This is the "Source Guide" feature shown when clicking on a source in the NotebookLM UI.
+Generates an AI summary and keyword chips for a specific source. This is the "Source Guide" feature shown when clicking on a source in the Gemini Notebook UI.
 
 ```python
 # Request params
@@ -1484,7 +1484,7 @@ null  # Null on success
 ## Drive Source Sync
 
 ### Problem
-NotebookLM doesn't auto-update Google Drive sources when the underlying document changes. Users must manually click each source > "Check freshness" > "Click to sync with Google Drive".
+Gemini Notebook doesn't auto-update Google Drive sources when the underlying document changes. Users must manually click each source > "Check freshness" > "Click to sync with Google Drive".
 
 ### Solution
 The `source_list_drive` and `source_sync_drive` tools automate this process.
@@ -1581,7 +1581,7 @@ The MCP needs these cookies (automatically filtered from the full cookie header)
    - Saves to cache for reuse
 
 2. **From page fetch (slower first time):**
-   - Client fetches `notebooklm.google.com` using cookies
+   - Client fetches `notebook.google.com` using cookies
    - Extracts `SNlM0e` (CSRF) and `FdrFJe` (session ID) from HTML
    - Saves to cache for reuse
    - ~1-2 seconds one-time delay
@@ -1778,7 +1778,7 @@ GyzE7e([[2], notebook_id, [label_id_to_remove]])
 
 ### `ozz5Z` — Get User Subscription Tier
 
-Returns the user's current NotebookLM subscription tier. Fires on the homepage (`source-path=/`) during page load.
+Returns the user's current Gemini Notebook subscription tier. Fires on the homepage (`source-path=/`) during page load.
 
 **Captured request params (2026-04-27, `source-path=/`):**
 ```python

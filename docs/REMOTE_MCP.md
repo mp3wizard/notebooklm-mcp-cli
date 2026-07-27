@@ -1,6 +1,6 @@
 # Remote MCP Deployment
 
-This guide explains whether NotebookLM MCP can be used as a remote connector
+This guide explains whether Gemini Notebook (formerly Google NotebookLM) MCP can be used as a remote connector
 from Claude web, Claude mobile, or another networked MCP client.
 
 ## Short Answer
@@ -14,8 +14,8 @@ problems:
 
 1. **MCP client authentication** — protecting the public MCP endpoint so only
    authorized clients can call it.
-2. **NotebookLM authentication** — maintaining the Google browser session used
-   by the server to access NotebookLM.
+2. **Gemini Notebook authentication** — maintaining the Google browser session used
+   by the server to access Gemini Notebook.
 
 The project currently handles the second problem for local installations with a
 persistent browser profile. It does not provide the OAuth layer, HTTPS
@@ -32,7 +32,7 @@ termination, or per-user isolation required for a public remote connector.
 | Authentication protecting the MCP endpoint | Not implemented |
 | Automatic Google session recovery | Supported when the host has a usable persistent browser profile |
 | Fully headless recovery after Google requires sign-in | Not supported |
-| Separate NotebookLM account per remote user | Not supported |
+| Separate Gemini Notebook account per remote user | Not supported |
 | Upload files from a browser or phone | Not supported |
 | Return downloaded files to a browser or phone | Not supported |
 
@@ -58,7 +58,7 @@ for current client and network requirements.
 
 ## Security Warning
 
-NotebookLM MCP has no built-in authentication for its HTTP endpoint.
+Gemini Notebook MCP has no built-in authentication for its HTTP endpoint.
 
 By default, the server only binds to loopback addresses. It refuses external
 binding unless `NOTEBOOKLM_ALLOW_EXTERNAL_BIND=1` is set. That override only
@@ -73,7 +73,7 @@ NOTEBOOKLM_ALLOW_EXTERNAL_BIND=1 \
 notebooklm-mcp --transport http --host 0.0.0.0
 ```
 
-Anyone who can reach an unprotected endpoint can operate the active NotebookLM
+Anyone who can reach an unprotected endpoint can operate the active Gemini Notebook
 account. Depending on the enabled tools, that may include reading notebooks,
 adding or deleting content, creating artifacts, changing sharing settings, and
 downloading data.
@@ -82,9 +82,9 @@ Use a trusted HTTPS gateway that authenticates every request before forwarding
 traffic to a loopback-only MCP server. A simple public tunnel without access
 control is not sufficient.
 
-## The NotebookLM Authentication Challenge
+## The Gemini Notebook Authentication Challenge
 
-NotebookLM does not provide an official public API for this project. The CLI and
+Gemini Notebook does not provide an official public API for this project. The CLI and
 MCP server authenticate with Google browser cookies extracted by `nlm login`.
 
 The reliable local flow is:
@@ -92,7 +92,7 @@ The reliable local flow is:
 1. `nlm login` creates a dedicated persistent browser profile.
 2. The user signs in to Google interactively.
 3. The CLI stores cookies and the browser profile on the same machine.
-4. The MCP server refreshes short-lived NotebookLM tokens automatically.
+4. The MCP server refreshes short-lived Gemini Notebook tokens automatically.
 5. If cookies stop working, the saved browser profile can often obtain fresh
    cookies without another manual sign-in.
 
@@ -116,7 +116,7 @@ For authentication details, see the
 
 ## Single-Account Architecture
 
-The MCP server uses one process-wide NotebookLM client and whichever profile is
+The MCP server uses one process-wide Gemini Notebook client and whichever profile is
 currently selected as the default:
 
 ```bash
@@ -124,7 +124,7 @@ nlm login switch <profile>
 ```
 
 Every caller of that server operates the same Google account and sees the same
-NotebookLM notebooks. The current server does not map a remote Claude user to a
+Gemini Notebook notebooks. The current server does not map a remote Claude user to a
 separate Google account.
 
 This has important consequences:
@@ -132,7 +132,7 @@ This has important consequences:
 - It may be reasonable for one person connecting from several devices.
 - It is not a safe organization-wide connector for unrelated users.
 - An OAuth gateway can control who reaches the MCP endpoint, but it does not
-  create per-user NotebookLM isolation.
+  create per-user Gemini Notebook isolation.
 - Account switching affects the whole server, not one remote session.
 
 ## Remote File Limitations
@@ -179,10 +179,10 @@ file-transfer layer.
 
 ### Option 1: Claude Code Remote Control
 
-This is the recommended option when the goal is to use NotebookLM from a phone
+This is the recommended option when the goal is to use Gemini Notebook from a phone
 or another browser without operating a public MCP service.
 
-The NotebookLM MCP and Claude Code continue running locally on your computer.
+The Gemini Notebook MCP and Claude Code continue running locally on your computer.
 Claude Code Remote Control lets you continue that local session from Claude web
 or the Claude mobile app.
 
@@ -223,7 +223,7 @@ Recommended properties:
 - Keep a supported Chromium-family browser and the managed profile on that host.
 - Run the MCP server on `127.0.0.1`, not directly on a public interface.
 - Put an OAuth-capable HTTPS gateway in front of the server.
-- Restrict the connector to the owner of the active NotebookLM account.
+- Restrict the connector to the owner of the active Gemini Notebook account.
 - Monitor `nlm login --check` and be prepared for occasional interactive login.
 - Treat the host as security-sensitive because it stores Google session data.
 
@@ -314,7 +314,7 @@ multi-user operation.
 
 These recurring questions informed this guide:
 
-- [Issue #3: Remote and Docker deployment](https://github.com/jacob-bd/notebooklm-mcp-cli/issues/3)
-- [Issue #51: Cookie expiration on Railway](https://github.com/jacob-bd/notebooklm-mcp-cli/issues/51)
-- [Issue #166: Manual cookies on a VPS](https://github.com/jacob-bd/notebooklm-mcp-cli/issues/166)
-- [Issue #179: Authentication on a headless HPC host](https://github.com/jacob-bd/notebooklm-mcp-cli/issues/179)
+- [Issue #3: Remote and Docker deployment](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/3)
+- [Issue #51: Cookie expiration on Railway](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/51)
+- [Issue #166: Manual cookies on a VPS](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/166)
+- [Issue #179: Authentication on a headless HPC host](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/179)

@@ -26,7 +26,7 @@ from httpx import Client, HTTPTransport
 
 # Disable proxy for localhost CDP connections — system proxies (Surge, Clash, etc.)
 # can intercept localhost requests and break Chrome DevTools Protocol connections.
-# See: https://github.com/jacob-bd/notebooklm-mcp-cli/issues/119
+# See: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/119
 httpx_client = Client(
     trust_env=False,
     mounts={
@@ -67,7 +67,7 @@ def _normalize_ws_url(url: str | None) -> str | None:
     causing WinError 10013.  Using the explicit IPv4 loopback
     address avoids the ambiguity on all platforms.
 
-    See: https://github.com/jacob-bd/notebooklm-mcp-cli/issues/108
+    See: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/108
     """
     if url and "://localhost:" in url:
         url = url.replace("://localhost:", "://127.0.0.1:")
@@ -1121,7 +1121,12 @@ def _is_notebooklm_url(url: str) -> bool:
         host = (urlparse(url).hostname or "").lower()
     except Exception:
         return False
-    return host in {"notebooklm.google.com", "notebooklm.cloud.google.com"}
+    return host in {
+        "notebooklm.google.com",
+        "notebook.google.com",
+        "notebooklm.cloud.google.com",
+        "notebook.cloud.google.com",
+    }
 
 
 def is_logged_in(url: str) -> bool:
@@ -1316,6 +1321,28 @@ def extract_cookies_via_cdp(
 
     if not debugger_url:
         startup_error = _summarize_browser_startup_failure(_chrome_process)
+        handed_off = (
+            not reused_existing
+            and _chrome_process is not None
+            and _chrome_process.poll() is not None
+        )
+        if handed_off:
+            # Chrome was already running under a different process, so the browser we
+            # launched handed off to it and exited immediately without ever binding the
+            # remote-debugging port.
+            hint = (
+                "Fully quit Chrome (all windows) and run 'nlm login' again. "
+                "If that doesn't help, use 'nlm login --manual' to import cookies from a file."
+            )
+            if startup_error:
+                hint = f"{hint} ({startup_error})"
+            raise AuthenticationError(
+                message=(
+                    "Chrome is already running, so the sign-in browser couldn't start "
+                    "with remote debugging."
+                ),
+                hint=hint,
+            )
         hint = "Use 'nlm login --manual' to import cookies from a file."
         if startup_error:
             hint = f"{hint} Browser startup error: {startup_error}"
@@ -1446,6 +1473,7 @@ def extract_cookies_from_page(
     session_id = extract_session_id(html)
     email = extract_email(html)
     build_label = extract_build_label(html)
+    base_host = urlparse(current_url).hostname or ""
 
     return {
         "cookies": cookies,
@@ -1453,6 +1481,7 @@ def extract_cookies_from_page(
         "session_id": session_id,
         "email": email,
         "build_label": build_label,
+        "base_host": base_host,
     }
 
 
@@ -1647,12 +1676,14 @@ def run_headless_auth(
         # html already fetched by _wait_for_page_ready
         csrf_token = extract_csrf_token(html)
         session_id = extract_session_id(html)
+        base_host = urlparse(current_url).hostname or ""
 
         # Create and save tokens
         tokens = AuthTokens(
             cookies=cookies_list,
             csrf_token=csrf_token or "",
             session_id=session_id or "",
+            base_host=base_host,
             extracted_at=time.time(),
         )
         save_tokens_to_cache(tokens)

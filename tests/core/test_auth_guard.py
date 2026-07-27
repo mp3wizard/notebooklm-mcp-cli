@@ -244,3 +244,81 @@ class TestBuildLabelExtraction:
         manager = AuthManager("old-profile")
         loaded = manager.load_profile()
         assert loaded.build_label is None
+
+
+class TestBaseHostExtraction:
+    """Test base_host (issue #269) extraction and profile round-trip."""
+
+    def test_auth_tokens_base_host_round_trip(self):
+        """AuthTokens preserves base_host through to_dict/from_dict."""
+        from notebooklm_tools.core.auth import AuthTokens
+
+        tokens = AuthTokens(
+            cookies={"SID": "abc"},
+            csrf_token="csrf",
+            session_id="sid",
+            base_host="notebook.google.com",
+            extracted_at=1000.0,
+        )
+        d = tokens.to_dict()
+        assert d["base_host"] == "notebook.google.com"
+
+        restored = AuthTokens.from_dict(d)
+        assert restored.base_host == "notebook.google.com"
+
+    def test_auth_tokens_base_host_defaults_empty(self):
+        """AuthTokens.from_dict handles missing base_host gracefully."""
+        from notebooklm_tools.core.auth import AuthTokens
+
+        tokens = AuthTokens.from_dict({"cookies": {"SID": "abc"}})
+        assert tokens.base_host == ""
+
+    def test_profile_base_host_round_trip(self, tmp_path, monkeypatch):
+        """Profile save/load preserves base_host in metadata."""
+        from notebooklm_tools.core.auth import AuthManager
+
+        monkeypatch.setattr(
+            "notebooklm_tools.utils.config.get_profile_dir",
+            lambda name: tmp_path / name,
+        )
+
+        manager = AuthManager("bh-test")
+        manager.save_profile(
+            cookies={"SID": "abc"},
+            csrf_token="csrf",
+            email="test@gmail.com",
+            base_host="notebook.google.com",
+        )
+
+        manager._profile = None
+        loaded = manager.load_profile()
+        assert loaded.base_host == "notebook.google.com"
+
+    def test_profile_base_host_defaults_none_for_old_profiles(self, tmp_path, monkeypatch):
+        """Old profiles without base_host in metadata load with None."""
+        import json
+
+        from notebooklm_tools.core.auth import AuthManager
+
+        monkeypatch.setattr(
+            "notebooklm_tools.utils.config.get_profile_dir",
+            lambda name: tmp_path / name,
+        )
+
+        # Simulate an old profile without base_host
+        profile_dir = tmp_path / "old-profile-no-host"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "cookies.json").write_text(json.dumps({"SID": "abc"}))
+        (profile_dir / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "csrf_token": "csrf",
+                    "session_id": "sid",
+                    "email": "test@gmail.com",
+                }
+            )
+        )
+
+        manager = AuthManager("old-profile-no-host")
+        loaded = manager.load_profile()
+        assert loaded.base_host is None

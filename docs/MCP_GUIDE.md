@@ -1,6 +1,6 @@
 # MCP Guide
 
-Complete reference for the NotebookLM MCP server — **43 tools** for AI assistants.
+Complete reference for the Gemini Notebook (formerly Google NotebookLM) MCP server — **43 tools** for AI assistants.
 
 ## Installation
 
@@ -17,12 +17,12 @@ gemini mcp add --scope user notebooklm-mcp notebooklm-mcp
 
 > **Server naming:** Use `notebooklm-mcp` (the default) as the server
 > name when registering with your agent. If you have a legacy
-> browser-automation NotebookLM MCP installed under a different name
+> browser-automation Gemini Notebook MCP installed under a different name
 > (e.g. `notebooklm`), remove that one first — agents like Hermes get
 > confused when two servers expose overlapping tool names
 > (`notebook_create`, `source_add`, `notebook_query`, …).
 >
-> See the [Migrating from another NotebookLM MCP](GETTING_STARTED.md#migrating-from-another-notebooklm-mcp)
+> See the [Migrating from another Gemini Notebook MCP](GETTING_STARTED.md#migrating-from-another-notebooklm-mcp)
 > section in the Getting Started guide for the full step-by-step.
 
 ## Authentication
@@ -291,7 +291,7 @@ studio_create(notebook_id, artifact_type="report", report_format="Study Guide", 
 studio_create(notebook_id, artifact_type="audio", language="es-419", confirm=True)
 ```
 
-For Audio Overviews, NotebookLM has been observed using BCP-47 region
+For Audio Overviews, Gemini Notebook has been observed using BCP-47 region
 subtags to select the voice accent. `es` and `es-ES` produce Spain Spanish,
 while `es-US` and `es-419` produce Latin-American Spanish. The generation
 prompt does not reliably override the accent. Treat this as observed behavior,
@@ -330,7 +330,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 > Planning to connect from Claude web/mobile or expose the server over a
 > network? Read [Remote MCP Deployment](REMOTE_MCP.md) first. HTTP transport
-> support does not provide HTTPS, caller authentication, per-user NotebookLM
+> support does not provide HTTPS, caller authentication, per-user Gemini Notebook
 > accounts, or remote file transfer.
 
 ### MCP Server Options
@@ -350,7 +350,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 | `NOTEBOOKLM_MCP_DEBUG` | Enable debug logging |
 | `NOTEBOOKLM_HL` | Interface language and default artifact locale, including regional BCP-47 values such as `es-419` (default: en) |
 | `NOTEBOOKLM_QUERY_TIMEOUT` | Query timeout (seconds) |
-| `NOTEBOOKLM_BASE_URL` | Override base URL for Enterprise/Workspace (default: `https://notebooklm.google.com`) |
+| `NOTEBOOKLM_BASE_URL` | Override base URL for Enterprise/Workspace (default: `https://notebook.google.com`) |
 | `NOTEBOOKLM_DOWNLOAD_DIR` | Optional directory boundary for artifact downloads. Unset preserves the default behavior. |
 | `NOTEBOOKLM_ALLOWED_FILE_DIRS` | Optional OS-separated list of directories allowed for local file sources. Unset means unrestricted. |
 | `NOTEBOOKLM_DISABLED_GROUPS` | Comma-separated tool groups to hide (see [Selective tool exposure](#selective-tool-exposure)) |

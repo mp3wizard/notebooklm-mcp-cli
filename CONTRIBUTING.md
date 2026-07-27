@@ -1,6 +1,6 @@
-# Contributing to NotebookLM MCP Server & CLI
+# Contributing to Gemini Notebook (formerly Google NotebookLM) MCP Server & CLI
 
-Thanks for your interest in contributing. This project gives you programmatic access to NotebookLM through an MCP server and CLI, built on top of Google's undocumented internal `batchexecute` API. The API can change without notice, so contributions need to be grounded in captured, verified payloads, not assumptions.
+Thanks for your interest in contributing. This project gives you programmatic access to Gemini Notebook through an MCP server and CLI, built on top of Google's undocumented internal `batchexecute` API. The API can change without notice, so contributions need to be grounded in captured, verified payloads, not assumptions.
 
 ## Before You Start
 
@@ -14,7 +14,7 @@ For large architectural changes (new auth providers, enterprise support, new cli
 
 ```bash
 # Clone and install
-git clone https://github.com/jacob-bd/notebooklm-mcp-cli.git
+git clone https://github.com/jacob-bd/gemini-notebook-mcp-cli.git
 cd notebooklm-mcp-cli
 uv tool install .
 
@@ -58,7 +58,7 @@ This project wraps an undocumented API. The only reliable way to implement new f
 ### 1. Capture the API Call
 
 1. Open Chrome DevTools, go to the **Network** tab
-2. Navigate to [notebooklm.google.com](https://notebooklm.google.com) and open a notebook
+2. Navigate to [notebook.google.com](https://notebook.google.com) and open a notebook
 3. Perform the action you want to implement in the web UI
 4. Filter for `batchexecute` requests
 5. Copy the `f.req` form parameter (request payload) and the response body
@@ -176,7 +176,7 @@ To report a security vulnerability, please email the maintainer directly. Don't 
 
 - **One feature or fix per PR.** Keeps reviews manageable.
 - **Include a clear description.** What changed, why, and how you verified it.
-- **Show live API verification.** Mention that you tested against the actual NotebookLM API, not just mocks.
+- **Show live API verification.** Mention that you tested against the actual Gemini Notebook API, not just mocks.
 - **Don't bump the version.** The maintainer handles versioning and releases.
 - **Don't add `Co-authored-by` trailers.** Commits are attributed to the PR author.
 

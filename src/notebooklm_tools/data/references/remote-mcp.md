@@ -1,6 +1,6 @@
 # Remote MCP Deployment
 
-NotebookLM MCP supports Streamable HTTP, but it is designed primarily for
+Gemini Notebook (formerly Google NotebookLM) MCP supports Streamable HTTP, but it is designed primarily for
 local, single-user operation. It is not a secure, turnkey public connector.
 
 ## Security Boundary
@@ -15,7 +15,7 @@ is required:
 
 1. Keep the MCP process bound to `127.0.0.1`.
 2. Put an authenticated HTTPS gateway in front of it.
-3. Restrict access to the owner of the active NotebookLM account.
+3. Restrict access to the owner of the active Gemini Notebook account.
 4. Protect the host because it stores Google session data.
 
 Safe local HTTP startup:
@@ -36,12 +36,12 @@ This exposes `http://127.0.0.1:8000/mcp` and a local health endpoint at
 Remote operation involves two separate credentials:
 
 - The gateway must authenticate the MCP client.
-- `nlm login` must maintain the Google browser session used for NotebookLM.
+- `nlm login` must maintain the Google browser session used for Gemini Notebook.
 
-The MCP server uses one process-wide NotebookLM profile. Every caller operates
+The MCP server uses one process-wide Gemini Notebook profile. Every caller operates
 the same Google account, and `nlm login switch <profile>` changes the account
 for the whole server. An OAuth gateway controls access to the endpoint but does
-not create per-user NotebookLM isolation.
+not create per-user Gemini Notebook isolation.
 
 Google can require interactive sign-in again at any time. Persistent local
 browser profiles give the best recovery behavior. VPS and container

@@ -1,6 +1,6 @@
-# NotebookLM Studio Prompt Examples
+# Gemini Notebook (formerly Google NotebookLM) Studio Prompt Examples
 
-**Target tool:** NotebookLM Studio — `focus_prompt`, `custom_prompt`, or `description` fields.
+**Target tool:** Gemini Notebook Studio — `focus_prompt`, `custom_prompt`, or `description` fields.
 
 Pair with [studio-prompting-guide.md](studio-prompting-guide.md) for mode selection and decision trees.
 
@@ -35,7 +35,7 @@ studio_create(notebook_id="<id>", artifact_type="audio", audio_format="deep_dive
               language="es-419", focus_prompt="...", confirm=True)
 ```
 
-NotebookLM has been observed producing Spain Spanish for `es`/`es-ES` and
+Gemini Notebook has been observed producing Spain Spanish for `es`/`es-ES` and
 Latin-American Spanish for `es-US`/`es-419`. Prompt wording does not reliably
 change the accent.
 

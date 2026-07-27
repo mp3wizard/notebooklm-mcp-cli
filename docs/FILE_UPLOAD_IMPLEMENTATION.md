@@ -89,4 +89,4 @@ nlm source list <notebook-id>
 
 ## Historical Note
 
-A browser-based upload fallback using Chrome automation was previously available (`--browser` flag) but has been removed. NotebookLM's UI now uses the File System Access API which cannot be automated via CDP. The HTTP method is more reliable anyway.
+A browser-based upload fallback using Chrome automation was previously available (`--browser` flag) but has been removed. Gemini Notebook (formerly Google NotebookLM)'s UI now uses the File System Access API which cannot be automated via CDP. The HTTP method is more reliable anyway.
