@@ -10,6 +10,18 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.9.3 / v0.9.4 — July 2026)
+- **"Gemini Notebook" rebrand support** — Google is rolling out a rebrand of NotebookLM to "Gemini Notebook", redirecting signed-in accounts to `notebook.google.com` (#269) and, for Workspace/enterprise accounts, `notebook.cloud.google.com` (#270). Both hosts are now recognized for login detection and `NOTEBOOKLM_BASE_URL`; the CLI persists which host an account actually lands on (`base_host`) and routes every client (CLI, MCP, chat sessions, `nlm doctor auth-replay`) there automatically. Thanks to **@grergea** and **@conexaoarteiro**!
+- **Clearer error when Chrome is already running during `nlm login`** — previously, if Chrome was already running under a different process, the sign-in browser we launched would hand off to it and exit immediately without ever binding the remote-debugging port, producing a misleading "Cannot connect to browser on port ..." error. The error now detects this hand-off case and tells you to fully quit Chrome and retry (#272). Thanks to **@argonaut-cm** for the detailed CDP repro!
+- **Docs rebranded** to "Gemini Notebook (formerly Google NotebookLM)" throughout; upstream repository URL updated to `jacob-bd/gemini-notebook-mcp-cli`.
+
+### Security scan (July 2026 — v0.9.4)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python), Trivy, TruffleHog, mcps-audit
+- **0 dependency vulnerabilities**, **0 secrets**, **0 SAST findings in `src/`** — clean across every tool (81 Bandit Medium findings, all in `tests/` fixtures, left as-is)
+- No dependency changes landed in this merge — `uv.lock` confirmed unchanged and clean
+- mcps-audit high score reviewed (10 Critical, 114 High sampled), all confirmed false positives — same documented pattern as every prior scan (CDP auth-extraction scripts flagged as "dangerous execution")
+- Full report: [`docs/security-scan-report-2026-07-27.md`](docs/security-scan-report-2026-07-27.md)
+
 ### Upstream sync (v0.9.2 — July 2026)
 - **Chat session management** — `nlm chats list/get/export/to-note` and MCP tools `chat_list`/`chat_get`/`chat_export` (#256). Transcripts are fetched from NotebookLM's server via RPC `khqZz`, so past chats are visible from a fresh CLI invocation or MCP session, not just the in-process cache.
 - **`uvx` discovery fix for Windows** — the desktop extension now finds `uvx` installed via `pip install --user uv` on Windows (`%APPDATA%\Python\Python3XX\Scripts\uvx.exe`), fixing a "Could not find 'uvx'" startup failure (#267).
