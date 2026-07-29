@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2026-07-28
+
+### Fixed
+- **WSL2 mirrored networking support for `nlm login --wsl` (#273)** — On WSL2 with mirrored networking mode, `get_windows_host_ip()` derived the CDP address from the default gateway, which in mirrored mode is the physical router rather than the Windows host. This caused `nlm login --wsl` to poll the wrong IP and always time out after 30 seconds, even though Chrome and CDP were fully functional. The CLI now detects the active networking mode via `wslinfo --networking-mode` and uses the shared loopback address (`127.0.0.1`) in mirrored mode, while preserving the existing gateway/resolver discovery for NAT mode and older WSL installations. Thanks to **@Premshay** for the outstanding diagnosis, the fix (PR #274), unit tests, and documentation updates!
+- **CDP timeout error now shows the polled URL** — The WSL login timeout message previously said only "Chrome did not start within 30 seconds" with generic troubleshooting steps. It now includes the actual URL being polled (e.g., `Could not connect to CDP at http://10.100.102.1:9222`), making wrong-address issues immediately visible. Troubleshooting steps are also mode-aware: mirrored mode suggests checking the portproxy rule; NAT mode points at the firewall rule.
+- **Firewall prompt skipped in mirrored mode** — Loopback traffic in mirrored mode never crosses Windows Firewall, so the interactive firewall-rule setup prompt is now bypassed with an informational one-liner instead of walking users through an unnecessary PowerShell step.
+
 ## [0.9.4] - 2026-07-25
 
 ### Fixed

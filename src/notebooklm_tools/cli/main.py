@@ -339,6 +339,7 @@ def login_callback(
         if wsl:
             # WSL mode: Launch Windows Chrome from WSL to avoid terminal corruption
             from notebooklm_tools.utils.wsl import (
+                MIRRORED_LOOPBACK_IP,
                 check_firewall_rule,
                 get_windows_host_ip,
                 is_wsl,
@@ -351,94 +352,107 @@ def login_callback(
                 console.print(
                     "[yellow]Warning:[/yellow] --wsl flag used but not in WSL environment. Ignoring."
                 )
-            else:
-                from notebooklm_tools.utils.wsl import DEFAULT_WSL_CDP_PORT
+                wsl = False
 
-                wsl_port = DEFAULT_WSL_CDP_PORT
-                # Chrome binds to localhost only (newer Chrome ignores
-                # --remote-debugging-address=0.0.0.0), so we launch it
-                # on a different port and rely on a netsh portproxy rule
-                # (listenport=wsl_port -> connectport=chrome_port) to
-                # bridge WSL traffic to localhost.
-                chrome_port = wsl_port + 1
-                windows_ip = get_windows_host_ip()
+        if wsl:
+            from notebooklm_tools.utils.wsl import DEFAULT_WSL_CDP_PORT
 
-                if not windows_ip:
-                    console.print("[red]Error:[/red] Could not determine Windows host IP.")
-                    console.print("[dim]Hint: Check /etc/resolv.conf in WSL[/dim]")
-                    raise typer.Exit(1)
+            wsl_port = DEFAULT_WSL_CDP_PORT
+            # Chrome binds to localhost only (newer Chrome ignores
+            # --remote-debugging-address=0.0.0.0), so we launch it
+            # on a different port and rely on a netsh portproxy rule
+            # (listenport=wsl_port -> connectport=chrome_port) to
+            # bridge WSL traffic to localhost.
+            chrome_port = wsl_port + 1
+            windows_ip = get_windows_host_ip()
 
-                wsl_cdp_url = f"http://{windows_ip}:{wsl_port}"
+            if not windows_ip:
+                console.print("[red]Error:[/red] Could not determine Windows host IP.")
+                console.print("[dim]Hint: Check /etc/resolv.conf in WSL[/dim]")
+                raise typer.Exit(1)
 
-                console.print("[bold]WSL2 detected - launching Windows Chrome[/bold]")
+            is_mirrored = windows_ip == MIRRORED_LOOPBACK_IP
+            wsl_cdp_url = f"http://{windows_ip}:{wsl_port}"
+
+            console.print("[bold]WSL2 detected - launching Windows Chrome[/bold]")
+            console.print(
+                f"[dim]Windows host: {windows_ip}:{wsl_port} (proxy) -> localhost:{chrome_port} (Chrome)[/dim]"
+            )
+            console.print("[dim]Chrome binds to localhost; netsh portproxy bridges WSL[/dim]")
+
+            # Check Windows Firewall (not needed in mirrored mode —
+            # loopback traffic never crosses the Windows Firewall)
+            if is_mirrored:
                 console.print(
-                    f"[dim]Windows host: {windows_ip}:{wsl_port} (proxy) -> localhost:{chrome_port} (Chrome)[/dim]"
+                    "[dim]Mirrored networking: firewall rule not required (loopback)[/dim]"
                 )
-                console.print("[dim]Chrome binds to localhost; netsh portproxy bridges WSL[/dim]")
+            elif not check_firewall_rule(wsl_port):
+                console.print("\n[yellow]Windows Firewall Setup Required[/yellow]")
+                console.print(
+                    f"\nA firewall rule is needed to allow WSL to connect to Windows Chrome on port {wsl_port}."
+                )
+                console.print(
+                    "\n[bold]Step 1:[/bold] Open [cyan]Windows PowerShell as Administrator[/cyan] and run:"
+                )
+                console.print(
+                    f'\n  New-NetFirewallRule -DisplayName "NotebookLM-CDP-{wsl_port}" -Direction Inbound -Action Allow -Protocol TCP -LocalPort {wsl_port} -RemoteAddress LocalSubnet\n'
+                )
+                console.print(
+                    "[bold]Step 2:[/bold] After running the command above, press [bold]Enter[/bold] here to continue..."
+                )
 
-                # Check Windows Firewall
+                input()
 
-                if not check_firewall_rule(wsl_port):
-                    console.print("\n[yellow]Windows Firewall Setup Required[/yellow]")
-                    console.print(
-                        f"\nA firewall rule is needed to allow WSL to connect to Windows Chrome on port {wsl_port}."
-                    )
-                    console.print(
-                        "\n[bold]Step 1:[/bold] Open [cyan]Windows PowerShell as Administrator[/cyan] and run:"
-                    )
-                    console.print(
-                        f'\n  New-NetFirewallRule -DisplayName "NotebookLM-CDP-{wsl_port}" -Direction Inbound -Action Allow -Protocol TCP -LocalPort {wsl_port} -RemoteAddress LocalSubnet\n'
-                    )
-                    console.print(
-                        "[bold]Step 2:[/bold] After running the command above, press [bold]Enter[/bold] here to continue..."
-                    )
-
-                    # Simple wait for Enter
-                    input()
-
-                    # Re-check if rule was created
-                    if check_firewall_rule(wsl_port):
-                        console.print("[green]✓[/green] Firewall rule detected!")
-                    else:
-                        console.print(
-                            "[yellow]Warning:[/yellow] Rule not yet detected, but will attempt to continue..."
-                        )
-                    console.print()
+                # Re-check if rule was created
+                if check_firewall_rule(wsl_port):
+                    console.print("[green]✓[/green] Firewall rule detected!")
                 else:
-                    console.print("[dim]Windows Firewall: rule exists[/dim]")
-                console.print()
-
-                try:
-                    chrome_process = launch_windows_chrome(chrome_port)
-                    console.print(f"[dim]Chrome PID: {chrome_process.pid}[/dim]")
-                except RuntimeError as e:
-                    console.print(f"[red]Error:[/red] {e}")
-                    console.print("[dim]Hint: Ensure Chrome is installed on Windows side[/dim]")
-                    raise typer.Exit(1) from e
-
-                console.print("[dim]Waiting for Chrome DevTools Protocol...[/dim]")
-                if not wait_for_cdp(wsl_cdp_url, timeout=30):
-                    console.print("[red]Error:[/red] Chrome did not start within 30 seconds.")
-                    console.print("\n[yellow]Troubleshooting:[/yellow]")
-                    console.print("  1. Ensure the Windows Firewall rule was created (step above)")
-                    console.print("  2. If Chrome is still running, close it and retry")
-                    console.print("  3. Or use manual mode: nlm login --manual --file <path>")
-                    terminate_windows_chrome(chrome_process)
-                    raise typer.Exit(1)
-
-                console.print("[green]✓[/green] Chrome ready, connecting...\n")
-
-                try:
-                    result = extract_cookies_via_existing_cdp(
-                        cdp_url=wsl_cdp_url,
-                        wait_for_login=True,
-                        login_timeout=300,
+                    console.print(
+                        "[yellow]Warning:[/yellow] Rule not yet detected, but will attempt to continue..."
                     )
-                finally:
-                    # Always terminate Windows Chrome
-                    terminate_windows_chrome(chrome_process)
+                console.print()
+            else:
+                console.print("[dim]Windows Firewall: rule exists[/dim]")
+            console.print()
 
-                launched_local_chrome = True
+            try:
+                chrome_process = launch_windows_chrome(chrome_port)
+                console.print(f"[dim]Chrome PID: {chrome_process.pid}[/dim]")
+            except RuntimeError as e:
+                console.print(f"[red]Error:[/red] {e}")
+                console.print("[dim]Hint: Ensure Chrome is installed on Windows side[/dim]")
+                raise typer.Exit(1) from e
+
+            console.print("[dim]Waiting for Chrome DevTools Protocol...[/dim]")
+            if not wait_for_cdp(wsl_cdp_url, timeout=30):
+                console.print(
+                    f"[red]Error:[/red] Could not connect to CDP at {wsl_cdp_url} within 30 seconds."
+                )
+                console.print("\n[yellow]Troubleshooting:[/yellow]")
+                if is_mirrored:
+                    console.print(
+                        "  1. Ensure the netsh portproxy rule is active (netsh interface portproxy show all)"
+                    )
+                else:
+                    console.print("  1. Ensure the Windows Firewall rule was created (step above)")
+                console.print("  2. If Chrome is still running, close it and retry")
+                console.print("  3. Or use manual mode: nlm login --manual --file <path>")
+                terminate_windows_chrome(chrome_process)
+                raise typer.Exit(1)
+
+            console.print("[green]✓[/green] Chrome ready, connecting...\n")
+
+            try:
+                result = extract_cookies_via_existing_cdp(
+                    cdp_url=wsl_cdp_url,
+                    wait_for_login=True,
+                    login_timeout=300,
+                )
+            finally:
+                # Always terminate Windows Chrome
+                terminate_windows_chrome(chrome_process)
+
+            launched_local_chrome = True
 
         elif provider == "openclaw" or (provider == "builtin" and cdp_url != _BUILTIN_CDP_DEFAULT):
             # External CDP path: connect to an already-running browser.
