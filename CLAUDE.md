@@ -101,7 +101,13 @@ src/notebooklm_tools/
 
 **Executables:**
 - `nlm` - Command-line interface
-- `notebooklm-mcp` - The MCP server
+- `notebooklm-mcp` - The Gemini Notebook MCP server executable
+
+**Configured MCP name:** `gemini-notebook-mcp` (the executable name remains
+`notebooklm-mcp` for compatibility). Claude Desktop setup detects regular and
+Relay AI/3P profiles, never creates missing profiles, and refuses to write
+while the selected Claude instance is running. User-level skill installation
+also requires the target tool to be detected.
 
 ## Test Structure
 
