@@ -36,13 +36,12 @@ def source_add(
             - url: Web page or YouTube URL
             - text: Pasted text content
             - drive: Google Drive document
-            - file: Local file upload. Supported extensions:
-                PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG,
-                OPUS, MP4, JPG, JPEG, PNG, GIF, WEBP. Image-bearing
-                sources (PDF / JPG / PNG / etc.) feed Studio video
-                generation's visual-crop pipeline — charts, photos, and
-                diagrams may be extracted as on-screen aids in Video
-                Overviews.
+            - file: Local file upload. The canonical local-admission contract has
+                43 case-insensitive extensions. Admission does not guarantee provider
+                processing success for an individual file.
+                OFFICIAL_FILE_EXTENSIONS: .pdf, .txt, .md, .docx, .csv, .pptx, .epub, .avif, .bmp, .gif, .heic, .heif, .ico, .jp2, .jpe, .jpeg, .jpg, .png, .tif, .tiff, .webp, .3g2, .3gp, .aac, .aif, .aifc, .aiff, .amr, .au, .avi, .cda, .m4a, .mid, .mp3, .mp4, .mpeg, .ogg, .opus, .ra, .ram, .snd, .wav, .wma
+                Image-bearing sources may feed Studio video generation's visual-crop
+                pipeline; charts, photos, and diagrams may be extracted as on-screen aids.
         url: URL to add (for source_type=url)
         urls: List of URLs to add in bulk (for source_type=url, alternative to url)
         text: Text content to add (for source_type=text)
@@ -250,7 +249,12 @@ def source_describe(source_id: str) -> ResultDict:
 
 
 @logged_tool()
-def source_get_content(source_id: str) -> ResultDict:
+def source_get_content(
+    source_id: str,
+    wait: bool = False,
+    wait_timeout: float = 120.0,
+    poll_interval: float = 3.0,
+) -> ResultDict:
     """Get raw text content of a source (no AI processing).
 
     Returns the original indexed text from PDFs, web pages, pasted text,
@@ -258,12 +262,21 @@ def source_get_content(source_id: str) -> ResultDict:
 
     Args:
         source_id: Source UUID
+        wait: Poll until indexed content is available
+        wait_timeout: Maximum seconds to wait when ``wait`` is enabled
+        poll_interval: Seconds between readiness checks
 
     Returns: content (str), title (str), source_type (str), char_count (int)
     """
     try:
         client = get_client()
-        result = sources_service.get_source_content(client, source_id)
+        result = sources_service.get_source_content(
+            client,
+            source_id,
+            wait=wait,
+            wait_timeout=wait_timeout,
+            poll_interval=poll_interval,
+        )
         return {"status": "success", **result}
     except ServiceError as e:
         return error_result(e.user_message, hint=e.hint)

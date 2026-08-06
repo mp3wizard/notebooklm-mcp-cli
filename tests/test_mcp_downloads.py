@@ -1,6 +1,6 @@
 """Unit tests for the download_all_artifacts MCP tool."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from notebooklm_tools.mcp.tools import downloads
 from notebooklm_tools.services.errors import ServiceError, ValidationError
@@ -185,3 +185,38 @@ def test_service_error_surfaces_user_message_and_hint():
     assert result["status"] == "error"
     assert result["error"] == "Notebook not found."
     assert result["hint"] == "Check the ID."
+
+
+def test_download_artifact_forwards_readiness_options():
+    mock_client = MagicMock()
+    service_result = {"artifact_type": "audio", "path": "/tmp/audio.m4a"}
+
+    with (
+        patch("notebooklm_tools.mcp.tools.downloads.get_client", return_value=mock_client),
+        patch(
+            "notebooklm_tools.mcp.tools.downloads.downloads_service.download_async",
+            new=AsyncMock(return_value=service_result),
+        ) as download_async,
+    ):
+        result = downloads.download_artifact(
+            notebook_id="nb-1",
+            artifact_type="audio",
+            output_path="/tmp/audio.m4a",
+            wait=True,
+            wait_timeout=9,
+            poll_interval=0.5,
+        )
+
+    assert result["status"] == "success"
+    download_async.assert_awaited_once_with(
+        mock_client,
+        "nb-1",
+        "audio",
+        "/tmp/audio.m4a",
+        artifact_id=None,
+        output_format="json",
+        slide_deck_format="pdf",
+        wait=True,
+        wait_timeout=9,
+        poll_interval=0.5,
+    )

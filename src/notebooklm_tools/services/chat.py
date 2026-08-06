@@ -19,6 +19,76 @@ VALID_RESPONSE_LENGTHS = ("default", "longer", "shorter")
 MAX_PROMPT_LENGTH = 10_000
 
 
+_QUERY_REJECTION_METADATA: dict[int, dict[str, str | bool]] = {
+    1: {"category": "cancelled", "retryable": False, "suggested_action": "submit_again_if_needed"},
+    3: {
+        "category": "invalid_argument",
+        "retryable": False,
+        "suggested_action": "check_query_arguments",
+    },
+    4: {
+        "category": "deadline_exceeded",
+        "retryable": True,
+        "suggested_action": "retry_with_longer_timeout",
+    },
+    5: {
+        "category": "not_found",
+        "retryable": False,
+        "suggested_action": "check_notebook_and_source_ids",
+    },
+    7: {
+        "category": "permission_denied",
+        "retryable": False,
+        "suggested_action": "check_access_permissions",
+    },
+    8: {
+        "category": "resource_exhausted",
+        "retryable": True,
+        "suggested_action": "retry_after_delay",
+    },
+    13: {"category": "internal", "retryable": True, "suggested_action": "retry_after_delay"},
+    14: {"category": "unavailable", "retryable": True, "suggested_action": "retry_after_delay"},
+    16: {"category": "unauthenticated", "retryable": False, "suggested_action": "run_nlm_login"},
+}
+
+
+def _query_rejected_service_error(error: QueryRejectedError) -> ServiceError:
+    """Map a provider query rejection to actionable, structured metadata."""
+    metadata = _QUERY_REJECTION_METADATA.get(
+        error.error_code,
+        {
+            "category": "provider_error",
+            "retryable": False,
+            "suggested_action": "inspect_provider_error",
+        },
+    )
+    category = str(metadata["category"])
+    messages = {
+        3: "The query request is invalid. Check the notebook ID, source IDs, and query arguments.",
+        5: "The requested notebook or source was not found. Check the supplied IDs.",
+        7: "Access to the requested notebook or source was denied.",
+        8: "NotebookLM temporarily rejected the query because a usage limit was reached.",
+        16: "NotebookLM authentication is no longer valid. Run 'nlm login' and retry.",
+    }
+    hints = {
+        3: "Correct the invalid notebook ID, source ID, or query argument before retrying.",
+        5: "Verify that the notebook and selected sources still exist and belong to this account.",
+        7: "Confirm that the active account has access to the notebook and selected sources.",
+        8: "Wait before retrying the query.",
+        16: "Run 'nlm login' for the active profile.",
+    }
+    return ServiceError(
+        f"Query failed: {error}",
+        user_message=messages.get(error.error_code, str(error)),
+        hint=hints.get(error.error_code),
+        debug_code=f"query_{category}",
+        category=category,
+        provider_code=error.error_code,
+        retryable=bool(metadata["retryable"]),
+        suggested_action=str(metadata["suggested_action"]),
+    )
+
+
 class QueryResult(TypedDict):
     """Result of a notebook query."""
 
@@ -36,6 +106,7 @@ class PendingQueryState(TypedDict):
     status: str
     result: QueryResult | None
     error: str | None
+    error_details: dict[str, str | int | bool] | None
     created_at: float
 
 
@@ -109,14 +180,7 @@ def query(
             **({"timeout": cast(float, timeout)} if timeout is not None else {}),
         )
     except QueryRejectedError as e:
-        raise ServiceError(
-            f"Query failed: {e}",
-            user_message=(
-                f"{e}. This may indicate account-level restrictions on "
-                "programmatic access. Try re-authenticating with 'nlm login' "
-                "or using a different account."
-            ),
-        ) from e
+        raise _query_rejected_service_error(e) from e
     except Exception as e:
         raise ServiceError(f"Query failed: {e}") from e
 
@@ -267,6 +331,7 @@ class QueryStatusResult(TypedDict):
     status: str
     result: QueryResult | None
     error: str | None
+    error_details: dict[str, str | int | bool] | None
 
 
 def _cleanup_expired_queries() -> None:
@@ -309,7 +374,11 @@ def _run_query_in_background(
         with _pending_lock:
             if query_id in _pending_queries:
                 _pending_queries[query_id]["status"] = "error"
-                _pending_queries[query_id]["error"] = str(e)
+                if isinstance(e, ServiceError):
+                    _pending_queries[query_id]["error"] = e.user_message
+                    _pending_queries[query_id]["error_details"] = e.details() or None
+                else:
+                    _pending_queries[query_id]["error"] = str(e)
 
 
 def query_start(
@@ -368,6 +437,7 @@ def query_start(
             "status": "in_progress",
             "result": None,
             "error": None,
+            "error_details": None,
             "created_at": time.monotonic(),
         }
 
@@ -414,6 +484,7 @@ def query_status(query_id: str) -> QueryStatusResult:
             "status": entry["status"],
             "result": entry["result"],
             "error": entry["error"],
+            "error_details": entry["error_details"],
         }
 
         # Clean up completed/errored entries after reading

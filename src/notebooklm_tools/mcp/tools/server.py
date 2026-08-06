@@ -62,9 +62,56 @@ def _check_auth_status() -> str:
         return "error"
 
 
+def _runtime_capabilities(
+    registered_tools: set[str] | None = None,
+    disabled_tools: set[str] | None = None,
+) -> dict[str, Any]:
+    """Describe built-in MCP capability visibility without probing provider features.
+
+    This is intentionally a runtime/tool-surface report. It does not infer
+    account entitlements, quota, secure-computer access, or undocumented
+    provider capabilities from plan labels.
+    """
+    from notebooklm_tools.mcp import tool_groups
+    from notebooklm_tools.mcp.tools._utils import _tool_registry
+
+    registered = (
+        {name for name, _ in _tool_registry} if registered_tools is None else set(registered_tools)
+    )
+    disabled = tool_groups._resolve_disabled() if disabled_tools is None else set(disabled_tools)
+    visible = registered - disabled
+
+    groups: dict[str, dict[str, Any]] = {}
+    grouped_tools: set[str] = set()
+    for group_name, configured_tools in sorted(tool_groups.TOOL_GROUPS.items()):
+        grouped_tools |= configured_tools
+        visible_tools = configured_tools & visible
+        hidden_tools = configured_tools & registered & disabled
+        missing_tools = configured_tools - registered
+        available = bool(configured_tools) and configured_tools <= visible
+        groups[group_name] = {
+            "available": available,
+            "partially_available": bool(visible_tools) and not available,
+            "visible_tools": sorted(visible_tools),
+            "hidden_tools": sorted(hidden_tools),
+            "missing_tools": sorted(missing_tools),
+        }
+
+    return {
+        "schema_version": 1,
+        "scope": "built_in_mcp_runtime",
+        "source": "registered_tool_visibility",
+        "registered_tool_count": len(registered),
+        "visible_tool_count": len(visible),
+        "hidden_tool_count": len(registered - visible),
+        "groups": groups,
+        "ungrouped_tools": sorted(registered - grouped_tools),
+    }
+
+
 @logged_tool()
 def server_info() -> dict[str, Any]:
-    """Get server version, check for updates, and report auth status.
+    """Get version, auth status, and conservative MCP capability visibility.
 
     AI assistants: If update_available is True, inform the user that a new
     version is available and suggest updating with the provided command.
@@ -97,6 +144,8 @@ def server_info() -> dict[str, Any]:
         - update_available: True if a newer version is available
         - auth_status: configured | stale | unverified | not_configured | error
         - update_command: Command to run to update
+        - mcp_capabilities: Built-in tool groups visible in this server process
+        - provider_capabilities: Explicitly unprobed provider/account capabilities
     """
     latest = _get_latest_pypi_version()
     update_available = False
@@ -112,4 +161,12 @@ def server_info() -> dict[str, Any]:
         "auth_status": _check_auth_status(),
         "update_command": "uv tool upgrade notebooklm-mcp-cli",
         "pip_update_command": "pip install --upgrade notebooklm-mcp-cli",
+        "mcp_capabilities": _runtime_capabilities(),
+        "provider_capabilities": {
+            "status": "not_probed",
+            "reason": (
+                "server_info reports MCP runtime visibility only; account plan labels "
+                "are not treated as provider capability evidence."
+            ),
+        },
     }

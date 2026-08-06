@@ -1,6 +1,7 @@
 """Sources service — shared validation and logic for source management."""
 
 import os
+import time
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -664,37 +665,64 @@ def describe_source(
 def get_source_content(
     client: NotebookLMClient,
     source_id: str,
+    *,
+    wait: bool = False,
+    wait_timeout: float = 120.0,
+    poll_interval: float = 3.0,
 ) -> SourceContentResult:
     """Get raw text content of a source (no AI processing).
 
     Args:
         client: Authenticated NotebookLM client
         source_id: Source UUID
+        wait: Poll until indexed content is available
+        wait_timeout: Maximum seconds to wait when ``wait`` is enabled
+        poll_interval: Seconds between readiness checks
 
     Returns:
         SourceContentResult with content, title, type, and char_count
 
     Raises:
-        ServiceError: If content retrieval fails
+        ValidationError: If polling options are invalid
+        ServiceError: If content retrieval fails or readiness times out
     """
-    try:
-        result = client.get_source_fulltext(source_id)
-        if not result:
+    if wait and wait_timeout < 0:
+        raise ValidationError("wait_timeout must be greater than or equal to 0.")
+    if wait and poll_interval <= 0:
+        raise ValidationError("poll_interval must be greater than 0.")
+
+    deadline = time.monotonic() + wait_timeout
+    while True:
+        try:
+            result = client.get_source_fulltext(source_id)
+        except Exception as e:
+            raise ServiceError(
+                f"Failed to get content for source {source_id}: {e}",
+                user_message="Failed to get source content.",
+            ) from e
+
+        content = result.get("content", "") if result else ""
+        if result and (content or not wait):
+            return {
+                "content": content,
+                "title": result.get("title", ""),
+                "source_type": result.get("type", "unknown"),
+                "char_count": len(content),
+            }
+
+        if not wait:
             raise ServiceError(
                 f"No content returned for source {source_id}",
                 user_message="Failed to get source content.",
+                debug_code="source_not_ready",
             )
-        content = result.get("content", "")
-        return {
-            "content": content,
-            "title": result.get("title", ""),
-            "source_type": result.get("type", "unknown"),
-            "char_count": len(content),
-        }
-    except ServiceError:
-        raise
-    except Exception as e:
-        raise ServiceError(
-            f"Failed to get content for source {source_id}: {e}",
-            user_message="Failed to get source content.",
-        ) from e
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ServiceError(
+                f"Source {source_id} content was not ready after {wait_timeout}s",
+                user_message="Source content is not ready yet.",
+                hint="NotebookLM may still be indexing this source. Retry shortly or increase wait_timeout.",
+                debug_code="source_not_ready",
+            )
+        time.sleep(min(poll_interval, remaining))

@@ -631,6 +631,54 @@ def _mapped_chrome_owns_profile(pid: int | None, profile_name: str, port: int) -
     return user_data_dir == profile_path
 
 
+def _listener_pid(port: int) -> int | None:
+    """Return the PID listening on a local TCP port, if it can be determined."""
+    system = platform.system()
+    try:
+        if system == "Windows":
+            result = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-Command",
+                    (
+                        f"(Get-NetTCPConnection -LocalPort {int(port)} -State Listen "
+                        "-ErrorAction SilentlyContinue | Select-Object -First 1 "
+                        "-ExpandProperty OwningProcess)"
+                    ),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            if result.returncode == 0:
+                text = result.stdout.strip()
+                return int(text) if text.isdigit() else None
+            return None
+
+        # macOS/Linux: prefer lsof; fall back to fuser on Linux.
+        for cmd in (
+            ["lsof", "-nP", f"-iTCP:{int(port)}", "-sTCP:LISTEN", "-t"],
+            ["fuser", f"{int(port)}/tcp"],
+        ):
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode not in (0, 1):
+                continue
+            # lsof -t prints one PID per line; fuser may print "12345" or "12345/tcp:"
+            for token in re.findall(r"\d+", (result.stdout or "") + " " + (result.stderr or "")):
+                return int(token)
+    except Exception:
+        return None
+    return None
+
+
 def find_existing_nlm_chrome(
     port_range: range = CDP_PORT_RANGE,
     profile_name: str = "default",
@@ -640,7 +688,9 @@ def find_existing_nlm_chrome(
 
     Uses the port-to-profile mapping to only reconnect to Chrome instances
     that belong to the requested profile, preventing cross-profile
-    contamination.
+    contamination. When the map is empty or stale, scans the local CDP port
+    range and reuses a listener only after verifying it was launched with this
+    profile's ``--user-data-dir`` (Issue #277).
 
     Args:
         port_range: Range of ports to scan.
@@ -689,7 +739,39 @@ def find_existing_nlm_chrome(
 
         _clear_port_map(port)
 
-    # No mapped instance found for this profile
+    # Map miss / stale map: scan live CDP listeners and adopt only profile-owned ones.
+    for port in port_range:
+        version_info = _fetch_cdp_version(port, timeout=1)
+        if not version_info:
+            continue
+
+        ua = version_info.get("User-Agent", "")
+        if "Headless" in ua and not include_headless:
+            _logger.debug("Skipping headless unmapped browser on port %d", port)
+            continue
+
+        pid = _listener_pid(port)
+        if pid is None or not _mapped_chrome_owns_profile(pid, profile_name, port):
+            _logger.debug(
+                "Ignoring unmapped CDP on port %d (pid=%s) for profile '%s'",
+                port,
+                pid,
+                profile_name,
+            )
+            continue
+
+        debugger_url = _normalize_ws_url(version_info.get("webSocketDebuggerUrl"))
+        if not debugger_url:
+            continue
+
+        _write_port_map(port, profile_name, pid)
+        _logger.debug(
+            "Reusing unmapped profile-owned Chrome on port %d for profile '%s'",
+            port,
+            profile_name,
+        )
+        return port, debugger_url
+
     return None, None
 
 
@@ -1317,7 +1399,17 @@ def extract_cookies_via_cdp(
 
         # Snap Chromium and some Chromium forks can take noticeably longer
         # to expose CDP than the browser window itself takes to appear.
-        debugger_url = get_debugger_url(port, tries=30)
+        # If the child already exited (Chrome handoff to an existing profile
+        # lock), stop polling the unbound port immediately (#277).
+        debugger_url = None
+        for attempt in range(30):
+            debugger_url = get_debugger_url(port, tries=1, timeout=1)
+            if debugger_url:
+                break
+            if _chrome_process is not None and _chrome_process.poll() is not None:
+                break
+            if attempt < 29:
+                time.sleep(1)
 
     if not debugger_url:
         startup_error = _summarize_browser_startup_failure(_chrome_process)

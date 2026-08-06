@@ -12,6 +12,7 @@ from typing import Any, ParamSpec, TypeAlias, TypeVar, cast
 from notebooklm_tools.core.client import NotebookLMClient
 from notebooklm_tools.core.utils import extract_cookies_from_chrome_export
 from notebooklm_tools.services.auth import load_cached_tokens
+from notebooklm_tools.services.errors import ServiceError
 
 # MCP request/response logger
 mcp_logger = logging.getLogger("notebooklm_tools.mcp")
@@ -45,6 +46,15 @@ def error_result(
     if hint:
         result["hint"] = hint
     result.update(extra)
+    return result
+
+
+def service_error_result(error: ServiceError, *, status: str = "error") -> ResultDict:
+    """Serialize a ServiceError without breaking the existing MCP error shape."""
+    result = error_result(error.user_message, hint=error.hint, status=status)
+    details = error.details()
+    if details:
+        result["error_details"] = details
     return result
 
 

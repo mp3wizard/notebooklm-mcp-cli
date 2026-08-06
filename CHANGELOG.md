@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2026-08-05
+
+### Added
+- **Bounded readiness polling for sources and downloads (#279)** — MCP `source_get_content` and `download_artifact` now accept opt-in `wait`, `wait_timeout`, and `poll_interval` parameters. Polling stays in `services/` with thin MCP wrappers, retries only recognized not-ready states, and defaults to `wait=False` so existing callers remain immediate. Thanks to **@insane66613** for the focused extract from earlier polling work ([PR #279](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/279))!
+- **Configurable rate-limit retry ceiling (#281)** — New `NOTEBOOKLM_RATE_LIMIT_MAX_RETRIES` env var controls retries for HTTP 429 and RPC `RESOURCE_EXHAUSTED` only (unset keeps the existing default; `0` surfaces rate limits immediately). HTTP 5xx and connection retries are unchanged. Thanks to **@insane66613** ([PR #281](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/281))!
+- **Conservative MCP runtime capability reporting (#282)** — `server_info` now includes `mcp_capabilities` (registered/visible tool counts, group availability, hidden/missing/ungrouped tools) and an explicit `provider_capabilities: not_probed` result so clients do not infer account entitlements from plan labels. Thanks to **@insane66613** ([PR #282](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/282))!
+
+### Fixed
+- **Login deadlock on orphaned profile-owned browser (#277)** — After an abnormal exit, an nlm Chrome/Edge can remain alive on the CDP port while `chrome-port-map.json` is empty. Discovery previously missed it, launched on the next port with the same `--user-data-dir`, and hung waiting for a port that never bound (Chrome handoff). `find_existing_nlm_chrome()` now scans live CDP listeners and reuses one only after verifying `--user-data-dir` ownership; launch also stops polling immediately if the child process has already exited. Thanks to **@jrdmcfrrn** for the excellent diagnosis and repro!
+- **Windows Claude Desktop config without a resolvable home (#278)** — When `APPDATA` / `LOCALAPPDATA` are missing and `Path.home()` cannot resolve, setup falls back to the Windows shell profile path (`SHGetFolderPathW(CSIDL_PROFILE)`) instead of crashing. Thanks to **@insane66613** ([PR #278](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/278))!
+- **Structured provider query errors for agents (#280)** — Query rejections such as `INVALID_ARGUMENT`, `NOT_FOUND`, `RESOURCE_EXHAUSTED`, and `UNAUTHENTICATED` now map to stable categories with retryability and suggested actions, exposed additively via MCP `error_details` while preserving `{status, error, hint}`. Thanks to **@insane66613** ([PR #280](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/280))!
+- **Local file-upload gate aligned with NotebookLM’s 43-extension contract (#283)** — Canonical `SUPPORTED_FILE_EXTENSIONS` registry admits the official set case-insensitively (including `.pptx` and expanded media types); provider-side processing failures remain ingestion errors rather than local unsupported-format errors. Thanks to **@insane66613** ([PR #283](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/283))!
+
+### Changed
+- **MCP server env-help formatting** — `notebooklm-mcp --help` epilog columns realigned so `NOTEBOOKLM_RATE_LIMIT_MAX_RETRIES` matches the other environment-variable descriptions.
+
 ## [0.9.6] - 2026-08-03
 
 ### Added

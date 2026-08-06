@@ -129,14 +129,15 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Environment Variables:
-  NOTEBOOKLM_MCP_TRANSPORT     Transport type (stdio, http, sse)
-  NOTEBOOKLM_MCP_HOST          Host to bind (default: 127.0.0.1)
-  NOTEBOOKLM_MCP_PORT          Port to listen on (default: 8000)
-  NOTEBOOKLM_MCP_PATH          MCP endpoint path (default: /mcp)
-  NOTEBOOKLM_MCP_STATELESS     Stateless HTTP sessions (default: true, set false to disable)
-  NOTEBOOKLM_MCP_DEBUG         Debug logging (default: false)
-  NOTEBOOKLM_HL                Interface language and default artifact language (default: en)
-  NOTEBOOKLM_QUERY_TIMEOUT     Query timeout in seconds (default: 120.0)
+  NOTEBOOKLM_MCP_TRANSPORT          Transport type (stdio, http, sse)
+  NOTEBOOKLM_MCP_HOST               Host to bind (default: 127.0.0.1)
+  NOTEBOOKLM_MCP_PORT               Port to listen on (default: 8000)
+  NOTEBOOKLM_MCP_PATH               MCP endpoint path (default: /mcp)
+  NOTEBOOKLM_MCP_STATELESS          Stateless HTTP sessions (default: true, set false to disable)
+  NOTEBOOKLM_MCP_DEBUG              Debug logging (default: false)
+  NOTEBOOKLM_HL                     Interface language and default artifact language (default: en)
+  NOTEBOOKLM_QUERY_TIMEOUT          Query timeout in seconds (default: 120.0)
+  NOTEBOOKLM_RATE_LIMIT_MAX_RETRIES Retry count for HTTP 429/RPC resource limits (default: 3; 0 disables)
 
 Examples:
   notebooklm-mcp                              # Default stdio transport

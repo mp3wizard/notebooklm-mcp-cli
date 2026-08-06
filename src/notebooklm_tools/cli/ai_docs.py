@@ -233,7 +233,8 @@ nlm source add <notebook-id> --file doc.pdf --wait          # Upload and wait un
 nlm source add <notebook-id> --drive <doc-id>              # Add Drive doc
 nlm source add <notebook-id> --drive <doc-id> --type slides  # Add Drive slides
 # Types: doc, slides, sheets, pdf
-# Supported file types: PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, JPEG, PNG, GIF, WEBP
+# OFFICIAL_FILE_EXTENSIONS: .pdf, .txt, .md, .docx, .csv, .pptx, .epub, .avif, .bmp, .gif, .heic, .heif, .ico, .jp2, .jpe, .jpeg, .jpg, .png, .tif, .tiff, .webp, .3g2, .3gp, .aac, .aif, .aifc, .aiff, .amr, .au, .avi, .cda, .m4a, .mid, .mp3, .mp4, .mpeg, .ogg, .opus, .ra, .ram, .snd, .wav, .wma
+# Local admission does not guarantee provider processing success for every file.
 
 nlm source get <source-id>             # Get source metadata
 nlm source get <source-id> --json      # JSON output

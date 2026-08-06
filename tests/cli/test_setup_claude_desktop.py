@@ -70,6 +70,20 @@ class TestClaudeDesktopConfigPath:
             path = _claude_desktop_config_path()
         assert path == Path.home() / "AppData" / "Roaming" / "Claude" / "claude_desktop_config.json"
 
+    def test_windows_path_uses_shell_profile_when_path_home_is_unavailable(self, tmp_path):
+        with (
+            patch("platform.system", return_value="Windows"),
+            patch.dict(os.environ, {}, clear=True),
+            patch("pathlib.Path.home", side_effect=RuntimeError("home unavailable")),
+            patch(
+                "notebooklm_tools.cli.commands.setup._windows_profile_dir_from_shell",
+                return_value=tmp_path,
+            ),
+        ):
+            path = _claude_desktop_config_path()
+
+        assert path == tmp_path / "AppData" / "Roaming" / "Claude" / "claude_desktop_config.json"
+
     def test_windows_path_uses_existing_msix_config(self, tmp_path):
         local_app_data = tmp_path / "LocalAppData"
         msix_config = (

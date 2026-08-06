@@ -523,6 +523,42 @@ class TestGetSourceContent:
         with pytest.raises(ServiceError, match="No content returned"):
             get_source_content(mock_client, "src-1")
 
+    def test_waits_until_indexed_content_is_available(self, mock_client, monkeypatch):
+        mock_client.get_source_fulltext.side_effect = [
+            {"content": "", "title": "Pending", "type": "text"},
+            {"content": "Ready", "title": "Indexed", "type": "text"},
+        ]
+        sleeps = []
+        monkeypatch.setattr(
+            "notebooklm_tools.services.sources.time.sleep",
+            sleeps.append,
+        )
+
+        result = get_source_content(
+            mock_client,
+            "src-1",
+            wait=True,
+            wait_timeout=10,
+            poll_interval=0.25,
+        )
+
+        assert result["content"] == "Ready"
+        assert mock_client.get_source_fulltext.call_count == 2
+        assert sleeps == [0.25]
+
+    def test_wait_timeout_has_stable_debug_code(self, mock_client):
+        mock_client.get_source_fulltext.return_value = None
+
+        with pytest.raises(ServiceError) as exc_info:
+            get_source_content(mock_client, "src-1", wait=True, wait_timeout=0)
+
+        assert exc_info.value.debug_code == "source_not_ready"
+        assert exc_info.value.hint is not None
+
+    def test_rejects_invalid_poll_interval(self, mock_client):
+        with pytest.raises(ValidationError, match="poll_interval"):
+            get_source_content(mock_client, "src-1", wait=True, poll_interval=0)
+
 
 class TestAddSources:
     """Test add_sources (bulk) function."""

@@ -238,6 +238,65 @@ class TestDownloadAsync:
             await download_async(mock_client, "nb-1", "audio", "/tmp/out")
 
     @pytest.mark.asyncio
+    async def test_waits_for_propagating_artifact(self, mock_client, monkeypatch):
+        propagation_error = ArtifactDownloadError(
+            "audio",
+            details="media download URL is still propagating; retry shortly",
+        )
+        mock_client.download_audio = AsyncMock(side_effect=[propagation_error, "/tmp/audio.m4a"])
+        sleep = AsyncMock()
+        monkeypatch.setattr("notebooklm_tools.services.downloads.asyncio.sleep", sleep)
+
+        result = await download_async(
+            mock_client,
+            "nb-1",
+            "audio",
+            "/tmp/out.m4a",
+            wait=True,
+            wait_timeout=10,
+            poll_interval=0.25,
+        )
+
+        assert result["path"] == "/tmp/audio.m4a"
+        assert mock_client.download_audio.await_count == 2
+        sleep.assert_awaited_once_with(0.25)
+
+    @pytest.mark.asyncio
+    async def test_wait_timeout_has_stable_debug_code(self, mock_client):
+        mock_client.download_audio = AsyncMock(return_value=None)
+
+        with pytest.raises(ServiceError) as exc_info:
+            await download_async(
+                mock_client,
+                "nb-1",
+                "audio",
+                "/tmp/out.m4a",
+                wait=True,
+                wait_timeout=0,
+            )
+
+        assert exc_info.value.debug_code == "artifact_not_ready"
+        assert exc_info.value.hint is not None
+
+    @pytest.mark.asyncio
+    async def test_non_transient_error_is_not_retried(self, mock_client, monkeypatch):
+        mock_client.download_audio = AsyncMock(side_effect=RuntimeError("denied"))
+        sleep = AsyncMock()
+        monkeypatch.setattr("notebooklm_tools.services.downloads.asyncio.sleep", sleep)
+
+        with pytest.raises(ServiceError, match="Failed to download"):
+            await download_async(
+                mock_client,
+                "nb-1",
+                "audio",
+                "/tmp/out.m4a",
+                wait=True,
+            )
+
+        assert mock_client.download_audio.await_count == 1
+        sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_progress_callback_passed_through(self, mock_client):
         cb = MagicMock()
         await download_async(

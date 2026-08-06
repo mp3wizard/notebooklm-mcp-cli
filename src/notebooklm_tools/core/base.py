@@ -67,6 +67,33 @@ def _safe_int_env(name: str, default: int) -> int:
     return value
 
 
+def _rate_limit_max_retries() -> int:
+    """Return the retry ceiling for HTTP 429 and RPC RESOURCE_EXHAUSTED errors.
+
+    The default preserves the standard transport retry behavior. Setting
+    ``NOTEBOOKLM_RATE_LIMIT_MAX_RETRIES=0`` surfaces rate limits immediately,
+    which is useful when a caller or queue owns retry scheduling.
+    """
+    name = "NOTEBOOKLM_RATE_LIMIT_MAX_RETRIES"
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return DEFAULT_MAX_RETRIES
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(
+            "Invalid %s=%r; falling back to default %d",
+            name,
+            raw,
+            DEFAULT_MAX_RETRIES,
+        )
+        return DEFAULT_MAX_RETRIES
+    if value < 0:
+        logger.warning("%s=%d is negative; clamping to 0", name, value)
+        return 0
+    return value
+
+
 def load_rpc_overrides() -> dict[str, str]:
     """Load runtime RPC-ID overrides from NOTEBOOKLM_RPC_OVERRIDES.
 
@@ -807,7 +834,8 @@ class BaseClient:
         try:
             return self._extract_rpc_result(parsed, rpc_id)
         except ResourceExhaustedError:
-            if _server_retry < DEFAULT_MAX_RETRIES:
+            max_retries = _rate_limit_max_retries()
+            if _server_retry < max_retries:
                 import time as _time
 
                 delay = min(DEFAULT_BASE_DELAY * (2**_server_retry), DEFAULT_MAX_DELAY)
@@ -815,7 +843,7 @@ class BaseClient:
                     "RPC rate limit (RESOURCE_EXHAUSTED) on %s, attempt %d/%d, retrying in %.1fs...",
                     rpc_id,
                     _server_retry + 1,
-                    DEFAULT_MAX_RETRIES + 1,
+                    max_retries + 1,
                     delay,
                 )
                 _time.sleep(delay)
@@ -918,16 +946,19 @@ class BaseClient:
             return result
 
         except httpx.HTTPStatusError as e:
-            # Retry on transient server errors (5xx, 429) with exponential backoff
+            # Retry on transient server errors (5xx, 429) with exponential backoff.
+            # Rate limits have a separate ceiling so external schedulers can own
+            # retry policy without disabling safe connection or 5xx retries.
             if is_retryable_error(e):
                 import time as _time
 
                 status = e.response.status_code
+                max_retries = _rate_limit_max_retries() if status == 429 else DEFAULT_MAX_RETRIES
                 # Use _server_retry to track retries across recursive calls
-                if _server_retry < DEFAULT_MAX_RETRIES:
+                if _server_retry < max_retries:
                     delay = min(DEFAULT_BASE_DELAY * (2**_server_retry), DEFAULT_MAX_DELAY)
                     logger.warning(
-                        f"Server error {status} on attempt {_server_retry + 1}/{DEFAULT_MAX_RETRIES + 1}, "
+                        f"Server error {status} on attempt {_server_retry + 1}/{max_retries + 1}, "
                         f"retrying in {delay:.1f}s..."
                     )
                     _time.sleep(delay)
@@ -988,7 +1019,8 @@ class BaseClient:
 
         except ResourceExhaustedError:
             # RPC-level rate limit (HTTP 200, error code 8). Back off and retry.
-            if _server_retry < DEFAULT_MAX_RETRIES:
+            max_retries = _rate_limit_max_retries()
+            if _server_retry < max_retries:
                 import time as _time
 
                 delay = min(DEFAULT_BASE_DELAY * (2**_server_retry), DEFAULT_MAX_DELAY)
@@ -996,7 +1028,7 @@ class BaseClient:
                     "RPC rate limit (RESOURCE_EXHAUSTED) on %s, attempt %d/%d, retrying in %.1fs...",
                     rpc_id,
                     _server_retry + 1,
-                    DEFAULT_MAX_RETRIES + 1,
+                    max_retries + 1,
                     delay,
                 )
                 _time.sleep(delay)

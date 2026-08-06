@@ -44,11 +44,14 @@ source_add(notebook_id="...", source_type="file", file_path="/path/to/file.pdf")
 
 ### Supported File Types
 
-- Documents (`.pdf`, `.txt`, `.md`, `.docx`, `.csv`)
-- Ebooks (`.epub`)
-- Audio (`.mp3`, `.m4a`, `.wav`, `.aac`, `.ogg`, `.opus`)
-- Video (`.mp4`)
-- Images (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`)
+The local gate admits the official 43-extension contract case-insensitively:
+
+OFFICIAL_FILE_EXTENSIONS: .pdf, .txt, .md, .docx, .csv, .pptx, .epub, .avif, .bmp, .gif, .heic, .heif, .ico, .jp2, .jpe, .jpeg, .jpg, .png, .tif, .tiff, .webp, .3g2, .3gp, .aac, .aif, .aifc, .aiff, .amr, .au, .avi, .cda, .m4a, .mid, .mp3, .mp4, .mpeg, .ogg, .opus, .ra, .ram, .snd, .wav, .wma
+
+This establishes local admission eligibility only. NotebookLM may still reject or
+fail to process corrupt files, misleading extensions, inaccessible media, or
+reference-only formats such as some `.cda` and `.ram` files. Those outcomes are
+provider ingestion errors, not local unsupported-extension errors.
 
 ### Advantages
 

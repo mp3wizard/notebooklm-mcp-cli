@@ -13,6 +13,7 @@ from ._utils import (
     get_client,
     get_query_timeout,
     logged_tool,
+    service_error_result,
 )
 
 
@@ -54,7 +55,7 @@ async def notebook_query(
         )
         return {"status": "success", **result}
     except ServiceError as e:
-        return error_result(e.user_message, hint=e.hint)
+        return service_error_result(e)
     except Exception as e:
         return error_result(str(e))
 
@@ -85,7 +86,7 @@ def chat_configure(
         )
         return {"status": "success", **result}
     except ServiceError as e:
-        return error_result(e.user_message, hint=e.hint)
+        return service_error_result(e)
     except Exception as e:
         return error_result(str(e))
 
@@ -127,7 +128,7 @@ def notebook_query_start(
         )
         return {"status": "success", **result}
     except ServiceError as e:
-        return error_result(e.user_message, hint=e.hint)
+        return service_error_result(e)
     except Exception as e:
         return error_result(str(e))
 
@@ -148,6 +149,6 @@ def notebook_query_status(
         result = chat_service.query_status(query_id)
         return {"status": "success", **result}
     except ServiceError as e:
-        return error_result(e.user_message, hint=e.hint)
+        return service_error_result(e)
     except Exception as e:
         return error_result(str(e))

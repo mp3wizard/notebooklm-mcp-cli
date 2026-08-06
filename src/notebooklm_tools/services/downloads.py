@@ -1,8 +1,10 @@
 """Downloads service — shared validation and routing for artifact downloads."""
 
+import asyncio
 import inspect
 import os
 import re
+import time
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 from typing import Any, cast
@@ -286,46 +288,17 @@ def download_sync(
     return {"artifact_type": artifact_type, "path": saved_path}
 
 
-async def download_async(
+async def _download_once_async(
     client: NotebookLMClient,
     notebook_id: str,
     artifact_type: str,
     output_path: str,
-    artifact_id: str | None = None,
-    output_format: str = "json",
-    progress_callback: Callable[[int, int], None] | None = None,
-    slide_deck_format: str = "pdf",
+    artifact_id: str | None,
+    output_format: str,
+    progress_callback: Callable[[int, int], None] | None,
+    slide_deck_format: str,
 ) -> DownloadResult:
-    """Download a streaming artifact asynchronously.
-
-    For: audio, video, slide_deck, infographic, quiz, flashcards.
-
-    Args:
-        client: Authenticated NotebookLM client
-        notebook_id: Notebook UUID
-        artifact_type: Type of artifact
-        output_path: Path to save file
-        artifact_id: Specific artifact ID (optional)
-        output_format: For quiz/flashcards: json|markdown|html
-        progress_callback: Called with (current, total) for progress tracking
-        slide_deck_format: For slide_deck only: "pdf" (default) or "pptx"
-
-    Returns:
-        DownloadResult with artifact_type and path
-
-    Raises:
-        ValidationError: If artifact_type or output_format is invalid
-        ServiceError: If the download fails
-    """
-    validate_artifact_type(artifact_type)
-    validate_output_path(output_path)
-
-    if artifact_type == "audio":
-        validate_audio_extension(output_path)
-
-    if artifact_type in INTERACTIVE_TYPES:
-        validate_output_format(output_format)
-
+    """Attempt one artifact download without readiness polling."""
     try:
         saved_path = await _dispatch_async(
             client,
@@ -340,13 +313,15 @@ async def download_async(
     except (ValidationError, ServiceError):
         raise
     except ArtifactDownloadError as e:
-        if artifact_type == "audio" and "still propagating" in e.details:
+        if "still propagating" in e.details.lower():
             raise ServiceError(
                 f"Failed to download {artifact_type}: {e}",
                 user_message=(
-                    "Audio is complete, but its media download URL is still propagating. "
-                    "Try again in a few minutes."
+                    f"{artifact_type.title()} is complete, but its download is still propagating. "
+                    "Try again shortly."
                 ),
+                hint="Retry the download after a short delay.",
+                debug_code="artifact_not_ready",
             ) from e
         raise ServiceError(
             f"Failed to download {artifact_type}: {e}",
@@ -362,9 +337,88 @@ async def download_async(
         raise ServiceError(
             f"Download returned no path for {artifact_type}",
             user_message=f"{artifact_type} is not ready or does not exist.",
+            hint="Retry shortly if the artifact was just created.",
+            debug_code="artifact_not_ready",
         )
 
     return {"artifact_type": artifact_type, "path": saved_path}
+
+
+async def download_async(
+    client: NotebookLMClient,
+    notebook_id: str,
+    artifact_type: str,
+    output_path: str,
+    artifact_id: str | None = None,
+    output_format: str = "json",
+    progress_callback: Callable[[int, int], None] | None = None,
+    slide_deck_format: str = "pdf",
+    *,
+    wait: bool = False,
+    wait_timeout: float = 180.0,
+    poll_interval: float = 5.0,
+) -> DownloadResult:
+    """Download a streaming artifact asynchronously.
+
+    For: audio, video, slide_deck, infographic, quiz, flashcards.
+
+    Args:
+        client: Authenticated NotebookLM client
+        notebook_id: Notebook UUID
+        artifact_type: Type of artifact
+        output_path: Path to save file
+        artifact_id: Specific artifact ID (optional)
+        output_format: For quiz/flashcards: json|markdown|html
+        progress_callback: Called with (current, total) for progress tracking
+        slide_deck_format: For slide_deck only: "pdf" (default) or "pptx"
+        wait: Poll while the artifact download is still propagating
+        wait_timeout: Maximum seconds to wait when ``wait`` is enabled
+        poll_interval: Seconds between readiness checks
+
+    Returns:
+        DownloadResult with artifact_type and path
+
+    Raises:
+        ValidationError: If artifact_type, output_format, or polling options are invalid
+        ServiceError: If the download fails or readiness times out
+    """
+    validate_artifact_type(artifact_type)
+    validate_output_path(output_path)
+
+    if artifact_type == "audio":
+        validate_audio_extension(output_path)
+    if artifact_type in INTERACTIVE_TYPES:
+        validate_output_format(output_format)
+    if wait and wait_timeout < 0:
+        raise ValidationError("wait_timeout must be greater than or equal to 0.")
+    if wait and poll_interval <= 0:
+        raise ValidationError("poll_interval must be greater than 0.")
+
+    deadline = time.monotonic() + wait_timeout
+    while True:
+        try:
+            return await _download_once_async(
+                client,
+                notebook_id,
+                artifact_type,
+                output_path,
+                artifact_id,
+                output_format,
+                progress_callback,
+                slide_deck_format,
+            )
+        except ServiceError as e:
+            if not wait or e.debug_code != "artifact_not_ready":
+                raise
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ServiceError(
+                    f"{artifact_type} download was not ready after {wait_timeout}s",
+                    user_message=f"{artifact_type} is not ready yet.",
+                    hint="Retry shortly or increase wait_timeout.",
+                    debug_code="artifact_not_ready",
+                ) from e
+            await asyncio.sleep(min(poll_interval, remaining))
 
 
 _INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')

@@ -1,5 +1,7 @@
 """Tests for file upload functionality."""
 
+import inspect
+import re
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
@@ -7,7 +9,10 @@ from unittest.mock import MagicMock, Mock, patch
 import httpx
 import pytest
 
+from notebooklm_tools.core import constants
 from notebooklm_tools.core.exceptions import FileUploadError, FileValidationError
+from notebooklm_tools.core.sources import SourceMixin
+from notebooklm_tools.mcp.tools.sources import source_add
 
 
 class TestFileValidation:
@@ -400,3 +405,174 @@ def temp_notebook():
         client.delete_notebook(notebook.id)
     except Exception:
         pass  # Ignore cleanup errors
+
+
+# Gate F1: official file-extension contract alignment
+EXPECTED_EXTENSIONS = frozenset(
+    {
+        ".pdf",
+        ".txt",
+        ".md",
+        ".docx",
+        ".csv",
+        ".pptx",
+        ".epub",
+        ".avif",
+        ".bmp",
+        ".gif",
+        ".heic",
+        ".heif",
+        ".ico",
+        ".jp2",
+        ".jpe",
+        ".jpeg",
+        ".jpg",
+        ".png",
+        ".tif",
+        ".tiff",
+        ".webp",
+        ".3g2",
+        ".3gp",
+        ".aac",
+        ".aif",
+        ".aifc",
+        ".aiff",
+        ".amr",
+        ".au",
+        ".avi",
+        ".cda",
+        ".m4a",
+        ".mid",
+        ".mp3",
+        ".mp4",
+        ".mpeg",
+        ".ogg",
+        ".opus",
+        ".ra",
+        ".ram",
+        ".snd",
+        ".wav",
+        ".wma",
+    }
+)
+EXPECTED_MEDIA_EXTENSIONS = frozenset(
+    {
+        ".3g2",
+        ".3gp",
+        ".aac",
+        ".aif",
+        ".aifc",
+        ".aiff",
+        ".amr",
+        ".au",
+        ".avi",
+        ".cda",
+        ".m4a",
+        ".mid",
+        ".mp3",
+        ".mp4",
+        ".mpeg",
+        ".ogg",
+        ".opus",
+        ".ra",
+        ".ram",
+        ".snd",
+        ".wav",
+        ".wma",
+    }
+)
+CONTRACT_PATTERN = re.compile(r"OFFICIAL_FILE_EXTENSIONS:\s*([^\n]+)")
+
+
+def _client() -> SourceMixin:
+    return SourceMixin.__new__(SourceMixin)
+
+
+def _parse_contract(text: str) -> frozenset[str]:
+    match = CONTRACT_PATTERN.search(text)
+    assert match, "official extension contract marker is missing"
+    return frozenset(item.strip() for item in match.group(1).split(","))
+
+
+def test_official_registry_is_exact_and_normalized() -> None:
+    assert len(EXPECTED_EXTENSIONS) == 43
+    assert constants.SUPPORTED_FILE_EXTENSIONS == EXPECTED_EXTENSIONS
+    assert all(item.startswith(".") and item == item.lower() for item in EXPECTED_EXTENSIONS)
+    assert constants.TRANSIENT_MEDIA_FILE_EXTENSIONS == EXPECTED_MEDIA_EXTENSIONS
+    assert constants.TRANSIENT_MEDIA_FILE_EXTENSIONS < constants.SUPPORTED_FILE_EXTENSIONS
+
+
+@pytest.mark.parametrize("extension", sorted(EXPECTED_EXTENSIONS))
+def test_all_official_extensions_pass_local_gate(tmp_path: Path, extension: str) -> None:
+    path = tmp_path / f"evidence{extension}"
+    path.write_bytes(b"gate-f1")
+    client = _client()
+    with (
+        patch.object(client, "_register_file_source", return_value="source-id"),
+        patch.object(client, "_start_resumable_upload", return_value="upload-url"),
+        patch.object(client, "_upload_file_streaming"),
+    ):
+        result = client.add_file("notebook-id", path)
+    assert result == {"id": "source-id", "title": path.name}
+
+
+@pytest.mark.parametrize("filename", ["slides.PPTX", "photo.HeIc", "clip.3GP", "audio.WmA"])
+def test_extension_gate_is_case_insensitive(tmp_path: Path, filename: str) -> None:
+    path = tmp_path / filename
+    path.write_bytes(b"gate-f1")
+    client = _client()
+    with (
+        patch.object(client, "_register_file_source", return_value="source-id"),
+        patch.object(client, "_start_resumable_upload", return_value="upload-url"),
+        patch.object(client, "_upload_file_streaming"),
+    ):
+        result = client.add_file("notebook-id", path)
+    assert result["id"] == "source-id"
+
+
+@pytest.mark.parametrize("filename", ["payload.json", "payload.exe", "extensionless"])
+def test_unlisted_and_extensionless_files_remain_rejected(tmp_path: Path, filename: str) -> None:
+    path = tmp_path / filename
+    path.write_bytes(b"gate-f1")
+    with pytest.raises(FileValidationError, match="Unsupported file type"):
+        _client().add_file("notebook-id", path)
+
+
+@pytest.mark.parametrize(
+    ("extension", "expected"),
+    [(".txt", False), (".pptx", False), (".3gp", True), (".ram", True), (".wma", True)],
+)
+def test_wait_processing_classification_uses_media_subset(
+    tmp_path: Path, extension: str, expected: bool
+) -> None:
+    path = tmp_path / f"evidence{extension}"
+    path.write_bytes(b"gate-f1")
+    client = _client()
+    with (
+        patch.object(client, "_register_file_source", return_value="source-id"),
+        patch.object(client, "_start_resumable_upload", return_value="upload-url"),
+        patch.object(client, "_upload_file_streaming"),
+        patch.object(client, "wait_for_source_ready", return_value={"id": "source-id"}) as wait,
+    ):
+        client.add_file("notebook-id", path, wait=True)
+    wait.assert_called_once_with("notebook-id", "source-id", 120.0, allow_transient_error=expected)
+
+
+def test_mcp_schema_docstring_matches_registry() -> None:
+    assert _parse_contract(inspect.unwrap(source_add).__doc__ or "") == EXPECTED_EXTENSIONS
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "src/notebooklm_tools/data/SKILL.md",
+        "src/notebooklm_tools/cli/ai_docs.py",
+        "docs/FILE_UPLOAD_IMPLEMENTATION.md",
+    ],
+)
+def test_bundled_documentation_matches_registry(relative_path: str) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    assert (
+        _parse_contract((repository / relative_path).read_text(encoding="utf-8"))
+        == EXPECTED_EXTENSIONS
+    )

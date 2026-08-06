@@ -8,6 +8,7 @@ import time
 import pytest
 
 from notebooklm_tools.mcp.tools import chat as chat_tools
+from notebooklm_tools.services.errors import ServiceError
 
 
 def test_notebook_query_is_async_for_cancellable_dispatch():
@@ -49,3 +50,35 @@ async def test_notebook_query_cancellation_does_not_wait_for_worker(monkeypatch)
         release.set()
 
     assert await asyncio.to_thread(finished.wait, 1.0)
+
+
+@pytest.mark.asyncio
+async def test_notebook_query_returns_structured_service_error(monkeypatch):
+    monkeypatch.setattr(chat_tools, "get_client", lambda: object())
+
+    def rejected_query(*args, **kwargs):
+        raise ServiceError(
+            "provider rejected query",
+            user_message="The query request is invalid.",
+            hint="Check the source IDs.",
+            debug_code="query_invalid_argument",
+            category="invalid_argument",
+            provider_code=3,
+            retryable=False,
+            suggested_action="check_query_arguments",
+        )
+
+    monkeypatch.setattr(chat_tools.chat_service, "query", rejected_query)
+
+    result = await chat_tools.notebook_query("nb-123", "question")
+
+    assert result["status"] == "error"
+    assert result["error"] == "The query request is invalid."
+    assert result["hint"] == "Check the source IDs."
+    assert result["error_details"] == {
+        "category": "invalid_argument",
+        "provider_code": 3,
+        "retryable": False,
+        "suggested_action": "check_query_arguments",
+        "debug_code": "query_invalid_argument",
+    }

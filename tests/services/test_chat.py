@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from notebooklm_tools.core.conversation import QueryRejectedError
 from notebooklm_tools.services.chat import (
     configure_chat,
     delete_chat_history,
@@ -62,6 +63,46 @@ class TestQuery:
         mock_client.query.side_effect = RuntimeError("timeout")
         with pytest.raises(ServiceError, match="Query failed"):
             query(mock_client, "nb-123", "question")
+
+    @pytest.mark.parametrize(
+        ("provider_code", "category", "retryable", "suggested_action"),
+        [
+            (3, "invalid_argument", False, "check_query_arguments"),
+            (5, "not_found", False, "check_notebook_and_source_ids"),
+            (8, "resource_exhausted", True, "retry_after_delay"),
+            (16, "unauthenticated", False, "run_nlm_login"),
+        ],
+    )
+    def test_query_rejection_has_structured_metadata(
+        self,
+        mock_client,
+        provider_code,
+        category,
+        retryable,
+        suggested_action,
+    ):
+        mock_client.query.side_effect = QueryRejectedError(provider_code)
+
+        with pytest.raises(ServiceError) as exc_info:
+            query(mock_client, "nb-123", "question", source_ids=["src-1"])
+
+        error = exc_info.value
+        assert error.provider_code == provider_code
+        assert error.category == category
+        assert error.retryable is retryable
+        assert error.suggested_action == suggested_action
+        assert error.debug_code == f"query_{category}"
+
+    def test_invalid_argument_does_not_recommend_reauthentication(self, mock_client):
+        mock_client.query.side_effect = QueryRejectedError(3)
+
+        with pytest.raises(ServiceError) as exc_info:
+            query(mock_client, "nb-123", "question", source_ids=["missing-source"])
+
+        error = exc_info.value
+        assert "invalid" in error.user_message.lower()
+        assert "login" not in error.user_message.lower()
+        assert "login" not in (error.hint or "").lower()
 
     def test_source_ids_passed_through(self, mock_client):
         mock_client.query.return_value = {"answer": "ok"}
@@ -330,3 +371,31 @@ class TestQueryStatus:
         # Second read should fail because the entry was cleaned up
         with pytest.raises(ValidationError, match="not found"):
             query_status(query_id)
+
+    def test_error_query_preserves_structured_error_details(self, mock_client):
+        import time as _time
+
+        mock_client.query.side_effect = QueryRejectedError(3)
+        result = query_start(
+            mock_client,
+            "nb-123",
+            "question",
+            source_ids=["missing-source"],
+        )
+
+        for _ in range(100):
+            status = query_status(result["query_id"])
+            if status["status"] == "error":
+                break
+            _time.sleep(0.01)
+        else:
+            raise AssertionError("Background query did not reach an error state")
+
+        assert status["status"] == "error"
+        assert status["error_details"] == {
+            "category": "invalid_argument",
+            "provider_code": 3,
+            "retryable": False,
+            "suggested_action": "check_query_arguments",
+            "debug_code": "query_invalid_argument",
+        }

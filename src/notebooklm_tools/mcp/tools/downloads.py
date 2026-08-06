@@ -15,6 +15,9 @@ def download_artifact(
     artifact_id: str | None = None,
     output_format: str = "json",
     slide_deck_format: str = "pdf",
+    wait: bool = False,
+    wait_timeout: float = 180.0,
+    poll_interval: float = 5.0,
 ) -> ResultDict:
     """Download any NotebookLM artifact to a file.
 
@@ -38,6 +41,9 @@ def download_artifact(
         artifact_id: Optional specific artifact ID (uses latest if not provided)
         output_format: For quiz/flashcards only: json|markdown|html (default: json)
         slide_deck_format: For slide_deck only: pdf (default) or pptx
+        wait: Poll while the artifact download is still propagating
+        wait_timeout: Maximum seconds to wait when ``wait`` is enabled
+        poll_interval: Seconds between readiness checks
 
     Returns:
         dict with status and saved file path
@@ -58,6 +64,9 @@ def download_artifact(
                 artifact_id=artifact_id,
                 output_format=output_format,
                 slide_deck_format=slide_deck_format,
+                wait=wait,
+                wait_timeout=wait_timeout,
+                poll_interval=poll_interval,
             )
         )
         return {"status": "success", **download_result}

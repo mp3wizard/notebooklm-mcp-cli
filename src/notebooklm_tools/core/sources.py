@@ -943,7 +943,9 @@ class SourceMixin(BaseClient):
         2. Start upload session with SOURCE_ID → get upload URL
         3. Stream upload file content (memory-efficient for large files)
 
-        Supported file types: PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, PNG, GIF, WEBP
+        Supported local-admission formats are defined by the official 43-extension
+        registry in core.constants. Provider processing can still fail after upload.
+        OFFICIAL_FILE_EXTENSIONS: .pdf, .txt, .md, .docx, .csv, .pptx, .epub, .avif, .bmp, .gif, .heic, .heif, .ico, .jp2, .jpe, .jpeg, .jpg, .png, .tif, .tiff, .webp, .3g2, .3gp, .aac, .aif, .aifc, .aiff, .amr, .au, .avi, .cda, .m4a, .mid, .mp3, .mp4, .mpeg, .ogg, .opus, .ra, .ram, .snd, .wav, .wma
 
         Args:
             notebook_id: The notebook ID to add the source to
@@ -974,32 +976,13 @@ class SourceMixin(BaseClient):
         if file_size == 0:
             raise FileValidationError(f"File is empty: {file_path}")
 
-        # Validate file type
-        supported_extensions = {
-            ".pdf",
-            ".txt",
-            ".md",
-            ".docx",
-            ".csv",  # Documents
-            ".epub",  # Ebooks
-            ".mp3",
-            ".m4a",
-            ".wav",
-            ".aac",
-            ".ogg",
-            ".opus",  # Audio
-            ".mp4",  # Video
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".gif",
-            ".webp",  # Images
-        }
+        # Validate local admission eligibility against the provider contract.
         file_extension = file_path.suffix.lower()
-        if file_extension not in supported_extensions:
+        if file_extension not in constants.SUPPORTED_FILE_EXTENSIONS:
             raise FileValidationError(
-                f"Unsupported file type: {file_extension}\n"
-                f"Supported types: {', '.join(sorted(supported_extensions))}"
+                f"Unsupported file type: {file_extension or '[none]'}\n"
+                "Supported types: "
+                f"{', '.join(sorted(constants.SUPPORTED_FILE_EXTENSIONS))}"
             )
 
         # Step 1: Register source intent → get SOURCE_ID
@@ -1014,12 +997,11 @@ class SourceMixin(BaseClient):
         result = {"id": source_id, "title": filename}
 
         if wait:
-            media_extensions = {".mp3", ".m4a", ".wav", ".aac", ".ogg", ".opus", ".mp4"}
             return self.wait_for_source_ready(
                 notebook_id,
                 source_id,
                 wait_timeout,
-                allow_transient_error=file_extension in media_extensions,
+                allow_transient_error=(file_extension in constants.TRANSIENT_MEDIA_FILE_EXTENSIONS),
             )
 
         return result
