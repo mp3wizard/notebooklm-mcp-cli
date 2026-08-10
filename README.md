@@ -10,6 +10,18 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.9.6 — August 2026)
+- **Profile-aware Claude Desktop setup** — `nlm setup add/remove claude-desktop` now detects regular and Relay AI/3P profiles on macOS, Windows, and Linux; prompts for regular, 3P, or both when both exist, with `--profile regular|3p|both` for scripting. Missing profiles are never created. Builds on the original Claude Desktop contribution in PR #275 by **@sanjarcode**.
+- **`gemini-notebook-mcp` branding** — new configuration entries across supported clients use `gemini-notebook-mcp`; the `notebooklm-mcp` executable and `notebooklm-mcp-cli` package names are unchanged for compatibility. Legacy entries are migrated or removed safely.
+- **Safer user-level skill install** — `nlm skill install` now requires the target tool to be detected before writing to a user-level directory; use `--level project` for an intentional project-local skill.
+
+### Security scan (August 2026 — v0.9.6)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit, mcp-exfil-scan, skillspector, mcp-scan
+- **Fixed 1 HIGH dependency CVE** — `cryptography` 49.0.0 → 50.0.0 (CVE-2026-69247 / PYSEC-2026-3552, CVSS 8.2), confirmed by both Trivy and OSV-Scanner against `uv.lock`; Trivy re-scan after the fix reports 0 vulnerabilities
+- **0 secrets, 0 Semgrep findings, 0 SAST findings in `src/`** — 81 Bandit findings all in `tests/` fixtures, left as-is
+- mcps-audit/config-audit/skill-audit/skillspector CRITICAL and MEDIUM findings reviewed individually — all confirmed false positives (hardcoded-arg `subprocess.run`, doc prose matching credential/verification keywords, stale dependency-CVE fallback data cross-checked against the real lockfile)
+- Full report: [`docs/security-scan-report-2026-08-06.md`](docs/security-scan-report-2026-08-06.md)
+
 ### Upstream sync (v0.9.3 / v0.9.4 — July 2026)
 - **"Gemini Notebook" rebrand support** — Google is rolling out a rebrand of NotebookLM to "Gemini Notebook", redirecting signed-in accounts to `notebook.google.com` (#269) and, for Workspace/enterprise accounts, `notebook.cloud.google.com` (#270). Both hosts are now recognized for login detection and `NOTEBOOKLM_BASE_URL`; the CLI persists which host an account actually lands on (`base_host`) and routes every client (CLI, MCP, chat sessions, `nlm doctor auth-replay`) there automatically. Thanks to **@grergea** and **@conexaoarteiro**!
 - **Clearer error when Chrome is already running during `nlm login`** — previously, if Chrome was already running under a different process, the sign-in browser we launched would hand off to it and exit immediately without ever binding the remote-debugging port, producing a misleading "Cannot connect to browser on port ..." error. The error now detects this hand-off case and tells you to fully quit Chrome and retry (#272). Thanks to **@argonaut-cm** for the detailed CDP repro!
