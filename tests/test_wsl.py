@@ -87,7 +87,7 @@ def test_launch_windows_chrome_preserves_non_ascii_windows_temp_path(monkeypatch
             powershell_call = (args, kwargs)
             return _result(args, "C:\\Users\\王小明\\AppData\\Local\\Temp\\")
         if args[0] == "wslpath" and args[1] == "-u":
-            return _result(args, "/tmp/nlm-chrome")
+            return _result(args, "/tmp/nlm-chrome")  # nosec B108 - mock return value in test double, not a real filesystem path
         return _result(args, "")
 
     class FakeProcess:

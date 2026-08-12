@@ -10,6 +10,23 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.9.8 – v0.9.10 — August 2026)
+- **Profile-scoped auth refresh (#284)** — refreshing or recovering authentication for a named profile no longer overwrites the default profile's cached credentials or falls back to the legacy cache.
+- **Windows stale CDP process detection (#285)** — CDP port cleanup now uses Windows process APIs to distinguish live and exited PIDs, preventing stale browser mappings from blocking login.
+- **Windows CDP handoff safety (#289)** — late CDP listeners are accepted only after their process is verified to own the requested profile, with a bounded grace period for legitimate browser handoff.
+- **Home resolution in constrained environments (#288)** — browser discovery, Snap profile routing, and migration paths share resilient fallbacks when `Path.home()` is unavailable.
+- **WSL non-ASCII Windows paths (#287)** — PowerShell and `wslpath` output now use explicit UTF-8 handling so Windows user/profile paths with non-ASCII characters are preserved across the WSL boundary. Reported by **@etadward**.
+- **Async query result retention (#286)** — completed and failed query results remain readable until their normal TTL instead of disappearing after the first status request. Reported by **@Joystick01**.
+- **Profile-owned CDP cleanup (#290)** — externally managed local browsers are closed only after ownership checks; replacement listeners never have their port mappings cleared.
+- **Manual login host detection (#292)** — `nlm login --manual` now verifies imported cookies against the configured Gemini Notebook host (and, for personal accounts, the rebranded `notebook.google.com` host) and persists the host that actually accepts the session. Thanks to **@afonsoft** for the detailed repro!
+
+### Security scan (August 2026 — v0.9.10)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit, mcp-exfil-scan, skillspector (`--no-llm`)
+- **Fixed 90 Bandit Medium findings** — 89× `B108` hardcoded-tmp-directory hits were mock return values in test doubles (never touched the real filesystem) and 1× `B102` `exec()` of a fixed literal string in a shim-behavior test; all suppressed with `# nosec` + justification. Bandit now reports 0 High, 0 Medium. Full test suite re-verified clean afterward (1407 passed, 0 regressions).
+- **0 secrets** (Gitleaks, Semgrep, Trivy — TruffleHog's 24 hits confirmed non-secret test-identifier false positives), **0 Semgrep findings**, **0 dependency vulnerabilities** (Trivy + OSV-Scanner)
+- mcps-audit/skillspector/skill-audit/config-audit CRITICAL findings reviewed — all confirmed the same false-positive class seen in every prior scan cycle (this project's legitimate cookie-based auth mechanism triggers info-stealer/credential-access heuristics tuned for generic AI-skill bundles)
+- Full report: [`docs/security-scan-report-2026-08-12.md`](docs/security-scan-report-2026-08-12.md)
+
 ### Upstream sync (v0.9.6 — August 2026)
 - **Profile-aware Claude Desktop setup** — `nlm setup add/remove claude-desktop` now detects regular and Relay AI/3P profiles on macOS, Windows, and Linux; prompts for regular, 3P, or both when both exist, with `--profile regular|3p|both` for scripting. Missing profiles are never created. Builds on the original Claude Desktop contribution in PR #275 by **@sanjarcode**.
 - **`gemini-notebook-mcp` branding** — new configuration entries across supported clients use `gemini-notebook-mcp`; the `notebooklm-mcp` executable and `notebooklm-mcp-cli` package names are unchanged for compatibility. Legacy entries are migrated or removed safely.

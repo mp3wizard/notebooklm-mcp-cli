@@ -8,7 +8,7 @@ from notebooklm_tools.cli.main import app
 class FakeAuthManager:
     def __init__(self, profile_name: str):
         self.profile_name = profile_name
-        self.profile_dir = f"/tmp/{profile_name}"
+        self.profile_dir = f"/tmp/{profile_name}"  # nosec B108 - mock return value in test double, not a real filesystem path
         self.saved = None
 
     def load_profile(self):

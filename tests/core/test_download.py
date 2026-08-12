@@ -191,14 +191,14 @@ class TestDownloadMixinMethods:
         ]
 
         mixin._list_raw = lambda notebook_id: [artifact]
-        mixin._download_url = AsyncMock(return_value="/tmp/audio.m4a")
+        mixin._download_url = AsyncMock(return_value="/tmp/audio.m4a")  # nosec B108 - mock return value in test double, not a real filesystem path
 
-        result = await mixin.download_audio("nb-1", "/tmp/audio.m4a")
+        result = await mixin.download_audio("nb-1", "/tmp/audio.m4a")  # nosec B108 - mock return value in test double, not a real filesystem path
 
-        assert result == "/tmp/audio.m4a"
+        assert result == "/tmp/audio.m4a"  # nosec B108 - mock return value in test double, not a real filesystem path
         mixin._download_url.assert_awaited_once_with(
             "https://example.com/audio.m4a",
-            "/tmp/audio.m4a",
+            "/tmp/audio.m4a",  # nosec B108 - mock return value in test double, not a real filesystem path
             None,
         )
 
@@ -218,15 +218,15 @@ class TestDownloadMixinMethods:
                 [self._audio_artifact(second_url)],
             ]
         )
-        mixin._download_url = AsyncMock(side_effect=[retryable_error, "/tmp/audio.m4a"])
+        mixin._download_url = AsyncMock(side_effect=[retryable_error, "/tmp/audio.m4a"])  # nosec B108 - mock return value in test double, not a real filesystem path
         mixin._AUDIO_DOWNLOAD_RETRY_DELAYS = (0,)
 
-        result = await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")
+        result = await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")  # nosec B108 - mock return value in test double, not a real filesystem path
 
-        assert result == "/tmp/audio.m4a"
+        assert result == "/tmp/audio.m4a"  # nosec B108 - mock return value in test double, not a real filesystem path
         assert mixin._list_raw.call_count == 2
-        mixin._download_url.assert_any_await(first_url, "/tmp/audio.m4a", None)
-        mixin._download_url.assert_any_await(second_url, "/tmp/audio.m4a", None)
+        mixin._download_url.assert_any_await(first_url, "/tmp/audio.m4a", None)  # nosec B108 - mock return value in test double, not a real filesystem path
+        mixin._download_url.assert_any_await(second_url, "/tmp/audio.m4a", None)  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_audio_does_not_retry_unrelated_404(self):
@@ -242,11 +242,11 @@ class TestDownloadMixinMethods:
         mixin._AUDIO_DOWNLOAD_RETRY_DELAYS = (0,)
 
         with pytest.raises(ArtifactDownloadError) as exc_info:
-            await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")
+            await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")  # nosec B108 - mock return value in test double, not a real filesystem path
 
         assert exc_info.value is non_retryable_error
         assert mixin._list_raw.call_count == 1
-        mixin._download_url.assert_awaited_once_with(url, "/tmp/audio.m4a", None)
+        mixin._download_url.assert_awaited_once_with(url, "/tmp/audio.m4a", None)  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_audio_reports_propagation_after_retry_exhaustion(self):
@@ -262,7 +262,7 @@ class TestDownloadMixinMethods:
         mixin._AUDIO_DOWNLOAD_RETRY_DELAYS = (0,)
 
         with pytest.raises(ArtifactDownloadError) as exc_info:
-            await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")
+            await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")  # nosec B108 - mock return value in test double, not a real filesystem path
 
         assert "still propagating" in exc_info.value.details
         assert mixin._list_raw.call_count == 2

@@ -119,7 +119,7 @@ class TestAddSource:
         assert call_args[0][3] == "application/vnd.google-apps.presentation"
 
     def test_add_file_source(self, mock_client):
-        result = add_source(mock_client, "nb-1", "file", file_path="/tmp/doc.pdf")
+        result = add_source(mock_client, "nb-1", "file", file_path="/tmp/doc.pdf")  # nosec B108 - mock return value in test double, not a real filesystem path
         assert result["source_type"] == "file"
         assert result["source_id"] == "src-4"
 
@@ -170,7 +170,7 @@ class TestAddSource:
 
     def test_add_file_source_without_title_does_not_rename(self, mock_client):
         """When no title is supplied, we must not call rename_source."""
-        add_source(mock_client, "nb-1", "file", file_path="/tmp/doc.pdf")
+        add_source(mock_client, "nb-1", "file", file_path="/tmp/doc.pdf")  # nosec B108 - mock return value in test double, not a real filesystem path
         mock_client.rename_source.assert_not_called()
 
     def test_add_file_source_with_title_renames_after_upload(self, mock_client):
@@ -183,7 +183,7 @@ class TestAddSource:
             mock_client,
             "nb-1",
             "file",
-            file_path="/tmp/doc.pdf",
+            file_path="/tmp/doc.pdf",  # nosec B108 - mock return value in test double, not a real filesystem path
             title="My Custom Title",
         )
         mock_client.rename_source.assert_called_once_with("nb-1", "src-4", "My Custom Title")
@@ -202,7 +202,7 @@ class TestAddSource:
             mock_client,
             "nb-1",
             "file",
-            file_path="/tmp/doc.pdf",
+            file_path="/tmp/doc.pdf",  # nosec B108 - mock return value in test double, not a real filesystem path
             title="My Title",
             wait=False,  # caller didn't ask for wait
         )
@@ -217,7 +217,7 @@ class TestAddSource:
             mock_client,
             "nb-1",
             "file",
-            file_path="/tmp/doc.pdf",
+            file_path="/tmp/doc.pdf",  # nosec B108 - mock return value in test double, not a real filesystem path
             wait=False,
         )
         assert mock_client.add_file.call_args.kwargs["wait"] is False
@@ -235,7 +235,7 @@ class TestAddSource:
             mock_client,
             "nb-1",
             "file",
-            file_path="/tmp/doc.pdf",
+            file_path="/tmp/doc.pdf",  # nosec B108 - mock return value in test double, not a real filesystem path
             title="My Custom Title",
         )
         # Upload succeeded despite rename failure.
@@ -318,7 +318,7 @@ class TestAddSource:
         mock_client.add_file.side_effect = SourceProcessingError("source-failed")
 
         with pytest.raises(ServiceError) as exc_info:
-            add_source(mock_client, "nb-1", "file", file_path="/tmp/failed.txt", wait=True)
+            add_source(mock_client, "nb-1", "file", file_path="/tmp/failed.txt", wait=True)  # nosec B108 - mock return value in test double, not a real filesystem path
 
         assert "source-failed" in exc_info.value.user_message
         assert "retained" in exc_info.value.hint

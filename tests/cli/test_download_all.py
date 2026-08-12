@@ -19,13 +19,13 @@ def _single_result(**overrides):
     result = {
         "notebook_id": "nb-1",
         "notebook_title": "My Notebook",
-        "output_dir": "/tmp/exports/My Notebook",
+        "output_dir": "/tmp/exports/My Notebook",  # nosec B108 - mock return value in test double, not a real filesystem path
         "items": [
             {
                 "artifact_id": "art-1",
                 "artifact_type": "report",
                 "title": "Report",
-                "path": "/tmp/exports/My Notebook/Report.md",
+                "path": "/tmp/exports/My Notebook/Report.md",  # nosec B108 - mock return value in test double, not a real filesystem path
                 "success": True,
                 "error": None,
             }
@@ -41,12 +41,12 @@ def _single_result(**overrides):
 
 def _sweep_result(**overrides):
     result = {
-        "output_dir": "/tmp/exports",
+        "output_dir": "/tmp/exports",  # nosec B108 - mock return value in test double, not a real filesystem path
         "notebooks": [
             {
                 "notebook_id": "nb-1",
                 "notebook_title": "My Notebook",
-                "output_dir": "/tmp/exports/My Notebook",
+                "output_dir": "/tmp/exports/My Notebook",  # nosec B108 - mock return value in test double, not a real filesystem path
                 "downloaded": 1,
                 "failed": 0,
                 "skipped": 0,

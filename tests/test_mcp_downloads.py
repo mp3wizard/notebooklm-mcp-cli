@@ -10,7 +10,7 @@ def _single_result(**overrides):
     result = {
         "notebook_id": "nb-1",
         "notebook_title": "My Notebook",
-        "output_dir": "/tmp/exports/My Notebook",
+        "output_dir": "/tmp/exports/My Notebook",  # nosec B108 - mock return value in test double, not a real filesystem path
         "items": [],
         "skipped": [],
         "total_artifacts": 0,
@@ -23,7 +23,7 @@ def _single_result(**overrides):
 
 def _sweep_result(**overrides):
     result = {
-        "output_dir": "/tmp/exports",
+        "output_dir": "/tmp/exports",  # nosec B108 - mock return value in test double, not a real filesystem path
         "notebooks": [],
         "total_notebooks": 0,
         "downloaded": 0,
@@ -189,7 +189,7 @@ def test_service_error_surfaces_user_message_and_hint():
 
 def test_download_artifact_forwards_readiness_options():
     mock_client = MagicMock()
-    service_result = {"artifact_type": "audio", "path": "/tmp/audio.m4a"}
+    service_result = {"artifact_type": "audio", "path": "/tmp/audio.m4a"}  # nosec B108 - mock return value in test double, not a real filesystem path
 
     with (
         patch("notebooklm_tools.mcp.tools.downloads.get_client", return_value=mock_client),
@@ -201,7 +201,7 @@ def test_download_artifact_forwards_readiness_options():
         result = downloads.download_artifact(
             notebook_id="nb-1",
             artifact_type="audio",
-            output_path="/tmp/audio.m4a",
+            output_path="/tmp/audio.m4a",  # nosec B108 - mock return value in test double, not a real filesystem path
             wait=True,
             wait_timeout=9,
             poll_interval=0.5,
@@ -212,7 +212,7 @@ def test_download_artifact_forwards_readiness_options():
         mock_client,
         "nb-1",
         "audio",
-        "/tmp/audio.m4a",
+        "/tmp/audio.m4a",  # nosec B108 - mock return value in test double, not a real filesystem path
         artifact_id=None,
         output_format="json",
         slide_deck_format="pdf",

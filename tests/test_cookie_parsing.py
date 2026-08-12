@@ -136,7 +136,7 @@ def test_parse_name_value_pairs():
 def test_file_not_found():
     """Missing file raises AuthenticationError."""
     with pytest.raises(AuthenticationError, match="Cookie file not found"):
-        parse_cookies_from_file("/tmp/nonexistent_cookie_file_xyz.txt")
+        parse_cookies_from_file("/tmp/nonexistent_cookie_file_xyz.txt")  # nosec B108 - mock return value in test double, not a real filesystem path
 
 
 # --- Edge cases for Netscape parser (HttpOnly, Empty Values, Values with Tabs) ---

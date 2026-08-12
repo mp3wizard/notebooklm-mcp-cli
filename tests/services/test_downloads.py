@@ -26,16 +26,16 @@ from notebooklm_tools.services.errors import ServiceError, ValidationError
 def mock_client():
     client = MagicMock()
     # Set up async methods
-    client.download_audio = AsyncMock(return_value="/tmp/audio.m4a")
-    client.download_video = AsyncMock(return_value="/tmp/video.mp4")
-    client.download_slide_deck = AsyncMock(return_value="/tmp/slides.pdf")
-    client.download_infographic = AsyncMock(return_value="/tmp/infographic.png")
-    client.download_quiz = AsyncMock(return_value="/tmp/quiz.json")
-    client.download_flashcards = AsyncMock(return_value="/tmp/flashcards.json")
+    client.download_audio = AsyncMock(return_value="/tmp/audio.m4a")  # nosec B108 - mock return value in test double, not a real filesystem path
+    client.download_video = AsyncMock(return_value="/tmp/video.mp4")  # nosec B108 - mock return value in test double, not a real filesystem path
+    client.download_slide_deck = AsyncMock(return_value="/tmp/slides.pdf")  # nosec B108 - mock return value in test double, not a real filesystem path
+    client.download_infographic = AsyncMock(return_value="/tmp/infographic.png")  # nosec B108 - mock return value in test double, not a real filesystem path
+    client.download_quiz = AsyncMock(return_value="/tmp/quiz.json")  # nosec B108 - mock return value in test double, not a real filesystem path
+    client.download_flashcards = AsyncMock(return_value="/tmp/flashcards.json")  # nosec B108 - mock return value in test double, not a real filesystem path
     # Sync methods
-    client.download_report.return_value = "/tmp/report.md"
-    client.download_mind_map.return_value = "/tmp/mindmap.json"
-    client.download_data_table.return_value = "/tmp/table.csv"
+    client.download_report.return_value = "/tmp/report.md"  # nosec B108 - mock return value in test double, not a real filesystem path
+    client.download_mind_map.return_value = "/tmp/mindmap.json"  # nosec B108 - mock return value in test double, not a real filesystem path
+    client.download_data_table.return_value = "/tmp/table.csv"  # nosec B108 - mock return value in test double, not a real filesystem path
     return client
 
 
@@ -119,35 +119,35 @@ class TestDownloadSync:
     """Test download_sync for non-streaming artifacts."""
 
     def test_download_report(self, mock_client):
-        result = download_sync(mock_client, "nb-1", "report", "/tmp/report.md")
+        result = download_sync(mock_client, "nb-1", "report", "/tmp/report.md")  # nosec B108 - mock return value in test double, not a real filesystem path
         assert result["artifact_type"] == "report"
-        assert result["path"] == "/tmp/report.md"
+        assert result["path"] == "/tmp/report.md"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_download_mind_map(self, mock_client):
-        result = download_sync(mock_client, "nb-1", "mind_map", "/tmp/mm.json")
-        assert result["path"] == "/tmp/mindmap.json"
+        result = download_sync(mock_client, "nb-1", "mind_map", "/tmp/mm.json")  # nosec B108 - mock return value in test double, not a real filesystem path
+        assert result["path"] == "/tmp/mindmap.json"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_download_data_table(self, mock_client):
-        result = download_sync(mock_client, "nb-1", "data_table", "/tmp/t.csv")
-        assert result["path"] == "/tmp/table.csv"
+        result = download_sync(mock_client, "nb-1", "data_table", "/tmp/t.csv")  # nosec B108 - mock return value in test double, not a real filesystem path
+        assert result["path"] == "/tmp/table.csv"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_invalid_type_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="Unknown"):
-            download_sync(mock_client, "nb-1", "podcast", "/tmp/out")
+            download_sync(mock_client, "nb-1", "podcast", "/tmp/out")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_streaming_type_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="requires async"):
-            download_sync(mock_client, "nb-1", "audio", "/tmp/out")
+            download_sync(mock_client, "nb-1", "audio", "/tmp/out")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_api_error_raises_service_error(self, mock_client):
         mock_client.download_report.side_effect = RuntimeError("fail")
         with pytest.raises(ServiceError, match="Failed to download"):
-            download_sync(mock_client, "nb-1", "report", "/tmp/out")
+            download_sync(mock_client, "nb-1", "report", "/tmp/out")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_falsy_path_raises_service_error(self, mock_client):
         mock_client.download_report.return_value = None
         with pytest.raises(ServiceError, match="returned no path"):
-            download_sync(mock_client, "nb-1", "report", "/tmp/out")
+            download_sync(mock_client, "nb-1", "report", "/tmp/out")  # nosec B108 - mock return value in test double, not a real filesystem path
 
 
 class TestDownloadAsync:
@@ -155,24 +155,24 @@ class TestDownloadAsync:
 
     @pytest.mark.asyncio
     async def test_download_audio(self, mock_client):
-        result = await download_async(mock_client, "nb-1", "audio", "/tmp/a.m4a")
+        result = await download_async(mock_client, "nb-1", "audio", "/tmp/a.m4a")  # nosec B108 - mock return value in test double, not a real filesystem path
         assert result["artifact_type"] == "audio"
-        assert result["path"] == "/tmp/audio.m4a"
+        assert result["path"] == "/tmp/audio.m4a"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_video(self, mock_client):
-        result = await download_async(mock_client, "nb-1", "video", "/tmp/v.mp4")
-        assert result["path"] == "/tmp/video.mp4"
+        result = await download_async(mock_client, "nb-1", "video", "/tmp/v.mp4")  # nosec B108 - mock return value in test double, not a real filesystem path
+        assert result["path"] == "/tmp/video.mp4"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_slide_deck(self, mock_client):
-        result = await download_async(mock_client, "nb-1", "slide_deck", "/tmp/s.pdf")
-        assert result["path"] == "/tmp/slides.pdf"
+        result = await download_async(mock_client, "nb-1", "slide_deck", "/tmp/s.pdf")  # nosec B108 - mock return value in test double, not a real filesystem path
+        assert result["path"] == "/tmp/slides.pdf"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_infographic(self, mock_client):
-        result = await download_async(mock_client, "nb-1", "infographic", "/tmp/i.png")
-        assert result["path"] == "/tmp/infographic.png"
+        result = await download_async(mock_client, "nb-1", "infographic", "/tmp/i.png")  # nosec B108 - mock return value in test double, not a real filesystem path
+        assert result["path"] == "/tmp/infographic.png"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_quiz_json(self, mock_client):
@@ -180,10 +180,10 @@ class TestDownloadAsync:
             mock_client,
             "nb-1",
             "quiz",
-            "/tmp/q.json",
+            "/tmp/q.json",  # nosec B108 - mock return value in test double, not a real filesystem path
             output_format="json",
         )
-        assert result["path"] == "/tmp/quiz.json"
+        assert result["path"] == "/tmp/quiz.json"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_flashcards_html(self, mock_client):
@@ -191,15 +191,15 @@ class TestDownloadAsync:
             mock_client,
             "nb-1",
             "flashcards",
-            "/tmp/f.html",
+            "/tmp/f.html",  # nosec B108 - mock return value in test double, not a real filesystem path
             output_format="html",
         )
-        assert result["path"] == "/tmp/flashcards.json"
+        assert result["path"] == "/tmp/flashcards.json"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_invalid_type_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="Unknown"):
-            await download_async(mock_client, "nb-1", "podcast", "/tmp/out")
+            await download_async(mock_client, "nb-1", "podcast", "/tmp/out")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_invalid_format_for_quiz_raises_validation_error(self, mock_client):
@@ -208,7 +208,7 @@ class TestDownloadAsync:
                 mock_client,
                 "nb-1",
                 "quiz",
-                "/tmp/out",
+                "/tmp/out",  # nosec B108 - mock return value in test double, not a real filesystem path
                 output_format="pdf",
             )
 
@@ -216,7 +216,7 @@ class TestDownloadAsync:
     async def test_api_error_raises_service_error(self, mock_client):
         mock_client.download_audio = AsyncMock(side_effect=RuntimeError("fail"))
         with pytest.raises(ServiceError, match="Failed to download"):
-            await download_async(mock_client, "nb-1", "audio", "/tmp/out")
+            await download_async(mock_client, "nb-1", "audio", "/tmp/out")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_audio_propagation_error_has_specific_user_message(self, mock_client):
@@ -227,7 +227,7 @@ class TestDownloadAsync:
         mock_client.download_audio = AsyncMock(side_effect=error)
 
         with pytest.raises(ServiceError) as exc_info:
-            await download_async(mock_client, "nb-1", "audio", "/tmp/out.m4a")
+            await download_async(mock_client, "nb-1", "audio", "/tmp/out.m4a")  # nosec B108 - mock return value in test double, not a real filesystem path
 
         assert "still propagating" in exc_info.value.user_message
 
@@ -235,7 +235,7 @@ class TestDownloadAsync:
     async def test_falsy_path_raises_service_error(self, mock_client):
         mock_client.download_audio = AsyncMock(return_value=None)
         with pytest.raises(ServiceError, match="returned no path"):
-            await download_async(mock_client, "nb-1", "audio", "/tmp/out")
+            await download_async(mock_client, "nb-1", "audio", "/tmp/out")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_waits_for_propagating_artifact(self, mock_client, monkeypatch):
@@ -243,7 +243,7 @@ class TestDownloadAsync:
             "audio",
             details="media download URL is still propagating; retry shortly",
         )
-        mock_client.download_audio = AsyncMock(side_effect=[propagation_error, "/tmp/audio.m4a"])
+        mock_client.download_audio = AsyncMock(side_effect=[propagation_error, "/tmp/audio.m4a"])  # nosec B108 - mock return value in test double, not a real filesystem path
         sleep = AsyncMock()
         monkeypatch.setattr("notebooklm_tools.services.downloads.asyncio.sleep", sleep)
 
@@ -251,13 +251,13 @@ class TestDownloadAsync:
             mock_client,
             "nb-1",
             "audio",
-            "/tmp/out.m4a",
+            "/tmp/out.m4a",  # nosec B108 - mock return value in test double, not a real filesystem path
             wait=True,
             wait_timeout=10,
             poll_interval=0.25,
         )
 
-        assert result["path"] == "/tmp/audio.m4a"
+        assert result["path"] == "/tmp/audio.m4a"  # nosec B108 - mock return value in test double, not a real filesystem path
         assert mock_client.download_audio.await_count == 2
         sleep.assert_awaited_once_with(0.25)
 
@@ -270,7 +270,7 @@ class TestDownloadAsync:
                 mock_client,
                 "nb-1",
                 "audio",
-                "/tmp/out.m4a",
+                "/tmp/out.m4a",  # nosec B108 - mock return value in test double, not a real filesystem path
                 wait=True,
                 wait_timeout=0,
             )
@@ -289,7 +289,7 @@ class TestDownloadAsync:
                 mock_client,
                 "nb-1",
                 "audio",
-                "/tmp/out.m4a",
+                "/tmp/out.m4a",  # nosec B108 - mock return value in test double, not a real filesystem path
                 wait=True,
             )
 
@@ -303,13 +303,13 @@ class TestDownloadAsync:
             mock_client,
             "nb-1",
             "audio",
-            "/tmp/a.m4a",
+            "/tmp/a.m4a",  # nosec B108 - mock return value in test double, not a real filesystem path
             progress_callback=cb,
         )
         # Verify the callback was passed to the client method
         mock_client.download_audio.assert_called_once_with(
             "nb-1",
-            "/tmp/a.m4a",
+            "/tmp/a.m4a",  # nosec B108 - mock return value in test double, not a real filesystem path
             None,
             progress_callback=cb,
         )
@@ -317,26 +317,26 @@ class TestDownloadAsync:
     @pytest.mark.asyncio
     async def test_download_report_via_async(self, mock_client):
         """Issue #107: report must be downloadable via download_async."""
-        result = await download_async(mock_client, "nb-1", "report", "/tmp/r.md")
+        result = await download_async(mock_client, "nb-1", "report", "/tmp/r.md")  # nosec B108 - mock return value in test double, not a real filesystem path
         assert result["artifact_type"] == "report"
-        assert result["path"] == "/tmp/report.md"
-        mock_client.download_report.assert_called_once_with("nb-1", "/tmp/r.md", None)
+        assert result["path"] == "/tmp/report.md"  # nosec B108 - mock return value in test double, not a real filesystem path
+        mock_client.download_report.assert_called_once_with("nb-1", "/tmp/r.md", None)  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_mind_map_via_async(self, mock_client):
         """Issue #107: mind_map must be downloadable via download_async."""
-        result = await download_async(mock_client, "nb-1", "mind_map", "/tmp/mm.json")
+        result = await download_async(mock_client, "nb-1", "mind_map", "/tmp/mm.json")  # nosec B108 - mock return value in test double, not a real filesystem path
         assert result["artifact_type"] == "mind_map"
-        assert result["path"] == "/tmp/mindmap.json"
-        mock_client.download_mind_map.assert_called_once_with("nb-1", "/tmp/mm.json", None)
+        assert result["path"] == "/tmp/mindmap.json"  # nosec B108 - mock return value in test double, not a real filesystem path
+        mock_client.download_mind_map.assert_called_once_with("nb-1", "/tmp/mm.json", None)  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_data_table_via_async(self, mock_client):
         """Issue #107: data_table must be downloadable via download_async."""
-        result = await download_async(mock_client, "nb-1", "data_table", "/tmp/dt.csv")
+        result = await download_async(mock_client, "nb-1", "data_table", "/tmp/dt.csv")  # nosec B108 - mock return value in test double, not a real filesystem path
         assert result["artifact_type"] == "data_table"
-        assert result["path"] == "/tmp/table.csv"
-        mock_client.download_data_table.assert_called_once_with("nb-1", "/tmp/dt.csv", None)
+        assert result["path"] == "/tmp/table.csv"  # nosec B108 - mock return value in test double, not a real filesystem path
+        mock_client.download_data_table.assert_called_once_with("nb-1", "/tmp/dt.csv", None)  # nosec B108 - mock return value in test double, not a real filesystem path
 
 
 class TestValidateAudioExtension:
@@ -345,29 +345,29 @@ class TestValidateAudioExtension:
     @pytest.mark.parametrize("ext", [".mp3", ".wav", ".ogg", ".flac", ".aiff", ".wma"])
     def test_mismatched_extensions_rejected(self, ext):
         with pytest.raises(ValidationError, match="cannot honor"):
-            validate_audio_extension(f"/tmp/podcast{ext}")
+            validate_audio_extension(f"/tmp/podcast{ext}")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.parametrize("ext", [".m4a", ".mp4", ".m4b"])
     def test_compatible_extensions_pass(self, ext):
-        validate_audio_extension(f"/tmp/podcast{ext}")  # should not raise
+        validate_audio_extension(f"/tmp/podcast{ext}")  # should not raise  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_no_extension_passes(self):
-        validate_audio_extension("/tmp/podcast")  # should not raise
+        validate_audio_extension("/tmp/podcast")  # should not raise  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_case_insensitive(self):
         with pytest.raises(ValidationError, match="cannot honor"):
-            validate_audio_extension("/tmp/podcast.MP3")
+            validate_audio_extension("/tmp/podcast.MP3")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_audio_rejects_mp3_async(self, mock_client):
         """Issue #185: download_async must reject .mp3 for audio."""
         with pytest.raises(ValidationError, match="cannot honor"):
-            await download_async(mock_client, "nb-1", "audio", "/tmp/out.mp3")
+            await download_async(mock_client, "nb-1", "audio", "/tmp/out.mp3")  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_download_audio_rejects_mp3_sync(self, mock_client):
         """Issue #185: download_sync must also reject .mp3 for audio."""
         with pytest.raises(ValidationError, match="cannot honor"):
-            download_sync(mock_client, "nb-1", "audio", "/tmp/out.mp3")
+            download_sync(mock_client, "nb-1", "audio", "/tmp/out.mp3")  # nosec B108 - mock return value in test double, not a real filesystem path
 
 
 class TestSanitizeFilename:

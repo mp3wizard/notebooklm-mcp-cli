@@ -168,7 +168,9 @@ def test_shim_class_resolution_works_through_from_import(monkeypatch):
     monkeypatch.setattr(core_auth, "AuthManager", sentinel_class, raising=True)
     # Re-execute the import statement the same way cli code does.
     local_namespace = {}
-    exec("from notebooklm_tools.services.auth import AuthManager", local_namespace)
+    exec(  # nosec B102 - fixed literal import statement, no user input
+        "from notebooklm_tools.services.auth import AuthManager", local_namespace
+    )
     assert local_namespace["AuthManager"] is sentinel_class
 
 
