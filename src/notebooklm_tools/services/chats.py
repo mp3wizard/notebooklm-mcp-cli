@@ -43,6 +43,7 @@ def _get_client(profile: str | None = None) -> NotebookLMClient:
         csrf_token=profile_data.csrf_token,
         session_id=profile_data.session_id,
         base_host=profile_data.base_host or "",
+        profile_name=profile,
     )
 
 

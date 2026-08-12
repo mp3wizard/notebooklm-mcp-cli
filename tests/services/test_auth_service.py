@@ -101,6 +101,24 @@ def test_shim_save_tokens_to_cache_forwards_kwargs(monkeypatch):
     assert captured == {"tokens": sentinel_tokens, "silent": True}
 
 
+def test_shim_auth_cache_helpers_forward_explicit_profile(monkeypatch):
+    captured = {}
+
+    def _fake_load(*, profile_name):
+        captured["loaded"] = profile_name
+        return "tokens"
+
+    def _fake_save(tokens, silent=False, profile_name=None):
+        captured["saved"] = (tokens, silent, profile_name)
+
+    monkeypatch.setattr(core_auth, "load_cached_tokens", _fake_load, raising=True)
+    monkeypatch.setattr(core_auth, "save_tokens_to_cache", _fake_save, raising=True)
+
+    assert services_auth.load_cached_tokens("tsm") == "tokens"
+    services_auth.save_tokens_to_cache("tokens", silent=True, profile_name="tsm")
+    assert captured == {"loaded": "tsm", "saved": ("tokens", True, "tsm")}
+
+
 def test_shim_validate_cookies_forwards_to_core(monkeypatch):
     """`validate_cookies` wrapper must forward the cookies dict and return
     the core result.

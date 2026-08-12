@@ -67,6 +67,7 @@ def get_client(profile: str | None = None) -> NotebookLMClient:
             session_id=p.session_id or "",
             build_label=p.build_label or "",
             base_host=p.base_host or "",
+            profile_name=profile,
         )
     except typer.Exit:
         raise

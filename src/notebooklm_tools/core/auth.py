@@ -83,16 +83,16 @@ def get_cache_path() -> Path:
     return get_auth_cache_file()
 
 
-def load_cached_tokens() -> AuthTokens | None:
-    """Load tokens from cache (default profile or legacy file).
+def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
+    """Load tokens from a profile, with legacy fallback for the default only.
 
     Note: We no longer reject tokens based on age. The functional check
     (redirect to login during CSRF refresh) is the real validity test.
     Cookies often last much longer than any arbitrary time limit.
     """
-    # 1. Try default profile first (Unified Auth)
+    # 1. Try the requested profile first (Unified Auth)
     try:
-        manager = get_auth_manager()
+        manager = get_auth_manager(profile_name)
         if manager.profile_exists():
             profile = manager.load_profile()
             return AuthTokens(
@@ -106,7 +106,15 @@ def load_cached_tokens() -> AuthTokens | None:
                 ),
             )
     except Exception as e:
-        logger.debug(f"Failed to load default profile: {e}")
+        logger.debug(f"Failed to load auth profile: {e}")
+
+    # A named non-default profile must never inherit credentials from the
+    # single-account legacy cache.
+    if profile_name is not None:
+        from notebooklm_tools.utils.config import get_config
+
+        if profile_name != get_config().auth.default_profile:
+            return None
 
     # 2. Fallback to legacy auth cache (with auto-migration)
     cache_path = get_cache_path()
@@ -136,36 +144,47 @@ def load_cached_tokens() -> AuthTokens | None:
         return None
 
 
-def save_tokens_to_cache(tokens: AuthTokens, silent: bool = False) -> None:
-    """Save tokens to both the legacy auth.json and the active profile.
+def save_tokens_to_cache(
+    tokens: AuthTokens,
+    silent: bool = False,
+    profile_name: str | None = None,
+) -> None:
+    """Save tokens to a profile and mirror the configured default to auth.json.
 
-    Writing to both locations ensures the MCP server and CLI always read
-    the same credentials regardless of which code path loads them.
+    Mirroring the configured default to both locations ensures the MCP server
+    and CLI read the same default credentials. Named non-default profiles stay
+    isolated in their own profile directories.
     See: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/169
 
     Args:
         tokens: AuthTokens to save
         silent: If True, don't print confirmation message (for auto-updates)
+        profile_name: Profile to update. Uses the configured default when omitted.
     """
     import stat
 
-    cache_path = get_cache_path()
-    # SEC-002: Restrict the parent directory to owner-only access
-    cache_path.parent.chmod(stat.S_IRWXU)  # 0o700
-    # TOCTOU-safe: create the file with 0o600 from the start (PR #205)
-    fd = os.open(str(cache_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        f = os.fdopen(fd, "w", encoding="utf-8")
-    except BaseException:
-        os.close(fd)
-        raise
-    with f:
-        json.dump(tokens.to_dict(), f, indent=2)
+    from notebooklm_tools.utils.config import get_config
 
-    # Also update the default profile so load_cached_tokens() (which
-    # checks profiles first) picks up the same tokens.
+    default_profile = get_config().auth.default_profile
+    target_profile = profile_name or default_profile
+    cache_path = get_cache_path()
+
+    if target_profile == default_profile:
+        # SEC-002: Restrict the parent directory to owner-only access
+        cache_path.parent.chmod(stat.S_IRWXU)  # 0o700
+        # TOCTOU-safe: create the file with 0o600 from the start (PR #205)
+        fd = os.open(str(cache_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except BaseException:
+            os.close(fd)
+            raise
+        with f:
+            json.dump(tokens.to_dict(), f, indent=2)
+
+    # Update only the profile that owns these credentials.
     try:
-        manager = get_auth_manager()
+        manager = get_auth_manager(target_profile)
         if manager.profile_exists():
             manager.save_profile(
                 cookies=tokens.cookies,
@@ -179,7 +198,7 @@ def save_tokens_to_cache(tokens: AuthTokens, silent: bool = False) -> None:
         logger.debug(f"Failed to sync tokens to profile: {e}")
 
     if not silent:
-        logger.info(f"Auth tokens cached to {cache_path}")
+        logger.info(f"Auth tokens cached for profile '{target_profile}'")
 
 
 def extract_tokens_via_chrome_devtools() -> AuthTokens | None:
@@ -581,11 +600,14 @@ class AuthManager:
 
     def login_with_file(self, file_path: str | Path) -> Profile:
         """Parse cookies from file and save to profile."""
+        from urllib.parse import urlparse
+
         from notebooklm_tools.core.exceptions import AuthenticationError
         from notebooklm_tools.utils.browser import (
             parse_cookies_from_file,
             validate_notebooklm_cookies,
         )
+        from notebooklm_tools.utils.config import _ALLOWED_BASE_HOSTS
 
         cookies = parse_cookies_from_file(file_path)
 
@@ -595,7 +617,35 @@ class AuthManager:
                 hint="Make sure the file contains cookies from a NotebookLM session.",
             )
 
-        return self.save_profile(cookies)
+        base_urls = [get_base_url()]
+        if not os.environ.get("NOTEBOOKLM_BASE_URL"):
+            rebrand_url = "https://notebook.google.com"
+            if rebrand_url not in base_urls:
+                base_urls.append(rebrand_url)
+
+        responses = 0
+        for base_url in base_urls:
+            try:
+                response = _fetch_notebooklm_homepage(cookies, base_url=base_url)
+            except Exception as exc:
+                logger.debug("Manual login host probe failed for %s: %s", base_url, exc)
+                continue
+
+            responses += 1
+            final_host = urlparse(str(response.url)).hostname or ""
+            if response.status_code == 200 and final_host in _ALLOWED_BASE_HOSTS:
+                return self.save_profile(cookies, base_host=final_host)
+
+        if responses == 0:
+            raise AuthenticationError(
+                message="Could not reach Gemini Notebook to verify imported cookies",
+                hint="Check your network connection and NOTEBOOKLM_BASE_URL, then try again.",
+            )
+
+        raise AuthenticationError(
+            message="Imported cookies were rejected by Gemini Notebook",
+            hint="Export fresh cookies from an authenticated Gemini Notebook session and try again.",
+        )
 
 
 def get_auth_manager(profile: str | None = None) -> AuthManager:
@@ -803,6 +853,7 @@ def check_auth(
             session_id=p.session_id or "",
             build_label=p.build_label or "",
             base_host=p.base_host or "",
+            profile_name=profile,
         )
         try:
             client.list_notebooks()

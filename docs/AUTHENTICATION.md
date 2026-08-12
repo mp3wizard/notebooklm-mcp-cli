@@ -136,7 +136,7 @@ export NOTEBOOKLM_BASE_URL=https://notebooklm.cloud.google.com
 nlm login
 ```
 
-All CLI commands, MCP tools, and internal API calls will use this URL automatically. If the variable is not set, the default personal URL (`https://notebook.google.com`) is used.
+All CLI commands, MCP tools, and internal API calls will use this URL automatically. If the variable is not set, the default personal URL (`https://notebooklm.google.com`) is used.
 
 > **Tip:** Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) so it persists across sessions.
 
@@ -159,13 +159,13 @@ For MCP server configuration, pass the variable in your client config:
 
 ## The "Gemini Notebook" rebrand (`notebook.google.com`)
 
-Google is rolling out a rebrand of Gemini Notebook that redirects some signed-in accounts to `notebook.google.com` instead of `notebook.google.com`. This is handled automatically as of v0.9.3: `nlm login` records whichever host your account actually lands on (per-profile, in `metadata.json`), and every CLI/MCP request is routed to that host afterward. No configuration is needed.
+Google is rolling out a rebrand of Gemini Notebook that redirects some signed-in accounts to `notebook.google.com` instead of `notebooklm.google.com`. This is handled automatically: `nlm login` records whichever host accepts your account (per-profile, in `metadata.json`), and every CLI/MCP request is routed to that host afterward. No configuration is needed for personal accounts.
 
 Resolution order, if you need to override it manually:
 
 1. `NOTEBOOKLM_BASE_URL` env var, if set (see Enterprise section above).
 2. The host your account last signed in on (auto-detected).
-3. The default `https://notebook.google.com`.
+3. The default `https://notebooklm.google.com`.
 
 ---
 
@@ -184,6 +184,14 @@ nlm login --manual
 
 # Option B: Direct file path
 nlm login --manual --file /path/to/cookies.txt
+```
+
+File mode verifies the imported cookies before saving them. For personal accounts, it checks both `notebooklm.google.com` and the rebranded `notebook.google.com`, then stores the host that accepts the session. Managed Workspace accounts should set `NOTEBOOKLM_BASE_URL` as described above.
+
+To force the rebranded personal host explicitly:
+
+```bash
+NOTEBOOKLM_BASE_URL=https://notebook.google.com nlm login --manual --file /path/to/cookies.txt
 ```
 
 ### How to Extract Cookies Manually
@@ -212,6 +220,7 @@ SID=abc123...; HSID=xyz789...; SSID=...; APISID=...; SAPISID=...; __Secure-1PSID
 - Lines starting with `#` are treated as comments and ignored
 - The file can contain the cookie string on one or multiple lines
 - A template file `cookies.txt` is included in the repository
+- Cookie files are static credentials. Re-export them when the live verification reports that they were rejected.
 
 ---
 

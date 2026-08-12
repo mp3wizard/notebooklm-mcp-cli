@@ -250,7 +250,8 @@ class TestCDPStartupHandling:
         ):
             extract_cookies_via_cdp()
 
-        mock_get_debugger_url.assert_called_once_with(9222, tries=30)
+        # Polls with short tries so a handed-off/exited child can abort early (#277).
+        mock_get_debugger_url.assert_called_once_with(9222, tries=1, timeout=1)
 
     def test_extract_cookies_does_not_reuse_unmapped_cdp_browser(self):
         """Default login should not attach to an unrelated CDP browser."""

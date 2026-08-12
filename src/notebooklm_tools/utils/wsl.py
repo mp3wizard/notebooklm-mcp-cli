@@ -70,6 +70,7 @@ def _is_mirrored_networking() -> bool:
             ["wslinfo", "--networking-mode"],
             capture_output=True,
             text=True,
+            errors="replace",
             check=True,
             timeout=5,
         )
@@ -100,6 +101,7 @@ def get_windows_host_ip() -> str | None:
             ["ip", "route"],
             capture_output=True,
             text=True,
+            errors="replace",
             check=True,
         )
         for line in result.stdout.splitlines():
@@ -117,6 +119,7 @@ def get_windows_host_ip() -> str | None:
             ["grep", "nameserver", "/etc/resolv.conf"],
             capture_output=True,
             text=True,
+            errors="replace",
             check=True,
         )
         # Format: "nameserver 10.255.255.254"
@@ -152,6 +155,7 @@ def find_windows_chrome() -> str | None:
             ["which", "chrome.exe"],
             capture_output=True,
             text=True,
+            errors="replace",
         )
         if result.returncode == 0:
             windows_path = result.stdout.strip().replace("/mnt/c/", "C:\\").replace("/", "\\")
@@ -188,6 +192,7 @@ def launch_windows_chrome(
             ["pgrep", "-f", "chrome.exe"],
             capture_output=True,
             text=True,
+            errors="replace",
         )
         if result.returncode == 0 and result.stdout.strip():
             # Try taskkill to close Chrome
@@ -196,6 +201,7 @@ def launch_windows_chrome(
                     ["taskkill", "/f", "/im", "chrome.exe"],
                     capture_output=True,
                     text=True,
+                    errors="replace",
                     timeout=10,
                 )
                 time.sleep(2)  # Wait for Chrome to close
@@ -204,6 +210,7 @@ def launch_windows_chrome(
                     ["pgrep", "-f", "chrome.exe"],
                     capture_output=True,
                     text=True,
+                    errors="replace",
                 )
                 if result2.returncode == 0 and result2.stdout.strip():
                     raise RuntimeError(
@@ -240,9 +247,21 @@ def launch_windows_chrome(
 
     try:
         win_temp_base = subprocess.run(  # nosec B603 B607 — fixed Windows system path
-            ["powershell.exe", "-Command", "echo $env:TEMP"],
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-Command",
+                (
+                    "$utf8 = New-Object System.Text.UTF8Encoding($false); "
+                    "[Console]::OutputEncoding = $utf8; "
+                    "$OutputEncoding = $utf8; "
+                    "$env:TEMP"
+                ),
+            ],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="strict",
             check=True,
         ).stdout.strip()
         # Create a unique subdir name
@@ -254,6 +273,8 @@ def launch_windows_chrome(
             ["wslpath", "-u", windows_temp],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="strict",
             check=True,
         ).stdout.strip()
     except Exception:
@@ -263,6 +284,8 @@ def launch_windows_chrome(
             ["wslpath", "-w", temp_dir],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="strict",
             check=True,
         ).stdout.strip()
 
@@ -492,6 +515,7 @@ def create_firewall_rule(port: int = DEFAULT_WSL_CDP_PORT) -> tuple[bool, str]:
             [str(ps_path), "-Command", ps_cmd],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=10,
         )
 
@@ -546,6 +570,7 @@ def remove_firewall_rule(port: int = DEFAULT_WSL_CDP_PORT) -> bool:
             [str(ps_path), "-Command", ps_cmd],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=10,
         )
         return result.returncode == 0
@@ -603,6 +628,7 @@ def diagnose_wsl_connectivity(host_ip: str, port: int = DEFAULT_WSL_CDP_PORT) ->
                 [str(ps_path), "-Command", ps_cmd],
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=10,
             )
             results["tests"]["chrome_running"] = (
@@ -622,6 +648,7 @@ def diagnose_wsl_connectivity(host_ip: str, port: int = DEFAULT_WSL_CDP_PORT) ->
                 [str(ps_path), "-Command", ps_cmd],
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=10,
             )
             results["tests"]["port_binding"] = (

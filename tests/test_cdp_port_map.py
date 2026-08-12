@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -23,6 +24,35 @@ def storage_dir(tmp_path, monkeypatch):
 def _write_port_map(storage_dir: Path, data: dict) -> None:
     map_file = storage_dir / "chrome-port-map.json"
     map_file.write_text(json.dumps(data), encoding="utf-8")
+
+
+def _install_fake_windows_process_api(monkeypatch, exit_code: int) -> None:
+    kernel32 = MagicMock()
+    kernel32.OpenProcess.return_value = 123
+
+    def get_exit_code(_handle, exit_code_pointer):
+        exit_code_pointer._obj.value = exit_code
+        return 1
+
+    kernel32.GetExitCodeProcess.side_effect = get_exit_code
+    monkeypatch.setattr(cdp.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(ctypes, "WinDLL", lambda *_args, **_kwargs: kernel32, raising=False)
+
+
+def test_read_port_map_prunes_exited_windows_process(storage_dir, monkeypatch):
+    _write_port_map(storage_dir, {"9222": {"profile": "default", "pid": 111}})
+    _install_fake_windows_process_api(monkeypatch, exit_code=0)
+
+    assert cdp._read_port_map() == {}
+    assert json.loads((storage_dir / "chrome-port-map.json").read_text(encoding="utf-8")) == {}
+
+
+def test_read_port_map_keeps_live_windows_process(storage_dir, monkeypatch):
+    entry = {"profile": "default", "pid": 111}
+    _write_port_map(storage_dir, {"9222": entry})
+    _install_fake_windows_process_api(monkeypatch, exit_code=259)
+
+    assert cdp._read_port_map() == {"9222": entry}
 
 
 def test_find_existing_nlm_chrome_reuses_only_matching_profile(storage_dir):

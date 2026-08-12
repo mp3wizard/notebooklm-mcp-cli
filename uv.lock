@@ -775,7 +775,7 @@ wheels = [
 
 [[package]]
 name = "notebooklm-mcp-cli"
-version = "0.9.7"
+version = "0.9.10"
 source = { editable = "." }
 dependencies = [
     { name = "authlib" },

@@ -233,13 +233,21 @@ class TestCheckEndToEnd:
         captured: dict = {}
 
         def capture_probe(
-            cookies, csrf_token, *, timeout, session_id=None, build_label=None, base_host=None
+            cookies,
+            csrf_token,
+            *,
+            timeout,
+            session_id=None,
+            build_label=None,
+            base_host=None,
+            profile_name=None,
         ):
             captured["cookies"] = cookies
             captured["csrf_token"] = csrf_token
             captured["session_id"] = session_id
             captured["build_label"] = build_label
             captured["base_host"] = base_host
+            captured["profile_name"] = profile_name
             return True, None
 
         with patch("httpx.Client") as MockClient:
@@ -256,6 +264,7 @@ class TestCheckEndToEnd:
         assert captured["csrf_token"] == "csrf"
         assert captured["session_id"] == "sess"
         assert captured["build_label"] == "build"
+        assert captured["profile_name"] == "default"
 
     def test_check_homepage_expired_api_network_error_returns_unverified(
         self, tmp_path, monkeypatch
@@ -394,6 +403,7 @@ class TestProbeApiErrorClassification:
             session_id="sess-1",
             build_label="build-1",
             base_host="notebook.google.com",
+            profile_name=None,
         )
 
     def test_probe_api_timeout_emits_network_error_prefix(self):

@@ -6,6 +6,9 @@ import pytest
 
 from notebooklm_tools.core.conversation import QueryRejectedError
 from notebooklm_tools.services.chat import (
+    _QUERY_TTL_SECONDS,
+    _pending_lock,
+    _pending_queries,
     configure_chat,
     delete_chat_history,
     query,
@@ -354,7 +357,7 @@ class TestQueryStatus:
         with pytest.raises(ValidationError, match="not found"):
             query_status("nonexistent-id")
 
-    def test_completed_entry_cleaned_after_read(self, mock_client):
+    def test_completed_query_can_be_read_multiple_times_until_ttl(self, mock_client):
         import time as _time
 
         mock_client.query.return_value = {"answer": "ok"}
@@ -364,13 +367,26 @@ class TestQueryStatus:
 
         _time.sleep(1)
 
-        # First read should return the result
-        status = query_status(query_id)
-        assert status["status"] == "completed"
+        first_status = query_status(query_id)
+        second_status = query_status(query_id)
 
-        # Second read should fail because the entry was cleaned up
+        assert first_status["status"] == "completed"
+        assert second_status == first_status
+
+    def test_status_evicts_expired_query_before_reading(self, mock_client):
+        import time as _time
+
+        with _pending_lock:
+            _pending_queries["expired-status-id"] = {
+                "status": "completed",
+                "result": {"answer": "expired"},
+                "error": None,
+                "error_details": None,
+                "created_at": _time.monotonic() - _QUERY_TTL_SECONDS - 1,
+            }
+
         with pytest.raises(ValidationError, match="not found"):
-            query_status(query_id)
+            query_status("expired-status-id")
 
     def test_error_query_preserves_structured_error_details(self, mock_client):
         import time as _time

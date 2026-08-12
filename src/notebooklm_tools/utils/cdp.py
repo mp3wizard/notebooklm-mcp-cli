@@ -75,7 +75,7 @@ def _normalize_ws_url(url: str | None) -> str | None:
 
 
 from notebooklm_tools.core.exceptions import AuthenticationError  # noqa: E402
-from notebooklm_tools.utils.config import get_base_url  # noqa: E402
+from notebooklm_tools.utils.config import get_base_url, get_home_dir  # noqa: E402
 
 __all__ = [
     "get_chrome_path",
@@ -83,6 +83,7 @@ __all__ = [
     "get_supported_browsers",
     "extract_cookies_via_cdp",
     "extract_cookies_via_existing_cdp",
+    "close_profile_owned_cdp_browser",
     "run_headless_auth",
     "has_chrome_profile",
     "terminate_chrome",
@@ -140,14 +141,47 @@ def _get_port_map_file() -> Path:
     return get_storage_dir() / "chrome-port-map.json"
 
 
+def _pid_is_alive(pid: int) -> bool:
+    """Return whether a process is still running on the current platform."""
+    if platform.system() != "Windows":
+        try:
+            os.kill(pid, 0)
+            return True
+        except (OSError, ProcessLookupError):
+            return False
+
+    import ctypes
+    from ctypes import wintypes
+
+    process_query_limited_information = 0x1000
+    still_active = 259
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(process_query_limited_information, False, pid)
+    if not handle:
+        return False
+
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return True
+        return exit_code.value == still_active
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def _read_port_map() -> dict[str, dict]:
     """Read the port map, pruning entries whose PIDs are no longer alive.
 
     Returns:
         Dict mapping port (as string key) to {"profile": str, "pid": int}.
     """
-    import os
-
     map_file = _get_port_map_file()
     if not map_file.exists():
         return {}
@@ -163,10 +197,9 @@ def _read_port_map() -> dict[str, dict]:
     for port_str, entry in data.items():
         pid = entry.get("pid")
         if pid is not None:
-            try:
-                os.kill(pid, 0)  # signal 0 = check if process exists
+            if _pid_is_alive(pid):
                 alive[port_str] = entry
-            except (OSError, ProcessLookupError):
+            else:
                 changed = True  # PID is dead, skip it
         else:
             alive[port_str] = entry
@@ -278,7 +311,7 @@ def find_available_port(starting_from: int = 9222, max_attempts: int = 10) -> in
 
 # macOS: absolute .app bundle paths, /Applications first then ~/Applications
 def _macos_browser_candidates() -> list[tuple[str, str]]:
-    home_apps = Path.home() / "Applications"
+    home_apps = get_home_dir() / "Applications"
     entries: list[tuple[str, str]] = [
         ("Google Chrome", "Google Chrome.app/Contents/MacOS/Google Chrome"),
         ("Arc", "Arc.app/Contents/MacOS/Arc"),
@@ -313,8 +346,9 @@ _LINUX_BROWSER_CANDIDATES: list[tuple[str, str]] = [
 
 # Windows: absolute paths.  User-local installs live under %LOCALAPPDATA%.
 def _windows_browser_candidates() -> list[tuple[str, str]]:
-    local = Path.home() / "AppData" / "Local"
-    roaming = Path.home() / "AppData" / "Roaming"
+    home_dir = get_home_dir()
+    local = home_dir / "AppData" / "Local"
+    roaming = home_dir / "AppData" / "Roaming"
     pf = Path(r"C:\Program Files")
     pf86 = Path(r"C:\Program Files (x86)")
     return [
@@ -495,16 +529,16 @@ def get_snap_common_dir(browser_path: str) -> Path | None:
             if part == "snap" and index + 1 < len(parts):
                 snap_name = parts[index + 1]
                 if snap_name in ("chromium", "google-chrome", "firefox"):
-                    return Path.home() / "snap" / snap_name / "common"
+                    return get_home_dir() / "snap" / snap_name / "common"
         for part in parts:
             if part in ("chromium", "google-chrome", "firefox"):
-                return Path.home() / "snap" / part / "common"
+                return get_home_dir() / "snap" / part / "common"
     except (OSError, RuntimeError):
         pass
 
     # Fallback: try common snap names
     for snap_name in ("chromium", "google-chrome"):
-        snap_common = Path.home() / "snap" / snap_name / "common"
+        snap_common = get_home_dir() / "snap" / snap_name / "common"
         if snap_common.exists():
             return snap_common
 
@@ -677,6 +711,12 @@ def _listener_pid(port: int) -> int | None:
     except Exception:
         return None
     return None
+
+
+def _profile_owned_cdp_listener(port: int, profile_name: str) -> bool:
+    """Return whether the local CDP listener belongs to the requested profile."""
+    pid = _listener_pid(port)
+    return pid is not None and _mapped_chrome_owns_profile(pid, profile_name, port)
 
 
 def find_existing_nlm_chrome(
@@ -947,6 +987,69 @@ def terminate_chrome(process: subprocess.Popen | None = None, port: int | None =
         _chrome_process = None
         _chrome_port = None
     return True
+
+
+def close_profile_owned_cdp_browser(cdp_url: str, profile_name: str = "default") -> bool:
+    """Close a local CDP browser only after proving profile ownership.
+
+    This is intended for externally managed browsers. It never touches a
+    remote endpoint, and it refuses to clear the port mapping if a different
+    process replaces the managed listener while shutdown is in progress.
+    """
+    try:
+        cdp_http_url = normalize_cdp_http_url(cdp_url)
+        parsed = urlparse(cdp_http_url)
+        host = (parsed.hostname or "").casefold().rstrip(".")
+        if parsed.scheme not in {"http", "https"} or host not in {
+            "127.0.0.1",
+            "localhost",
+            "::1",
+        }:
+            return False
+        if parsed.port is None:
+            return False
+
+        port = parsed.port
+        pid = _listener_pid(port)
+        if pid is None or not _mapped_chrome_owns_profile(pid, profile_name, port):
+            return False
+
+        version = _fetch_cdp_version(port, timeout=1)
+        debugger_url = _normalize_ws_url((version or {}).get("webSocketDebuggerUrl"))
+        if debugger_url:
+            with contextlib.suppress(Exception):
+                execute_cdp_command(debugger_url, "Browser.close")
+            for _ in range(20):
+                time.sleep(0.1)
+                if not _pid_is_alive(pid):
+                    replacement_pid = _listener_pid(port)
+                    if replacement_pid not in (None, pid):
+                        return False
+                    _clear_port_map(port)
+                    return True
+
+        if not _pid_is_alive(pid):
+            replacement_pid = _listener_pid(port)
+            if replacement_pid not in (None, pid):
+                return False
+            _clear_port_map(port)
+            return True
+
+        current_pid = _listener_pid(port)
+        if current_pid != pid or not _mapped_chrome_owns_profile(pid, profile_name, port):
+            return False
+
+        _kill_process(pid)
+        for _ in range(20):
+            time.sleep(0.1)
+            if not _pid_is_alive(pid):
+                if _listener_pid(port) is not None:
+                    return False
+                _clear_port_map(port)
+                return True
+        return False
+    except Exception:
+        return False
 
 
 def _fetch_cdp_version(port: int, *, timeout: int = 5) -> dict | None:
@@ -1402,11 +1505,32 @@ def extract_cookies_via_cdp(
         # If the child already exited (Chrome handoff to an existing profile
         # lock), stop polling the unbound port immediately (#277).
         debugger_url = None
+        launcher_exit_attempt: int | None = None
         for attempt in range(30):
+            launcher_exited = _chrome_process is not None and _chrome_process.poll() is not None
+            if launcher_exited and launcher_exit_attempt is None:
+                launcher_exit_attempt = attempt
+
             debugger_url = get_debugger_url(port, tries=1, timeout=1)
             if debugger_url:
-                break
-            if _chrome_process is not None and _chrome_process.poll() is not None:
+                launcher_exited = _chrome_process is not None and _chrome_process.poll() is not None
+                if launcher_exited and launcher_exit_attempt is None:
+                    launcher_exit_attempt = attempt
+                # On Windows, the launcher can exit after handing off to an
+                # existing Chrome process. Do not accept a late listener
+                # until its PID is proven to own this profile.
+                if (
+                    platform.system() != "Windows"
+                    or not launcher_exited
+                    or _profile_owned_cdp_listener(port, profile_name)
+                ):
+                    break
+                debugger_url = None
+
+            if launcher_exited and (
+                platform.system() != "Windows"
+                or (launcher_exit_attempt is not None and attempt - launcher_exit_attempt >= 5)
+            ):
                 break
             if attempt < 29:
                 time.sleep(1)
@@ -1778,7 +1902,7 @@ def run_headless_auth(
             base_host=base_host,
             extracted_at=time.time(),
         )
-        save_tokens_to_cache(tokens)
+        save_tokens_to_cache(tokens, profile_name=profile_name)
 
         # Clean up cache to minimize profile size
         cleanup_chrome_profile_cache(profile_name)

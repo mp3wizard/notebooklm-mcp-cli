@@ -12,7 +12,7 @@ from notebooklm_tools.utils import cdp
 
 
 class TestRunHeadlessAuthCapturesBaseHost:
-    def _run_with_current_url(self, current_url: str):
+    def _run_with_current_url(self, current_url: str, profile_name: str = "default"):
         with (
             patch.object(cdp, "has_chrome_profile", return_value=True),
             patch.object(
@@ -40,7 +40,7 @@ class TestRunHeadlessAuthCapturesBaseHost:
             patch.object(cdp, "cleanup_chrome_profile_cache", return_value=0),
             patch("notebooklm_tools.core.auth.save_tokens_to_cache") as mock_save,
         ):
-            tokens = cdp.run_headless_auth(profile_name="default")
+            tokens = cdp.run_headless_auth(profile_name=profile_name)
             return tokens, mock_save
 
     def test_base_host_captured_on_rebrand_host(self):
@@ -52,3 +52,11 @@ class TestRunHeadlessAuthCapturesBaseHost:
         tokens, _ = self._run_with_current_url("https://notebooklm.google.com/")
         assert tokens is not None
         assert tokens.base_host == "notebooklm.google.com"
+
+    def test_named_profile_is_preserved_when_tokens_are_cached(self):
+        tokens, mock_save = self._run_with_current_url(
+            "https://notebooklm.google.com/",
+            profile_name="tsm",
+        )
+
+        mock_save.assert_called_once_with(tokens, profile_name="tsm")

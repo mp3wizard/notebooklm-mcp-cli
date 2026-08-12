@@ -468,6 +468,7 @@ def query_status(query_id: str) -> QueryStatusResult:
         ValidationError: If query_id is not found
     """
     with _pending_lock:
+        _cleanup_expired_queries()
         entry = _pending_queries.get(query_id)
         if entry is None:
             raise ValidationError(
@@ -486,9 +487,5 @@ def query_status(query_id: str) -> QueryStatusResult:
             "error": entry["error"],
             "error_details": entry["error_details"],
         }
-
-        # Clean up completed/errored entries after reading
-        if entry["status"] in ("completed", "error"):
-            del _pending_queries[query_id]
 
         return result

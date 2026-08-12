@@ -144,6 +144,7 @@ def _best_effort_notebook_count(profile: Any) -> int | None:
             session_id=profile.session_id or "",
             build_label=profile.build_label or "",
             base_host=profile.base_host or "",
+            profile_name=getattr(profile, "name", None),
         ) as client:
             return len(client.list_notebooks())
     except Exception:

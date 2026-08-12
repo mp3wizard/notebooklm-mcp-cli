@@ -20,6 +20,26 @@ from pydantic import BaseModel, Field
 STORAGE_DIR_NAME = ".notebooklm-mcp-cli"
 
 
+def get_home_dir() -> Path:
+    """Resolve a writable home anchor without failing at module import.
+
+    Service and hermetic runtimes can intentionally omit HOME/USERPROFILE. The
+    CLI still needs deterministic local state in that case, but importing the
+    package must not crash before an explicit NOTEBOOKLM_MCP_CLI_PATH override
+    can be honored.
+    """
+    try:
+        return Path.home()
+    except RuntimeError:
+        if configured := str(os.environ.get("NOTEBOOKLM_MCP_CLI_PATH") or "").strip():
+            return Path(configured).parent
+        for name in ("USERPROFILE", "HOME"):
+            value = str(os.environ.get(name) or "").strip()
+            if value:
+                return Path(value)
+        return Path.cwd() / ".notebooklm-home"
+
+
 def safe_mkdir(
     path: Path, *, parents: bool = False, exist_ok: bool = True, mode: int = 0o777
 ) -> None:
@@ -101,7 +121,7 @@ def get_storage_dir() -> Path:
     if env_path := os.environ.get("NOTEBOOKLM_MCP_CLI_PATH"):
         storage_dir = Path(env_path)
     else:
-        storage_dir = Path.home() / STORAGE_DIR_NAME
+        storage_dir = get_home_dir() / STORAGE_DIR_NAME
 
     safe_mkdir(storage_dir, mode=0o700)
     return storage_dir
@@ -176,14 +196,14 @@ def get_snap_chrome_profile_dir(
     if snap_common is None:
         # Auto-detect snap common directory
         for snap_name in ("chromium", "google-chrome"):
-            candidate = Path.home() / "snap" / snap_name / "common"
+            candidate = get_home_dir() / "snap" / snap_name / "common"
             if candidate.exists():
                 snap_common = candidate
                 break
 
     if snap_common is None:
         # Fallback: use chromium common dir (create if needed)
-        snap_common = Path.home() / "snap" / "chromium" / "common"
+        snap_common = get_home_dir() / "snap" / "chromium" / "common"
         safe_mkdir(snap_common, parents=True)
 
     chrome_dir = snap_common / "notebooklm-mcp-cli" / "chrome-profiles" / profile_name
@@ -214,13 +234,13 @@ def get_auth_cache_file() -> Path:
 
 # Old locations for Chrome profiles (checked for migration)
 OLD_CHROME_PROFILES = [
-    Path.home() / ".notebooklm-mcp" / "chrome-profile",  # Old MCP (pre-0.2.13)
-    Path.home() / ".nlm" / "chrome-profile",  # Old CLI
+    get_home_dir() / ".notebooklm-mcp" / "chrome-profile",  # Old MCP (pre-0.2.13)
+    get_home_dir() / ".nlm" / "chrome-profile",  # Old CLI
 ]
 
 # Old locations for auth.json (checked for migration)
 OLD_AUTH_LOCATIONS = [
-    Path.home() / ".notebooklm-mcp" / "auth.json",  # Old MCP (pre-0.2.13)
+    get_home_dir() / ".notebooklm-mcp" / "auth.json",  # Old MCP (pre-0.2.13)
 ]
 
 # Old locations for aliases

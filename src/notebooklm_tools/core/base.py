@@ -378,6 +378,7 @@ class BaseClient:
         session_id: str = "",
         build_label: str = "",
         base_host: str = "",
+        profile_name: str | None = None,
     ):
         """
         Initialize the base client.
@@ -389,6 +390,8 @@ class BaseClient:
             build_label: Build label / bl param (optional - auto-extracted from page if not provided)
             base_host: Host the account is signed in on, e.g. "notebook.google.com"
                 (optional - falls back to NOTEBOOKLM_BASE_URL or the default host)
+            profile_name: Auth profile that owns these credentials. Uses the
+                configured default when omitted.
         """
         import time as _time
 
@@ -398,6 +401,7 @@ class BaseClient:
         self._session_id = session_id
         self._bl = build_label
         self._base_host = base_host
+        self._profile_name = profile_name
         self._created_at: float = _time.time()
 
         # Conversation cache for follow-up queries.
@@ -781,6 +785,7 @@ class BaseClient:
             build_fallback = self._bl
 
         context = get_cdp_page_context(
+            profile_name=self._profile_name,
             timeout=timeout or DEFAULT_TIMEOUT,
             csrf_fallback=csrf_fallback,
             session_fallback=session_fallback,
@@ -1175,7 +1180,7 @@ class BaseClient:
             from .auth import AuthTokens, load_cached_tokens, save_tokens_to_cache
 
             # Load existing cache or create new
-            cached = load_cached_tokens()
+            cached = load_cached_tokens(profile_name=self._profile_name)
             if cached:
                 # Update existing cache with new tokens
                 cached.cookies = self.cookies
@@ -1193,7 +1198,7 @@ class BaseClient:
                     extracted_at=time.time(),
                 )
 
-            save_tokens_to_cache(cached, silent=True)
+            save_tokens_to_cache(cached, silent=True, profile_name=self._profile_name)
         except Exception as e:
             # Non-critical: caching is an optimization, but log at debug level
             logger.debug(f"Failed to update auth token cache: {e}")
@@ -1205,12 +1210,9 @@ class BaseClient:
         """
         from .auth import load_cached_tokens
 
-        # Layer 2: Reload cookies from disk (profile or legacy auth.json).
-        # load_cached_tokens() checks the default profile first, then falls
-        # back to the legacy auth.json file.  We no longer gate on
-        # auth.json existence so that users who only have profile-based
-        # credentials (from `nlm login`) are not skipped.
-        cached = load_cached_tokens()
+        # Layer 2: Reload cookies from the same profile on disk. The configured
+        # default may also fall back to legacy auth.json for compatibility.
+        cached = load_cached_tokens(profile_name=self._profile_name)
         if cached and cached.cookies:
             # Always reload from disk when auth fails - current tokens are known-bad
             # The cached tokens may be fresher (user ran nlm login)
@@ -1221,12 +1223,12 @@ class BaseClient:
                 self._session_id = ""  # Force re-extraction of session ID
             return True
 
-        # Try headless auth if the configured default Chrome profile exists.
+        # Try headless auth for the same profile that owns this client.
         try:
             from notebooklm_tools.utils.auth_browser import run_headless_auth
             from notebooklm_tools.utils.config import get_config
 
-            profile_name = get_config().auth.default_profile
+            profile_name = self._profile_name or get_config().auth.default_profile
             tokens = run_headless_auth(profile_name=profile_name)
             if tokens:
                 with self._state_lock:
