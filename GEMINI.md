@@ -15,7 +15,7 @@ The project uses `uv` for dependency management and tool installation.
 ### Prerequisites
 - Python 3.11+
 - `uv` (Universal Python Package Manager)
-- Google Chrome (for automated authentication)
+- Google Chrome or Firefox (for automated authentication)
 
 ### Installation
 

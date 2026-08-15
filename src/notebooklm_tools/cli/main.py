@@ -234,7 +234,7 @@ def login_callback(
     clear: bool = typer.Option(
         False,
         "--clear",
-        help="Delete the localized Chrome profile data before logging in, to switch Google accounts",
+        help="Delete the localized browser profile data before logging in, to switch Google accounts",
     ),
     wsl: bool = typer.Option(
         False,
@@ -245,7 +245,7 @@ def login_callback(
     """
     Authenticate with NotebookLM.
 
-    Default: Uses Chrome DevTools Protocol to extract cookies automatically.
+    Default: Uses the configured managed browser to extract cookies automatically.
     Use --manual to import cookies from a file.
     Use --check to validate existing credentials.
     Use --provider openclaw --cdp-url <url> to read auth from an existing
@@ -257,6 +257,7 @@ def login_callback(
     from notebooklm_tools.core.errors import ClientAuthenticationError
     from notebooklm_tools.core.exceptions import AccountMismatchError, NLMError
     from notebooklm_tools.services.auth import AuthManager
+    from notebooklm_tools.utils.auth_browser import extract_cookies_via_browser, select_auth_backend
     from notebooklm_tools.utils.config import get_config
 
     # If a subcommand is invoked, don't run login logic
@@ -327,11 +328,12 @@ def login_callback(
         from notebooklm_tools.utils.cdp import (
             extract_cookies_via_cdp,
             extract_cookies_via_existing_cdp,
-            get_browser_display_name,
             terminate_chrome,
         )
 
         launched_local_chrome = False
+        managed_browser_backend = ""
+        managed_browser_name = ""
 
         # Default cdp_url for the builtin provider — used to detect when the
         # user explicitly passes their own --cdp-url value.
@@ -469,55 +471,66 @@ def login_callback(
                 login_timeout=300,
             )
         else:
-            # Default: builtin CDP mode - managed Chrome profile
-            from notebooklm_tools.utils.cdp import get_browser_display_name, get_chrome_path
+            backend = select_auth_backend()
+            if backend is None:
+                extract_cookies_via_browser(profile_name=profile, clear_profile=clear)
+                raise AssertionError("Authentication backend unexpectedly returned no result")
 
-            # Detect browser early so messages show the correct name
-            get_chrome_path()
-            browser_name = get_browser_display_name()
-            console.print(f"[bold]Launching {browser_name} for authentication...[/bold]")
-            console.print("[dim]Using Chrome DevTools Protocol[/dim]\n")
+            managed_browser_backend = backend["backend"]
+            managed_browser_name = backend["browser"]
+            if managed_browser_backend == "firefox_profile":
+                console.print("[bold]Launching Firefox for authentication...[/bold]")
+                console.print("[dim]Using an isolated Firefox profile[/dim]\n")
+                result, _ = extract_cookies_via_browser(
+                    profile_name=profile,
+                    clear_profile=clear,
+                    preferred="firefox",
+                )
+            else:
+                from notebooklm_tools.utils.cdp import get_chrome_path
+                from notebooklm_tools.utils.config import (
+                    check_migration_sources,
+                    get_storage_dir,
+                    run_migration,
+                )
 
-            from notebooklm_tools.utils.config import (
-                check_migration_sources,
-                get_storage_dir,
-                run_migration,
-            )
+                get_chrome_path()
+                console.print(
+                    f"[bold]Launching {managed_browser_name} for authentication...[/bold]"
+                )
+                console.print("[dim]Using Chrome DevTools Protocol[/dim]\n")
 
-            # Check if we need to migrate from legacy packages
-            # IMPORTANT: Don't use get_chrome_profile_dir() here as it creates the directory,
-            # which would prevent migration from running
-            chrome_profile = get_storage_dir() / "chrome-profile"
-            profile_exists = chrome_profile.exists() and (
-                (chrome_profile / "Default").exists() or (chrome_profile / "Local State").exists()
-            )
+                chrome_profile = get_storage_dir() / "chrome-profile"
+                profile_exists = chrome_profile.exists() and (
+                    (chrome_profile / "Default").exists()
+                    or (chrome_profile / "Local State").exists()
+                )
+                if not profile_exists and not clear:
+                    sources = check_migration_sources()
+                    if sources["chrome_profiles"]:
+                        console.print(
+                            "[yellow]Found Chrome profile from legacy installation![/yellow]"
+                        )
+                        for src in sources["chrome_profiles"]:
+                            console.print(f"  [dim]{src}[/dim]")
+                        console.print("[dim]Migrating to new location...[/dim]")
+                        for action in run_migration(dry_run=False):
+                            console.print(f"  [green]✓[/green] {action}")
+                        console.print()
 
-            if not profile_exists and not clear:
-                sources = check_migration_sources()
-                if sources["chrome_profiles"]:
-                    console.print("[yellow]Found Chrome profile from legacy installation![/yellow]")
-                    for src in sources["chrome_profiles"]:
-                        console.print(f"  [dim]{src}[/dim]")
-                    console.print("[dim]Migrating to new location...[/dim]")
-
-                    actions = run_migration(dry_run=False)
-                    for action in actions:
-                        console.print(f"  [green]✓[/green] {action}")
-                    console.print()
-
-            console.print(f"Starting {browser_name}...")
-            result = extract_cookies_via_cdp(
-                auto_launch=True,
-                wait_for_login=True,
-                login_timeout=300,
-                profile_name=profile,
-                clear_profile=clear,
-            )
-            launched_local_chrome = True
+                console.print(f"Starting {managed_browser_name}...")
+                result = extract_cookies_via_cdp(
+                    auto_launch=True,
+                    wait_for_login=True,
+                    login_timeout=300,
+                    profile_name=profile,
+                    clear_profile=clear,
+                )
+                launched_local_chrome = True
 
         if result.get("reused_existing"):
             console.print(
-                f"[yellow]Warning:[/yellow] Connected to an already-running {get_browser_display_name()} instance. "
+                f"[yellow]Warning:[/yellow] Connected to an already-running {managed_browser_name} instance. "
                 "Profile isolation may not apply — verify the account is correct."
             )
 
@@ -537,11 +550,12 @@ def login_callback(
             force=force,
             build_label=build_label,
             base_host=base_host,
+            browser_backend=managed_browser_backend or None,
         )
 
         # Close builtin auth Chrome to release profile lock (enables headless auth later)
         if launched_local_chrome:
-            console.print(f"[dim]Closing {get_browser_display_name()}...[/dim]")
+            console.print(f"[dim]Closing {managed_browser_name}...[/dim]")
             terminate_chrome()
 
         console.print("\n[green]✓[/green] Successfully authenticated!")
@@ -564,23 +578,30 @@ def login_callback(
                 f"[bold]{e.stored_email}[/bold])."
             )
             console.print(
-                f"[dim]Clearing stale browser session and relaunching {get_browser_display_name()}...[/dim]\n"
+                f"[dim]Clearing stale browser session and relaunching {managed_browser_name}...[/dim]\n"
             )
 
-            # Close the mismatch Chrome
-            with contextlib.suppress(Exception):
-                terminate_chrome()
+            if launched_local_chrome:
+                with contextlib.suppress(Exception):
+                    terminate_chrome()
 
             # Retry with cleared Chrome profile
             try:
-                result = extract_cookies_via_cdp(
-                    auto_launch=True,
-                    wait_for_login=True,
-                    login_timeout=300,
-                    profile_name=profile,
-                    clear_profile=True,
-                )
-                launched_local_chrome = True
+                if managed_browser_backend == "firefox_profile":
+                    result, _ = extract_cookies_via_browser(
+                        profile_name=profile,
+                        clear_profile=True,
+                        preferred="firefox",
+                    )
+                else:
+                    result = extract_cookies_via_cdp(
+                        auto_launch=True,
+                        wait_for_login=True,
+                        login_timeout=300,
+                        profile_name=profile,
+                        clear_profile=True,
+                    )
+                    launched_local_chrome = True
 
                 cookies = result["cookies"]
                 csrf_token = result.get("csrf_token", "")
@@ -597,10 +618,11 @@ def login_callback(
                     force=True,  # Allow overwrite on retry
                     build_label=build_label,
                     base_host=base_host,
+                    browser_backend=managed_browser_backend or None,
                 )
 
                 if launched_local_chrome:
-                    console.print(f"[dim]Closing {get_browser_display_name()}...[/dim]")
+                    console.print(f"[dim]Closing {managed_browser_name}...[/dim]")
                     terminate_chrome()
 
                 console.print("\n[green]✓[/green] Successfully authenticated!")

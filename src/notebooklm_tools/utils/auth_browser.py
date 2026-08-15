@@ -7,6 +7,7 @@ from notebooklm_tools.core.exceptions import AuthenticationError
 from notebooklm_tools.utils.config import get_config, get_profile_dir
 
 CHROMIUM_BROWSER_KEYS = {"auto", "chrome", "arc", "brave", "edge", "chromium", "vivaldi", "opera"}
+FIREFOX_BROWSER_KEY = "firefox"
 
 
 def _normalize_browser(preferred: str | None = None) -> str:
@@ -19,18 +20,32 @@ def get_supported_auth_browsers() -> list[str]:
     """Return user-facing browser names for auth."""
     from notebooklm_tools.utils.cdp import get_supported_browsers as get_supported_chromium_browsers
 
-    return get_supported_chromium_browsers()
+    browsers = get_supported_chromium_browsers()
+    from notebooklm_tools.utils.firefox import get_firefox_path
+
+    if get_firefox_path():
+        browsers.append("Firefox")
+    return browsers
 
 
 def select_auth_backend(preferred: str | None = None) -> dict[str, str] | None:
     """Pick the best available auth backend for the configured browser."""
     from notebooklm_tools.utils.cdp import _get_chromium_path, get_browser_display_name
+    from notebooklm_tools.utils.firefox import get_firefox_path
 
     preferred = _normalize_browser(preferred)
+
+    if preferred == FIREFOX_BROWSER_KEY:
+        if get_firefox_path():
+            return {"backend": "firefox_profile", "browser": "Firefox"}
+        return None
 
     chromium_path = _get_chromium_path(preferred if preferred in CHROMIUM_BROWSER_KEYS else "auto")
     if chromium_path:
         return {"backend": "chromium_cdp", "browser": get_browser_display_name()}
+
+    if preferred == "auto" and get_firefox_path():
+        return {"backend": "firefox_profile", "browser": "Firefox"}
 
     return None
 
@@ -46,15 +61,32 @@ def extract_cookies_via_browser(
     """Extract auth cookies using the selected backend."""
     backend = select_auth_backend(preferred)
     if not backend:
+        if _normalize_browser(preferred) == FIREFOX_BROWSER_KEY:
+            from notebooklm_tools.utils.firefox import ensure_firefox_available
+
+            ensure_firefox_available()
         browsers = get_supported_auth_browsers()
         if len(browsers) > 1:
             browser_text = ", ".join(browsers[:-1]) + f", or {browsers[-1]}"
-        else:
+        elif browsers:
             browser_text = browsers[0]
+        else:
+            browser_text = "a supported browser"
         raise AuthenticationError(
             message="No supported browser found",
             hint=f"Install {browser_text}, or use 'nlm login --manual' to import cookies from a file.",
         )
+
+    if backend["backend"] == "firefox_profile":
+        from notebooklm_tools.utils.firefox import extract_cookies_via_firefox
+
+        result = extract_cookies_via_firefox(
+            wait_for_login=wait_for_login,
+            login_timeout=login_timeout,
+            profile_name=profile_name,
+            clear_profile=clear_profile,
+        )
+        return result, backend
 
     from notebooklm_tools.utils.cdp import extract_cookies_via_cdp
 
@@ -85,7 +117,7 @@ def run_headless_auth(profile_name: str = "default", timeout: int = 30) -> Any |
     preferred_backend = _get_saved_browser_backend(profile_name)
     attempts: list[str] = []
 
-    if preferred_backend == "chromium_cdp":
+    if preferred_backend in {"chromium_cdp", "firefox_profile"}:
         attempts.append(preferred_backend)
 
     selected = select_auth_backend()
@@ -103,5 +135,13 @@ def run_headless_auth(profile_name: str = "default", timeout: int = 30) -> Any |
             if tokens:
                 return tokens
             continue
+        if backend == "firefox_profile":
+            from notebooklm_tools.utils.firefox import (
+                run_headless_auth as run_headless_firefox_auth,
+            )
+
+            tokens = run_headless_firefox_auth(timeout=timeout, profile_name=profile_name)
+            if tokens:
+                return tokens
 
     return None

@@ -772,7 +772,7 @@ nlm set config <key> <value>    # Update setting
 ```
 
 **Available config keys:**
-- `auth.browser` — Preferred browser for login: auto (default), chrome, arc, brave, edge, chromium, vivaldi, opera. Falls back to auto if preferred browser is not found.
+- `auth.browser` — Preferred browser for login: auto (default), chrome, arc, brave, edge, chromium, firefox, vivaldi, opera. Falls back to auto if preferred browser is not found.
 - `auth.default_profile` — Default profile name (default: "default")
 - `output.format` — Default output format: table, json (default: "table")
 - `output.color` — Enable colored output (default: true)

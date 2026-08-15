@@ -21,7 +21,7 @@ from ._utils import (
 async def notebook_query(
     notebook_id: str,
     query: str,
-    source_ids: list[str] | None = None,
+    source_ids: str | list[str] | None = None,
     conversation_id: str | None = None,
     timeout: float | None = None,
 ) -> ResultDict:
@@ -95,7 +95,7 @@ def chat_configure(
 def notebook_query_start(
     notebook_id: str,
     query: str,
-    source_ids: list[str] | None = None,
+    source_ids: str | list[str] | None = None,
     conversation_id: str | None = None,
     timeout: float | None = None,
 ) -> ResultDict:

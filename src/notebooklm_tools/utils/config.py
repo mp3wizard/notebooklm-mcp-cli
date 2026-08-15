@@ -212,9 +212,10 @@ def get_snap_chrome_profile_dir(
 
 
 def get_firefox_profile_dir(profile_name: str = "default") -> Path:
-    """Get Firefox profile directory kept for backwards compatibility."""
+    """Get the persistent Firefox profile directory for automated auth."""
     firefox_dir = get_storage_dir() / "firefox-profiles" / profile_name
-    safe_mkdir(firefox_dir, parents=True)
+    safe_mkdir(firefox_dir, parents=True, mode=0o700)
+    firefox_dir.chmod(0o700)
     return firefox_dir
 
 
@@ -441,7 +442,9 @@ class AuthConfig(BaseModel):
 
     browser: str = Field(
         default="auto",
-        description=("Browser for auth: auto, chrome, arc, brave, edge, chromium, vivaldi, opera"),
+        description=(
+            "Browser for auth: auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera"
+        ),
     )
     default_profile: str = Field(default="default", description="Default profile name")
 

@@ -86,6 +86,7 @@ def test_login_force_bypasses_saved_profile_validation(monkeypatch, tmp_path):
             "force": True,
             "build_label": "build",
             "base_host": "",
+            "browser_backend": "chromium_cdp",
         }
     ]
     assert "Successfully authenticated!" in result.output

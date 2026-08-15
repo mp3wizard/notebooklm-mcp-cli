@@ -1,6 +1,6 @@
 """Tests for account mismatch guard in profile saving."""
 
-from notebooklm_tools.core.exceptions import AccountMismatchError, NLMError
+from notebooklm_tools.core.exceptions import AccountMismatchError, AuthenticationError, NLMError
 
 
 def test_account_mismatch_error_inherits_nlm_error():
@@ -138,6 +138,23 @@ class TestSaveProfileMismatchGuard:
         # Should keep the old email when new is None
         assert profile is not None
         assert profile.email == "work@company.com"
+
+    def test_firefox_login_requires_force_for_existing_profile(self, tmp_path, monkeypatch):
+        """Firefox cannot identify the account, so it must not overwrite credentials silently."""
+        manager = self._create_existing_profile(tmp_path, "work@company.com")
+        monkeypatch.setattr(
+            "notebooklm_tools.utils.config.get_profile_dir",
+            lambda name: tmp_path / "profiles" / name,
+        )
+
+        with pytest.raises(AuthenticationError, match="cannot verify the Google account"):
+            manager.save_profile(
+                cookies=[{"name": "SID", "value": "new-sid"}],
+                email="",
+                browser_backend="firefox_profile",
+            )
+
+        assert json.loads(manager.cookies_file.read_text()) == [{"name": "SID", "value": "old-sid"}]
 
     def test_save_allows_on_fresh_profile(self, tmp_path, monkeypatch):
         """save_profile should work on a brand new profile with no existing data."""

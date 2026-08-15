@@ -99,7 +99,7 @@ def research_status(
 def research_import(
     notebook_id: str,
     task_id: str,
-    source_indices: list[int] | None = None,
+    source_indices: str | list[int] | None = None,
     timeout: float = 300.0,
     cited_only: bool = False,
 ) -> ResultDict:

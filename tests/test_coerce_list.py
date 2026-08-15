@@ -1,5 +1,7 @@
 """Tests for MCP tools coerce_list utility."""
 
+import pytest
+
 from notebooklm_tools.mcp.tools._utils import coerce_list
 
 
@@ -47,3 +49,27 @@ class TestCoerceList:
     def test_malformed_json_falls_back_to_comma(self):
         # Starts with [ but isn't valid JSON
         assert coerce_list("[abc, def]") == ["[abc", "def]"]
+
+
+@pytest.mark.asyncio
+async def test_mcp_list_parameters_accept_string_values():
+    from notebooklm_tools.mcp.server import mcp
+
+    parameters = {
+        "notebook_query": "source_ids",
+        "notebook_query_start": "source_ids",
+        "source_add": "urls",
+        "source_sync_drive": "source_ids",
+        "source_delete": "source_ids",
+        "studio_create": "source_ids",
+        "research_import": "source_indices",
+    }
+
+    for tool_name, parameter_name in parameters.items():
+        tool = await mcp.get_tool(tool_name)
+        schema = tool.parameters["properties"][parameter_name]
+        options = schema.get("anyOf", [schema])
+
+        assert any(option.get("type") == "string" for option in options), (
+            f"{tool_name}.{parameter_name} rejects string input at the MCP boundary"
+        )

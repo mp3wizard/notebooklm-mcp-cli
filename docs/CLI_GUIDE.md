@@ -27,7 +27,7 @@ nlm login profile rename <old> <new>  # Rename a profile
 nlm login --provider openclaw --cdp-url http://127.0.0.1:18800
 ```
 
-Each profile gets its own isolated browser session (supports Chrome, Arc, Brave, Edge, Chromium, and more), so you can stay logged into multiple Google accounts simultaneously.
+Each profile gets its own isolated browser session (supports Chrome, Arc, Brave, Edge, Chromium, Firefox, and more), so you can stay logged into multiple Google accounts simultaneously.
 
 ## Command Structure
 
@@ -250,7 +250,7 @@ nlm config set output.format json       # Change default output format
 | `output.format` | `table` | Default output format (table, json) |
 | `output.color` | `true` | Enable colored output |
 | `output.short_ids` | `true` | Show shortened IDs |
-| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, vivaldi, opera). Falls back to auto if the preferred browser is not found. |
+| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if the preferred browser is not found. |
 | `auth.default_profile` | `default` | Profile to use when `--profile` not specified. **Note:** The MCP Server always uses the active default profile. Changing this setting will instantaneously switch the MCP server's Google account. |
 
 ### Aliases (Shortcuts)

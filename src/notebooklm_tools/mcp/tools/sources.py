@@ -17,7 +17,7 @@ def source_add(
     notebook_id: str,
     source_type: str,
     url: str | None = None,
-    urls: list[str] | None = None,
+    urls: str | list[str] | None = None,
     text: str | None = None,
     title: str | None = None,
     file_path: str | None = None,
@@ -126,7 +126,7 @@ def source_list_drive(notebook_id: str, skip_freshness: bool = False) -> ResultD
 
 
 @logged_tool()
-def source_sync_drive(source_ids: list[str], confirm: bool = False) -> ResultDict:
+def source_sync_drive(source_ids: str | list[str], confirm: bool = False) -> ResultDict:
     """Sync Drive sources with latest content. Requires confirm=True.
 
     Call source_list_drive first to identify stale sources.
@@ -183,7 +183,7 @@ def source_rename(notebook_id: str, source_id: str, new_title: str) -> ResultDic
 @logged_tool()
 def source_delete(
     source_id: str | None = None,
-    source_ids: list[str] | None = None,
+    source_ids: str | list[str] | None = None,
     confirm: bool = False,
 ) -> ResultDict:
     """Delete source(s) permanently. IRREVERSIBLE. Requires confirm=True.

@@ -11,14 +11,15 @@ This guide explains how to authenticate with Gemini Notebook (formerly Google No
 
 Gemini Notebook uses browser cookies for authentication (there is no official API). The CLI/MCP extracts these cookies automatically from a managed browser session:
 - Chromium-family browsers use Chrome DevTools Protocol (CDP)
+- Firefox uses an isolated profile and reads its cookie store directly (no CDP or WebDriver required)
 
-**Supported browsers**: Google Chrome, Arc (macOS), Brave, Microsoft Edge, Chromium, Vivaldi, Opera.
+**Supported browsers**: Google Chrome, Arc (macOS), Brave, Microsoft Edge, Chromium, Firefox, Vivaldi, Opera.
 
 **Two authentication methods are available:**
 
 | Method | Best For | Requires |
 |--------|----------|----------|
-| **Auto Mode** (default) | Most users | Any supported Chromium-family browser installed |
+| **Auto Mode** (default) | Most users | Any supported browser installed |
 | **File Mode** (`--file`) | Complex setups, troubleshooting | Manual cookie extraction |
 
 ---
@@ -29,7 +30,7 @@ This method launches your browser automatically and extracts cookies after you l
 
 ### Prerequisites
 
-- A supported browser installed (Chrome, Arc, Brave, Edge, Chromium, Vivaldi, or Opera)
+- A supported browser installed (Chrome, Arc, Brave, Edge, Chromium, Firefox, Vivaldi, or Opera)
 - Chromium-family browsers should be **completely closed** before running
 
 ### Steps
@@ -57,8 +58,10 @@ nlm login --devtools-timeout 15
 2. A dedicated browser profile is created for authentication
 3. The browser launches with the appropriate automation backend
 4. You log in to Gemini Notebook via the browser
-5. Cookies, CSRF token, and account email are extracted and cached
+5. Cookies are extracted and cached; CSRF/session fields are refreshed automatically when needed
 6. The browser is closed automatically
+
+When Firefox is selected, the profile is isolated under the NLM storage directory and its cookie database is read directly. Because cookie extraction cannot prove which Google account is active, re-login against an existing saved profile requires explicit `nlm login --force` after you confirm the account.
 
 ### Browser Preference
 
@@ -71,7 +74,7 @@ nlm config set auth.browser brave
 # Or use an environment variable
 export NLM_BROWSER=arc
 
-# Valid values: auto, chrome, arc, brave, edge, chromium, vivaldi, opera
+# Valid values: auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera
 # If the preferred browser is not installed, falls back to auto-detection.
 ```
 

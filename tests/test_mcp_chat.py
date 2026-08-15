@@ -82,3 +82,25 @@ async def test_notebook_query_returns_structured_service_error(monkeypatch):
         "suggested_action": "check_query_arguments",
         "debug_code": "query_invalid_argument",
     }
+
+
+@pytest.mark.asyncio
+async def test_notebook_query_accepts_string_source_ids_at_mcp_boundary(monkeypatch):
+    from notebooklm_tools.mcp.server import mcp
+
+    seen = {}
+
+    def query(*args, **kwargs):
+        seen.update(kwargs)
+        return {"answer": "ok"}
+
+    monkeypatch.setattr(chat_tools, "get_client", lambda: object())
+    monkeypatch.setattr(chat_tools.chat_service, "query", query)
+
+    result = await mcp.call_tool(
+        "notebook_query",
+        {"notebook_id": "nb-123", "query": "question", "source_ids": "src-1,src-2"},
+    )
+
+    assert result.structured_content == {"status": "success", "answer": "ok"}
+    assert seen["source_ids"] == ["src-1", "src-2"]

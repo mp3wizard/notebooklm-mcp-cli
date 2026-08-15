@@ -65,7 +65,7 @@ def _normalize_studio_validation_error(message: str) -> str:
 def studio_create(
     notebook_id: str,
     artifact_type: str,
-    source_ids: list[str] | None = None,
+    source_ids: str | list[str] | None = None,
     confirm: bool = False,
     # Audio/Video options
     audio_format: str = "deep_dive",

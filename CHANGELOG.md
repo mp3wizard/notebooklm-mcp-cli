@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.11] - 2026-08-12
+
+### Added
+- **Firefox managed-browser authentication (#294, PR #295)** — `nlm login` can use an isolated Firefox profile when Chromium/CDP is unavailable, while retaining Chromium-family browsers as the default when they are available.
+
+### Fixed
+- **Safe Firefox profile replacement** — Firefox cookie extraction cannot identify the Google account, so an existing saved profile now requires explicit `nlm login --force` before its credentials can be replaced.
+- **Serialized MCP list parameters (#296)** — MCP tools that already normalize list values now accept JSON-string and comma-separated inputs at the FastMCP boundary, including notebook queries, source operations, Studio, and research import.
+
+### Thanks
+- Thanks to **@LucasMazei** for PR #295 and the Firefox authentication fallback.
+- Thanks to **@GuanHukd** for the detailed reproduction and call-site inventory in issue #296.
+
 ## [0.9.10] - 2026-08-11
 
 ### Fixed

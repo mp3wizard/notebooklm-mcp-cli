@@ -4,16 +4,16 @@ import json
 from unittest.mock import patch
 
 
-def test_select_auth_backend_ignores_firefox_preference_and_uses_chromium():
+def test_select_auth_backend_uses_firefox_when_explicitly_requested():
     from notebooklm_tools.utils.auth_browser import select_auth_backend
 
     with (
         patch("notebooklm_tools.utils.cdp._get_chromium_path", return_value="chromium"),
-        patch("notebooklm_tools.utils.cdp.get_browser_display_name", return_value="Chromium"),
+        patch("notebooklm_tools.utils.firefox.get_firefox_path", return_value="firefox"),
     ):
         backend = select_auth_backend("firefox")
 
-    assert backend == {"backend": "chromium_cdp", "browser": "Chromium"}
+    assert backend == {"backend": "firefox_profile", "browser": "Firefox"}
 
 
 def test_select_auth_backend_auto_prefers_chromium_when_available():
@@ -22,31 +22,38 @@ def test_select_auth_backend_auto_prefers_chromium_when_available():
     with (
         patch("notebooklm_tools.utils.cdp._get_chromium_path", return_value="google-chrome"),
         patch("notebooklm_tools.utils.cdp.get_browser_display_name", return_value="Google Chrome"),
+        patch("notebooklm_tools.utils.firefox.get_firefox_path", return_value="firefox"),
     ):
         backend = select_auth_backend("auto")
 
     assert backend == {"backend": "chromium_cdp", "browser": "Google Chrome"}
 
 
-def test_select_auth_backend_returns_none_when_no_chromium_browser_available():
+def test_select_auth_backend_auto_uses_firefox_when_chromium_is_unavailable():
     from notebooklm_tools.utils.auth_browser import select_auth_backend
 
-    with patch("notebooklm_tools.utils.cdp._get_chromium_path", return_value=None):
+    with (
+        patch("notebooklm_tools.utils.cdp._get_chromium_path", return_value=None),
+        patch("notebooklm_tools.utils.firefox.get_firefox_path", return_value="firefox"),
+    ):
         backend = select_auth_backend("auto")
 
-    assert backend is None
+    assert backend == {"backend": "firefox_profile", "browser": "Firefox"}
 
 
-def test_supported_auth_browsers_excludes_firefox():
+def test_supported_auth_browsers_includes_firefox_when_installed():
     from notebooklm_tools.utils.auth_browser import get_supported_auth_browsers
 
-    with patch(
-        "notebooklm_tools.utils.cdp.get_supported_browsers",
-        return_value=["Google Chrome", "Chromium"],
+    with (
+        patch(
+            "notebooklm_tools.utils.cdp.get_supported_browsers",
+            return_value=["Google Chrome", "Chromium"],
+        ),
+        patch("notebooklm_tools.utils.firefox.get_firefox_path", return_value="firefox"),
     ):
         browsers = get_supported_auth_browsers()
 
-    assert browsers == ["Google Chrome", "Chromium"]
+    assert browsers == ["Google Chrome", "Chromium", "Firefox"]
 
 
 def test_get_chromium_path_ignores_explicit_firefox_preference():
