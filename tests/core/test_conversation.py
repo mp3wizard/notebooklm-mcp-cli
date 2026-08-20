@@ -2,7 +2,7 @@
 """Tests for ConversationMixin."""
 
 import json
-from unittest.mock import ANY, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -248,11 +248,15 @@ class TestQueryUsesServerConversationId:
 
             result = mixin.query("nb-123", "Hello?", source_ids=["src-1"])
 
-        mock_client_class.assert_called_once_with(
-            timeout=120.0,
-            cookies=ANY,
-            headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"},
-        )
+        request_client_calls = [
+            call.kwargs for call in mock_client_class.call_args_list if "cookies" in call.kwargs
+        ]
+        assert len(request_client_calls) == 1
+        assert request_client_calls[0]["timeout"] == 120.0
+        assert request_client_calls[0]["cookies"]
+        assert request_client_calls[0]["headers"] == {
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+        }
         assert result["conversation_id"] == "server-conv-id"
 
     def test_falls_back_to_uuid_when_no_server_id(self):
@@ -277,6 +281,35 @@ class TestQueryUsesServerConversationId:
             result = mixin.query("nb-123", "Hello?", source_ids=["src-1"])
 
         # Should be a valid UUID (36 chars with hyphens)
+        assert result["conversation_id"] != "server-conv-id"
+        assert len(result["conversation_id"]) == 36
+
+    def test_new_conversation_skips_server_conversation_lookup(self):
+        """Explicit fresh conversations do not reuse the server conversation."""
+        mixin = self._make_mixin()
+        with (
+            patch.object(mixin, "get_conversation_id", side_effect=AssertionError),
+            patch("notebooklm_tools.core.conversation._httpx.Client") as mock_client_class,
+        ):
+            mock_response = mock_client_class.return_value.__enter__.return_value.post.return_value
+            mock_response.text = ")]}'\n100\n" + json.dumps(
+                [
+                    [
+                        "wrb.fr",
+                        None,
+                        json.dumps([["A fresh answer.", None, [], None, [1]]]),
+                    ]
+                ]
+            )
+            mock_response.raise_for_status = lambda: None
+
+            result = mixin.query(
+                "nb-123",
+                "Hello?",
+                source_ids=["src-1"],
+                new_conversation=True,
+            )
+
         assert result["conversation_id"] != "server-conv-id"
         assert len(result["conversation_id"]) == 36
 

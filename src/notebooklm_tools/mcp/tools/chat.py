@@ -24,6 +24,7 @@ async def notebook_query(
     source_ids: str | list[str] | None = None,
     conversation_id: str | None = None,
     timeout: float | None = None,
+    new_conversation: bool = False,
 ) -> ResultDict:
     """Ask AI about EXISTING sources already in notebook. NOT for finding new sources.
 
@@ -35,6 +36,7 @@ async def notebook_query(
         source_ids: Source IDs to query (default: all)
         conversation_id: For follow-up questions
         timeout: Request timeout in seconds (default: from env NOTEBOOKLM_QUERY_TIMEOUT or 120.0)
+        new_conversation: Start a fresh conversation when conversation_id is omitted
     """
     try:
         client = get_client()
@@ -50,6 +52,7 @@ async def notebook_query(
                 source_ids=coerced_source_ids,
                 conversation_id=conversation_id,
                 timeout=effective_timeout,
+                new_conversation=new_conversation,
             ),
             abandon_on_cancel=True,
         )
@@ -98,6 +101,7 @@ def notebook_query_start(
     source_ids: str | list[str] | None = None,
     conversation_id: str | None = None,
     timeout: float | None = None,
+    new_conversation: bool = False,
 ) -> ResultDict:
     """Start a notebook query asynchronously for large notebooks that may timeout.
 
@@ -113,6 +117,7 @@ def notebook_query_start(
         source_ids: Source IDs to query (default: all)
         conversation_id: For follow-up questions
         timeout: Request timeout in seconds (default: from env NOTEBOOKLM_QUERY_TIMEOUT or 120.0)
+        new_conversation: Start a fresh conversation when conversation_id is omitted
     """
     try:
         client = get_client()
@@ -125,6 +130,7 @@ def notebook_query_start(
             source_ids=coerced_source_ids,
             conversation_id=conversation_id,
             timeout=effective_timeout,
+            new_conversation=new_conversation,
         )
         return {"status": "success", **result}
     except ServiceError as e:

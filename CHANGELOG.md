@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.12] - 2026-08-17
+
+### Added
+- **Explicit fresh conversations (#297)** — Query callers can pass `new_conversation=True`, or use the CLI's `--new-conversation` flag, to skip the notebook's persistent chat lookup and start with a generated conversation ID. Existing defaults continue persistent web-UI chat behavior.
+
+### Fixed
+- **Empty query answers (#297)** — Empty, whitespace-only, or missing answer text now produces a structured service error instead of a successful result with no content.
+- **REPL conversation clearing** — `/clear` now starts a genuinely fresh conversation instead of reusing the notebook's persistent server conversation.
+
+### Verification
+- Full test suite: 1,415 passed, 39 skipped.
+- Ruff lint and formatting checks passed.
+- Live CLI query with `--new-conversation` returned a cited answer and a distinct conversation ID from the notebook's existing active session.
+
 ## [0.9.11] - 2026-08-12
 
 ### Added

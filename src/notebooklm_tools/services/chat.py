@@ -132,6 +132,7 @@ def query(
     source_ids: list[str] | None = None,
     conversation_id: str | None = None,
     timeout: float | None = None,
+    new_conversation: bool = False,
 ) -> QueryResult:
     """Query a notebook's sources with AI.
 
@@ -142,6 +143,7 @@ def query(
         source_ids: Source IDs to query (default: all)
         conversation_id: For follow-up questions
         timeout: Request timeout in seconds
+        new_conversation: Start a fresh conversation when conversation_id is omitted
 
     Returns:
         QueryResult with answer, conversation_id, and sources_used
@@ -172,12 +174,17 @@ def query(
             logger.debug("Could not prefetch notebook details for empty-check: %s", e)
 
     try:
+        query_options = {}
+        if new_conversation:
+            query_options["new_conversation"] = True
+
         result = client.query(
             notebook_id=notebook_id,
             query_text=query_text,
             source_ids=source_ids,
             conversation_id=conversation_id,
             **({"timeout": cast(float, timeout)} if timeout is not None else {}),
+            **query_options,
         )
     except QueryRejectedError as e:
         raise _query_rejected_service_error(e) from e
@@ -185,8 +192,15 @@ def query(
         raise ServiceError(f"Query failed: {e}") from e
 
     if result:
+        answer = result.get("answer")
+        if not isinstance(answer, str) or not answer.strip():
+            raise ServiceError(
+                "Query returned empty answer",
+                user_message="The notebook returned no answer. Please retry the query.",
+            )
+
         return {
-            "answer": result.get("answer", ""),
+            "answer": answer,
             "question": query_text,
             "conversation_id": result.get("conversation_id"),
             "sources_used": result.get("sources_used", []),
@@ -355,6 +369,7 @@ def _run_query_in_background(
     source_ids: list[str] | None,
     conversation_id: str | None,
     timeout: float | None,
+    new_conversation: bool,
 ) -> None:
     """Background thread target that executes the query and stores the result."""
     try:
@@ -365,6 +380,7 @@ def _run_query_in_background(
             source_ids=source_ids,
             conversation_id=conversation_id,
             timeout=timeout,
+            new_conversation=new_conversation,
         )
         with _pending_lock:
             if query_id in _pending_queries:
@@ -388,6 +404,7 @@ def query_start(
     source_ids: list[str] | None = None,
     conversation_id: str | None = None,
     timeout: float | None = None,
+    new_conversation: bool = False,
 ) -> QueryStartResult:
     """Start a notebook query in a background thread for async polling.
 
@@ -402,6 +419,7 @@ def query_start(
         source_ids: Source IDs to query (default: all)
         conversation_id: For follow-up questions
         timeout: Request timeout in seconds
+        new_conversation: Start a fresh conversation when conversation_id is omitted
 
     Returns:
         QueryStartResult with query_id and initial status
@@ -443,7 +461,16 @@ def query_start(
 
     thread = threading.Thread(
         target=_run_query_in_background,
-        args=(query_id, client, notebook_id, query_text, source_ids, conversation_id, timeout),
+        args=(
+            query_id,
+            client,
+            notebook_id,
+            query_text,
+            source_ids,
+            conversation_id,
+            timeout,
+            new_conversation,
+        ),
         daemon=True,
     )
     thread.start()

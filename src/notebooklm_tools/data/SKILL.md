@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.9.11"
+version: "0.9.12"
 description: "Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"Gemini Notebook\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any Gemini Notebook-related automation task."
 ---
 
@@ -175,6 +175,10 @@ do not. Delete requires `confirm=True`.
 For large notebooks or long-running questions, call `notebook_query_start`,
 then poll `notebook_query_status(query_id)` until completed or errored.
 
+By default, `notebook_query` continues the notebook's persistent chat when
+`conversation_id` is omitted. For an independent question, pass
+`new_conversation=True` (or use `--new-conversation` with the CLI).
+
 #### CLI Commands
 ```bash
 nlm notebook list                      # List all notebooks
@@ -185,6 +189,7 @@ nlm notebook create "Title" --json     # Stable machine-readable ID capture
 nlm notebook get <id>                  # Get notebook details
 nlm notebook describe <id>             # AI-generated summary + suggested topics
 nlm notebook query <id> "question"     # One-shot Q&A with sources
+nlm notebook query <id> "question" --new-conversation  # Start a fresh chat
 nlm notebook rename <id> "New Title"   # Rename notebook
 nlm notebook delete <id> --confirm     # PERMANENT deletion
 ```

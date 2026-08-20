@@ -89,6 +89,7 @@ def run_chat_repl(notebook_id: str, profile: str | None = None) -> None:
             console.print()
 
             conversation_id: str | None = None
+            new_conversation = False
             turn_number = 0
 
             while True:
@@ -110,6 +111,7 @@ def run_chat_repl(notebook_id: str, profile: str | None = None) -> None:
 
                         elif cmd == "/clear":
                             conversation_id = None
+                            new_conversation = True
                             turn_number = 0
                             console.print("[green]✓[/green] Conversation cleared.\n")
                             continue
@@ -145,10 +147,12 @@ def run_chat_repl(notebook_id: str, profile: str | None = None) -> None:
                             notebook_id,
                             query_text=user_input,
                             conversation_id=conversation_id,
+                            new_conversation=new_conversation,
                         )
 
                     if result:
                         conversation_id = result.get("conversation_id")
+                        new_conversation = False
                         answer = result.get("answer", "No response.")
 
                         # Render response with notebook title as label

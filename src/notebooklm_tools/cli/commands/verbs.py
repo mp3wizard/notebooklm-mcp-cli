@@ -782,6 +782,11 @@ def query_notebook_verb(
     timeout: float | None = typer.Option(
         None, "--timeout", "-t", help="Query timeout in seconds (default: 120)"
     ),
+    new_conversation: bool = typer.Option(
+        False,
+        "--new-conversation",
+        help="Start a fresh conversation instead of reusing the notebook's chat",
+    ),
 ) -> None:
     """Chat with notebook sources."""
     query_notebook(
@@ -792,6 +797,7 @@ def query_notebook_verb(
         source_ids=source_ids,
         profile=profile,
         timeout=timeout,
+        new_conversation=new_conversation,
     )
 
 

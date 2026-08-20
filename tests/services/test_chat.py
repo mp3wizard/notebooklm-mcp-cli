@@ -62,6 +62,13 @@ class TestQuery:
         with pytest.raises(ServiceError, match="empty result"):
             query(mock_client, "nb-123", "question")
 
+    @pytest.mark.parametrize("answer", ["", "   ", None])
+    def test_empty_answer_raises_service_error(self, mock_client, answer):
+        mock_client.query.return_value = {"answer": answer}
+
+        with pytest.raises(ServiceError, match="empty answer"):
+            query(mock_client, "nb-123", "question", source_ids=["src-1"])
+
     def test_api_error_raises_service_error(self, mock_client):
         mock_client.query.side_effect = RuntimeError("timeout")
         with pytest.raises(ServiceError, match="Query failed"):
@@ -115,6 +122,25 @@ class TestQuery:
             query_text="question",
             source_ids=["src-1"],
             conversation_id=None,
+        )
+
+    def test_new_conversation_passed_through(self, mock_client):
+        mock_client.query.return_value = {"answer": "ok"}
+
+        query(
+            mock_client,
+            "nb-123",
+            "question",
+            source_ids=["src-1"],
+            new_conversation=True,
+        )
+
+        mock_client.query.assert_called_once_with(
+            notebook_id="nb-123",
+            query_text="question",
+            source_ids=["src-1"],
+            conversation_id=None,
+            new_conversation=True,
         )
 
     def test_timeout_passed_through(self, mock_client):

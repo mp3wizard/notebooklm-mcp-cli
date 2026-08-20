@@ -354,6 +354,7 @@ class ConversationMixin(BaseClient):
         source_ids: list[str] | None = None,
         conversation_id: str | None = None,
         timeout: float = 120.0,
+        new_conversation: bool = False,
     ) -> dict[str, Any] | None:
         """Query the notebook with a question.
 
@@ -365,9 +366,12 @@ class ConversationMixin(BaseClient):
             query_text: The question to ask
             source_ids: Optional list of source IDs to query (default: all sources)
             conversation_id: Optional conversation ID for follow-up questions.
-                           If None, starts a new conversation.
+                           If None, reuses the notebook's persistent server
+                           conversation when one exists.
                            If provided and exists in cache, includes conversation history.
             timeout: Request timeout in seconds (default: 120.0)
+            new_conversation: If True and conversation_id is omitted, always
+                              starts a fresh conversation with a generated UUID.
 
         Returns:
             Dict with:
@@ -391,16 +395,20 @@ class ConversationMixin(BaseClient):
         # Determine if this is a new conversation or follow-up
         is_new_conversation = conversation_id is None
         if is_new_conversation:
-            # Try to get the persistent conversation ID from the server first.
-            # This is what makes CLI/MCP chats appear in the web UI's chat history.
-            server_conv_id = self.get_conversation_id(notebook_id)
-            if server_conv_id:
-                conversation_id = server_conv_id
-                # Build history from local cache if we have it
-                conversation_history = self._build_conversation_history(conversation_id)
-            else:
+            if new_conversation:
                 conversation_id = str(uuid.uuid4())
                 conversation_history = None
+            else:
+                # Try to get the persistent conversation ID from the server first.
+                # This is what makes CLI/MCP chats appear in the web UI's chat history.
+                server_conv_id = self.get_conversation_id(notebook_id)
+                if server_conv_id:
+                    conversation_id = server_conv_id
+                    # Build history from local cache if we have it
+                    conversation_history = self._build_conversation_history(conversation_id)
+                else:
+                    conversation_id = str(uuid.uuid4())
+                    conversation_history = None
         else:
             # Check if we have cached history for this conversation
             assert conversation_id is not None  # nosec B101 — type narrowing
