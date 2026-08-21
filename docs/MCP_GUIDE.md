@@ -95,9 +95,16 @@ source_add(
 | Tool | Description |
 |------|-------------|
 | `notebook_query` | Ask AI about sources in notebook |
-| `notebook_query_start` | Start a query asynchronously for large notebooks that may time out |
+| `notebook_query_start` | Start a query asynchronously for source-heavy notebooks or long-running questions |
 | `notebook_query_status` | Poll an async query started with `notebook_query_start` |
 | `chat_configure` | Set chat goal and response length |
+
+Queries use a 120-second wall-clock budget by default. Source-heavy notebooks
+can take longer than that; retry with `timeout=180` (or another value suited
+to the notebook). For longer operations, use `notebook_query_start` and poll
+`notebook_query_status` until it reports `completed` or `error`. A timeout
+returns a structured error with a retry hint rather than an uninformative
+transport failure.
 
 ### Chat Sessions (3 tools)
 

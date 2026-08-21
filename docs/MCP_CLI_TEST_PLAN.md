@@ -277,6 +277,28 @@ Ask notebook [notebook_id]: "What is artificial intelligence?"
 
 ---
 
+### Test 3.2a - Query Timeout and Async Fallback
+**Tool:** `notebook_query`, `notebook_query_start`, `notebook_query_status`
+**CLI:** `nlm query [notebook_id] "Summarize all sources" --timeout 45`
+
+**Prompt:**
+```
+Ask notebook [notebook_id] a source-heavy question with timeout=45.
+If it times out, retry with timeout=180. Also verify the async workflow:
+notebook_query_start(..., timeout=180), then poll notebook_query_status(query_id).
+```
+
+**Expected:**
+- A timed-out synchronous query returns a structured error with
+  `debug_code=query_deadline_exceeded`, a retryable flag, and a hint to use a
+  longer timeout.
+- The retry with `timeout=180` can complete when the notebook needs more than
+  the default 120-second budget.
+- The async workflow returns a `query_id` immediately and reaches `completed`
+  or a structured `error` status when polled.
+
+---
+
 ### Test 3.3 - Configure Chat (Learning Guide)
 **Tool:** `chat_configure`
 **CLI:** `nlm chat configure [notebook_id] --goal learning_guide --response-length longer`

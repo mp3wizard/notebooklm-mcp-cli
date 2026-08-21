@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.9.12"
+version: "0.9.14"
 description: "Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"Gemini Notebook\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any Gemini Notebook-related automation task."
 ---
 
@@ -172,8 +172,10 @@ Use `notebook_list`, `notebook_create`, `notebook_get`, `notebook_describe`,
 get/describe/query/rename/delete tools require `notebook_id`; list and create
 do not. Delete requires `confirm=True`.
 
-For large notebooks or long-running questions, call `notebook_query_start`,
-then poll `notebook_query_status(query_id)` until completed or errored.
+Queries use a 120-second wall-clock budget by default. Source-heavy notebooks
+or long-running questions may need a larger budget, for example
+`timeout=180`. For those queries, call `notebook_query_start`, then poll
+`notebook_query_status(query_id)` until completed or errored.
 
 By default, `notebook_query` continues the notebook's persistent chat when
 `conversation_id` is omitted. For an independent question, pass

@@ -127,12 +127,14 @@ class NotebookMixin(BaseClient):
 
         return notebooks
 
-    def get_notebook(self, notebook_id: str) -> dict | None:
+    def get_notebook(self, notebook_id: str, timeout: float | None = None) -> dict | None:
         """Get notebook details."""
+        kwargs = {"timeout": timeout} if timeout is not None else {}
         return self._call_rpc(
             self.RPC_GET_NOTEBOOK,
             [notebook_id, None, [2], None, 0],
             f"/notebook/{notebook_id}",
+            **kwargs,
         )
 
     def get_notebook_summary(self, notebook_id: str) -> dict[str, Any]:

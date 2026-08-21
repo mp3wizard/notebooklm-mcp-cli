@@ -4,7 +4,9 @@ import asyncio
 import inspect
 import threading
 import time
+from unittest.mock import MagicMock
 
+import httpx
 import pytest
 
 from notebooklm_tools.mcp.tools import chat as chat_tools
@@ -104,3 +106,24 @@ async def test_notebook_query_accepts_string_source_ids_at_mcp_boundary(monkeypa
 
     assert result.structured_content == {"status": "success", "answer": "ok"}
     assert seen["source_ids"] == ["src-1", "src-2"]
+
+
+@pytest.mark.asyncio
+async def test_notebook_query_returns_structured_timeout_error(monkeypatch):
+    client = MagicMock()
+    client.query.side_effect = httpx.ReadTimeout("The read operation timed out")
+    monkeypatch.setattr(chat_tools, "get_client", lambda: client)
+
+    result = await chat_tools.notebook_query(
+        "nb-123", "question", source_ids=["src-1"], timeout=45.0
+    )
+
+    assert result["status"] == "error"
+    assert result["error"] == ("NotebookLM did not respond within the configured query timeout.")
+    assert result["hint"] == "Retry with a longer timeout, such as 180 seconds."
+    assert result["error_details"] == {
+        "category": "deadline_exceeded",
+        "retryable": True,
+        "suggested_action": "retry_with_longer_timeout",
+        "debug_code": "query_deadline_exceeded",
+    }

@@ -112,7 +112,7 @@ def test_query_uses_cdp_transport_for_streamed_endpoint(monkeypatch):
         )
 
     def prepare_cdp_transport(self, timeout):
-        assert timeout == 99.0
+        assert 0 < timeout <= 99.0
         self.csrf_token = "live-csrf"
         self._session_id = "live-session"
         self._bl = "live-build"
@@ -157,7 +157,7 @@ def test_query_uses_cdp_transport_for_streamed_endpoint(monkeypatch):
     assert query_params["bl"] == ["live-build"]
     body_params = urllib.parse.parse_qs(str(captured["body"]))
     assert body_params["at"] == ["live-csrf"]
-    assert captured["timeout"] == 99.0
+    assert 0 < captured["timeout"] <= 99.0
 
 
 def test_cdp_fetch_passes_long_response_timeout(monkeypatch):

@@ -780,7 +780,10 @@ def query_notebook_verb(
     ),
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
     timeout: float | None = typer.Option(
-        None, "--timeout", "-t", help="Query timeout in seconds (default: 120)"
+        None,
+        "--timeout",
+        "-t",
+        help="Query timeout in seconds (default: 120; source-heavy notebooks may need 180+)",
     ),
     new_conversation: bool = typer.Option(
         False,

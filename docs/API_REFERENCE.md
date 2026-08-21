@@ -29,6 +29,12 @@ result = notebook_query(notebook_id, query="What are the key points?")
 print(result["answer"])
 ```
 
+Queries use a 120-second wall-clock timeout by default. Source-heavy notebooks
+may need a larger budget, for example `notebook_query(..., timeout=180)`. If a
+query may take longer, use `notebook_query_start(..., timeout=180)` and poll
+`notebook_query_status` until it completes. A deadline error includes a retry
+hint and the `query_deadline_exceeded` debug code.
+
 ### Configure Chat Settings
 ```python
 # Set a custom chat persona with longer responses

@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.14] - 2026-08-20
+
+### Added
+
+- **Native NotebookLM collections (#303)** — Manage collections through the CLI and MCP server, including create, list, edit, delete, and emoji operations. Thanks to **@rodrigopazTech** for the contribution.
+- **Windows standalone Chromium authentication (#302)** — Browser discovery now includes Chromium in standard machine-wide and per-user Windows installation locations. Thanks to **@zaidLMS** for the request.
+
+### Fixed
+
+- **Source-heavy query timeouts (#298)** — Query timeouts now govern the full wall-clock operation, including notebook and conversation lookups, and synchronous and asynchronous paths expose structured, retryable timeout errors. The default is 120 seconds, with documentation recommending a longer value such as 180 seconds for source-heavy notebooks. Thanks to **@doc-parihar** for the detailed reproduction and diagnostics.
+
+### Verification
+
+- Full test suite, Ruff lint, formatting, package build, and version-alignment checks passed.
+
+## [0.9.13] - 2026-08-19
+
+### Fixed
+
+- **Transient backend/auth distinction ([PR #300](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/300), [PR #301](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/301))** — Transport errors, timeouts, DNS failures, and HTTP 5xx responses during authentication refresh now surface as transient backend or network errors, while explicit session expiry and Google authentication redirects remain authentication failures. Thanks to **@practical-tools-lab** for the original reproduction and transport-classification work in PR #300.
+- **README star-history chart ([PR #299](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/299))** — The chart now uses a public mirror that does not require GitHub stargazer API permissions. Thanks to **@CrustyMozarella** for the mirror fix.
+
+### Verification
+
+- Full non-E2E test suite: 1,424 passed, 38 skipped, 1 deselected.
+- Ruff lint and formatting checks passed.
+
 ## [0.9.12] - 2026-08-17
 
 ### Added

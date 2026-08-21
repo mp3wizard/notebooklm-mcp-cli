@@ -116,3 +116,18 @@ def test_delete_notebook_uses_correct_rpc():
                                 mock_build_body.call_args[0][0] == "WWINqb"
                             )  # RPC_DELETE_NOTEBOOK
                             assert result is True  # Should return True on success
+
+
+def test_get_notebook_passes_timeout_to_rpc():
+    from notebooklm_tools.core.notebooks import NotebookMixin
+
+    with patch.object(NotebookMixin, "_call_rpc", return_value=[]) as mock_rpc:
+        mixin = NotebookMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin.get_notebook("nb-123", timeout=12.5)
+
+    mock_rpc.assert_called_once_with(
+        mixin.RPC_GET_NOTEBOOK,
+        ["nb-123", None, [2], None, 0],
+        "/notebook/nb-123",
+        timeout=12.5,
+    )

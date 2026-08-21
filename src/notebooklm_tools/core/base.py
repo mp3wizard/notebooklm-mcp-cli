@@ -819,7 +819,7 @@ class BaseClient:
 
         context = get_cdp_page_context(
             profile_name=self._profile_name,
-            timeout=timeout or DEFAULT_TIMEOUT,
+            timeout=timeout if timeout is not None else DEFAULT_TIMEOUT,
             csrf_fallback=csrf_fallback,
             session_fallback=session_fallback,
             build_fallback=build_fallback,
@@ -840,14 +840,19 @@ class BaseClient:
             ws_url = self._cdp_ws_url
 
         if not ws_url:
-            self._prepare_cdp_transport(timeout or DEFAULT_TIMEOUT)
+            self._prepare_cdp_transport(timeout if timeout is not None else DEFAULT_TIMEOUT)
             with self._state_lock:
                 ws_url = self._cdp_ws_url
 
         if not ws_url:
             raise CdpTransportError("CDP transport was enabled, but no page websocket was found.")
 
-        result = fetch_form_in_page(ws_url, url, body, timeout=timeout or DEFAULT_TIMEOUT)
+        result = fetch_form_in_page(
+            ws_url,
+            url,
+            body,
+            timeout=timeout if timeout is not None else DEFAULT_TIMEOUT,
+        )
         if result.status_code in (400, 401, 403):
             raise AuthenticationError(f"CDP fetch returned HTTP {result.status_code}.")
         if result.status_code >= 400:
@@ -863,10 +868,14 @@ class BaseClient:
         _server_retry: int = 0,
     ) -> Any:
         """Execute a batchexecute RPC through the experimental CDP transport."""
-        self._prepare_cdp_transport(timeout or DEFAULT_TIMEOUT)
+        self._prepare_cdp_transport(timeout if timeout is not None else DEFAULT_TIMEOUT)
         body = self._build_request_body(rpc_id, params)
         url = self._build_url(rpc_id, path)
-        response_text = self._post_form_via_cdp(url, body, timeout or DEFAULT_TIMEOUT)
+        response_text = self._post_form_via_cdp(
+            url,
+            body,
+            timeout if timeout is not None else DEFAULT_TIMEOUT,
+        )
 
         parsed = self._parse_response(response_text)
         try:

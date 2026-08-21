@@ -99,6 +99,17 @@ class TestGetConversationId:
             path="/notebook/nb-123",
         )
 
+    def test_passes_timeout_to_rpc(self):
+        mixin = self._make_mixin()
+        with patch.object(mixin, "_call_rpc", return_value=None) as mock_rpc:
+            mixin.get_conversation_id("nb-123", timeout=12.5)
+        mock_rpc.assert_called_once_with(
+            mixin.RPC_GET_CONVERSATIONS,
+            [[], None, "nb-123", 20],
+            path="/notebook/nb-123",
+            timeout=12.5,
+        )
+
 
 class TestGetConversationTurns:
     """Test get_conversation_turns, which fetches full Q&A history from the
@@ -252,7 +263,7 @@ class TestQueryUsesServerConversationId:
             call.kwargs for call in mock_client_class.call_args_list if "cookies" in call.kwargs
         ]
         assert len(request_client_calls) == 1
-        assert request_client_calls[0]["timeout"] == 120.0
+        assert 0 < request_client_calls[0]["timeout"] <= 120.0
         assert request_client_calls[0]["cookies"]
         assert request_client_calls[0]["headers"] == {
             "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
@@ -312,6 +323,34 @@ class TestQueryUsesServerConversationId:
 
         assert result["conversation_id"] != "server-conv-id"
         assert len(result["conversation_id"]) == 36
+
+    def test_query_passes_timeout_to_internal_lookups(self):
+        mixin = self._make_mixin()
+        with (
+            patch.object(
+                mixin,
+                "get_notebook",
+                return_value=[["Notebook", [[["src-1"], "Source"]], "nb-123"]],
+                create=True,
+            ) as mock_get_notebook,
+            patch.object(mixin, "get_conversation_id", return_value=None) as mock_get_conversation,
+            patch("notebooklm_tools.core.conversation.time.monotonic", return_value=100.0),
+            patch("notebooklm_tools.core.conversation._httpx.Client") as mock_client_class,
+        ):
+            mock_response = mock_client_class.return_value.__enter__.return_value.post.return_value
+            mock_response.text = ")]}'\n100\n" + json.dumps(
+                [["wrb.fr", None, json.dumps([["An answer.", None, [], None, [1]]])]]
+            )
+            mock_response.raise_for_status = lambda: None
+
+            mixin.query("nb-123", "Hello?", timeout=45.0)
+
+        mock_get_notebook.assert_called_once_with("nb-123", timeout=45.0)
+        mock_get_conversation.assert_called_once_with("nb-123", timeout=45.0)
+        request_client_calls = [
+            call.kwargs for call in mock_client_class.call_args_list if "cookies" in call.kwargs
+        ]
+        assert request_client_calls[0]["timeout"] == 45.0
 
 
 class TestConversationMixinMethods:

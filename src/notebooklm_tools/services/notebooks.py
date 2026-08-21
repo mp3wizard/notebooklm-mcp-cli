@@ -1,5 +1,7 @@
 """Notebooks service — shared business logic for notebook CRUD and metadata operations."""
 
+import httpx
+
 from ..core.client import NotebookLMClient
 from ..utils.config import get_base_url
 from ._compat import TypedDict
@@ -128,6 +130,7 @@ def list_notebooks(
 def get_notebook(
     client: NotebookLMClient,
     notebook_id: str,
+    timeout: float | None = None,
 ) -> NotebookDetailResult:
     """Get notebook details including source list.
 
@@ -146,7 +149,10 @@ def get_notebook(
         ServiceError: If the API call fails
     """
     try:
-        nb = client.get_notebook(notebook_id)
+        kwargs = {"timeout": timeout} if timeout is not None else {}
+        nb = client.get_notebook(notebook_id, **kwargs)
+    except httpx.TimeoutException:
+        raise
     except Exception as e:
         raise ServiceError(f"Failed to get notebook: {e}") from e
 

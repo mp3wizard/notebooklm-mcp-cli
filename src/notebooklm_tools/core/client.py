@@ -12,6 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 from . import constants
+from .collections import CollectionsMixin
 from .conversation import ConversationMixin
 from .download import DownloadMixin
 
@@ -51,6 +52,7 @@ class NotebookLMClient(
     NotebookMixin,
     NotesMixin,
     LabelsMixin,
+    CollectionsMixin,
 ):
     """Client for NotebookLM MCP internal API.
 

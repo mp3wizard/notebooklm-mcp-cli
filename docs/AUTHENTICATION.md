@@ -15,6 +15,11 @@ Gemini Notebook uses browser cookies for authentication (there is no official AP
 
 **Supported browsers**: Google Chrome, Arc (macOS), Brave, Microsoft Edge, Chromium, Firefox, Vivaldi, Opera.
 
+On Windows, standalone Chromium is discovered in the standard machine-wide
+locations under `C:\Program Files` and `C:\Program Files (x86)`, plus the
+per-user `%LOCALAPPDATA%\Chromium\Application\chrome.exe` location. You can
+select it explicitly with `nlm config set auth.browser chromium`.
+
 **Two authentication methods are available:**
 
 | Method | Best For | Requires |
