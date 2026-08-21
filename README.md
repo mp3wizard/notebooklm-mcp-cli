@@ -10,6 +10,33 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.9.13 – v0.9.14 — August 2026)
+- **Native NotebookLM collections (#303)** — Manage collections through the CLI and MCP server (create, list, edit, delete, emoji). Thanks to **@rodrigopazTech**!
+- **Windows standalone Chromium authentication (#302)** — browser discovery now includes Chromium in standard machine-wide and per-user Windows install locations. Thanks to **@zaidLMS**!
+- **Source-heavy query timeouts (#298)** — query timeouts now govern the full wall-clock operation, including notebook and conversation lookups; default 120s, with 180s recommended for source-heavy notebooks. Thanks to **@doc-parihar**!
+- **Transient backend/auth distinction (#300, #301)** — transport errors, timeouts, DNS failures, and HTTP 5xx during auth refresh now surface as transient backend/network errors, while explicit session expiry stays an auth failure. Thanks to **@practical-tools-lab**!
+- **README star-history chart fix (#299)** — uses a public mirror that doesn't require GitHub stargazer API permissions. Thanks to **@CrustyMozarella**!
+
+### Security scan (August 2026 — v0.9.14)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit, mcp-exfil-scan
+- **0 High/Medium/Critical findings** — no fixes required. Bandit, Semgrep, Trivy, and OSV-Scanner all returned clean on project source
+- **0 secrets** (Gitleaks, Trivy, OSV-Scanner clean; TruffleHog's 25 hits confirmed non-secret test-identifier false positives), **0 dependency vulnerabilities**
+- mcps-audit's 127 CRITICAL/HIGH pattern matches individually reviewed and confirmed false positives (CDP browser-automation strings, `--confirm`/`-y` safety flags, HTTP client core functionality, test fixtures)
+- mcp-scan and skillspector LLM-mode skipped (opt-in, unattended scheduled run)
+- Full report: [`docs/security-scan-report-2026-08-21.md`](docs/security-scan-report-2026-08-21.md)
+
+### Upstream sync (v0.9.11 — August 2026)
+- **Firefox managed-browser authentication (#294, PR #295)** — `nlm login` can use an isolated Firefox profile when Chromium/CDP is unavailable, while retaining Chromium-family browsers as the default when they are available. Thanks to **@LucasMazei**!
+- **Safe Firefox profile replacement** — Firefox cookie extraction cannot identify the Google account, so an existing saved profile now requires explicit `nlm login --force` before its credentials can be replaced.
+- **Serialized MCP list parameters (#296)** — MCP tools that already normalize list values now accept JSON-string and comma-separated inputs at the FastMCP boundary, including notebook queries, source operations, Studio, and research import. Thanks to **@GuanHukd** for the detailed repro!
+
+### Security scan (August 2026 — v0.9.11)
+- Full automated scan post-merge: Gitleaks, TruffleHog, Bandit, Semgrep, Trivy (vuln+secret+misconfig), OSV-Scanner
+- **0 High/Medium/Critical findings** — no fixes required. New `utils/firefox.py` module's only findings are Low-severity subprocess/placeholder patterns consistent with existing codebase conventions
+- **0 secrets** (Gitleaks, Trivy, OSV-Scanner clean; TruffleHog's hits confirmed non-secret test-identifier/third-party-fixture false positives), **0 dependency vulnerabilities**
+- mcp-scan and skillspector LLM-mode skipped (opt-in, unattended scheduled run)
+- Full report: [`docs/security-scan-report-2026-08-15.md`](docs/security-scan-report-2026-08-15.md)
+
 ### Upstream sync (v0.9.8 – v0.9.10 — August 2026)
 - **Profile-scoped auth refresh (#284)** — refreshing or recovering authentication for a named profile no longer overwrites the default profile's cached credentials or falls back to the legacy cache.
 - **Windows stale CDP process detection (#285)** — CDP port cleanup now uses Windows process APIs to distinguish live and exited PIDs, preventing stale browser mappings from blocking login.
