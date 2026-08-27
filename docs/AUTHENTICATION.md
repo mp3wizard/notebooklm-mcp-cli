@@ -10,10 +10,11 @@ This guide explains how to authenticate with Gemini Notebook (formerly Google No
 ## Overview
 
 Gemini Notebook uses browser cookies for authentication (there is no official API). The CLI/MCP extracts these cookies automatically from a managed browser session:
+
 - Chromium-family browsers use Chrome DevTools Protocol (CDP)
 - Firefox uses an isolated profile and reads its cookie store directly (no CDP or WebDriver required)
 
-**Supported browsers**: Google Chrome, Arc (macOS), Brave, Microsoft Edge, Chromium, Firefox, Vivaldi, Opera.
+**Supported browsers**: Google Chrome, Arc (macOS), Dia (macOS) Brave, Microsoft Edge, Chromium, Firefox, Vivaldi, Opera.
 
 On Windows, standalone Chromium is discovered in the standard machine-wide
 locations under `C:\Program Files` and `C:\Program Files (x86)`, plus the
@@ -22,10 +23,10 @@ select it explicitly with `nlm config set auth.browser chromium`.
 
 **Two authentication methods are available:**
 
-| Method | Best For | Requires |
-|--------|----------|----------|
-| **Auto Mode** (default) | Most users | Any supported browser installed |
-| **File Mode** (`--file`) | Complex setups, troubleshooting | Manual cookie extraction |
+| Method                   | Best For                        | Requires                        |
+| ------------------------ | ------------------------------- | ------------------------------- |
+| **Auto Mode** (default)  | Most users                      | Any supported browser installed |
+| **File Mode** (`--file`) | Complex setups, troubleshooting | Manual cookie extraction        |
 
 ---
 
@@ -35,7 +36,7 @@ This method launches your browser automatically and extracts cookies after you l
 
 ### Prerequisites
 
-- A supported browser installed (Chrome, Arc, Brave, Edge, Chromium, Firefox, Vivaldi, or Opera)
+- A supported browser installed (Chrome, Arc, Dia, Brave, Edge, Chromium, Firefox, Vivaldi, or Opera)
 - Chromium-family browsers should be **completely closed** before running
 
 ### Steps
@@ -86,6 +87,7 @@ export NLM_BROWSER=arc
 ### Persistent Login
 
 The dedicated browser profile persists your Google login:
+
 - **First run:** You must log in to Google
 - **Future runs:** Already logged in, just extracts fresh cookies
 
@@ -124,6 +126,7 @@ nlm login profile delete old-profile
 ### How Multi-Profile Works
 
 Each profile gets:
+
 - **Separate credentials**: Stored in `~/.notebooklm-mcp-cli/profiles/<name>/`
 - **Separate browser profile**: Isolated browser session in `~/.notebooklm-mcp-cli/chrome-profiles/<name>/`
 - **Captured email**: Automatically extracted during login for easy identification
@@ -180,6 +183,7 @@ Resolution order, if you need to override it manually:
 ## Method 2: File Mode
 
 This method lets you manually extract and provide cookies. Use this if:
+
 - Auto mode doesn't work on your system
 - You have browser extensions that interfere (e.g., Google Antigravity IDE)
 - You prefer manual control
@@ -225,6 +229,7 @@ SID=abc123...; HSID=xyz789...; SSID=...; APISID=...; SAPISID=...; __Secure-1PSID
 ```
 
 **Notes:**
+
 - Lines starting with `#` are treated as comments and ignored
 - The file can contain the cookie string on one or multiple lines
 - A template file `cookies.txt` is included in the repository
@@ -254,6 +259,7 @@ All data is stored under `~/.notebooklm-mcp-cli/`:
 ```
 
 Each profile's `auth.json` contains:
+
 - Parsed cookies
 - CSRF token (auto-extracted)
 - Session ID (auto-extracted)
@@ -267,16 +273,19 @@ Each profile's `auth.json` contains:
 Once authenticated, add the MCP to your AI tool:
 
 **Claude Code:**
+
 ```bash
 claude mcp add gemini-notebook-mcp -- notebooklm-mcp
 ```
 
 **Gemini CLI:**
+
 ```bash
 gemini mcp add gemini-notebook-mcp notebooklm-mcp
 ```
 
 **Manual (settings.json):**
+
 ```json
 {
   "mcpServers": {
@@ -313,13 +322,13 @@ an `unverified` status is a network problem, not a credential problem.
 > file on disk is rewritten, so an external `nlm login` is reflected
 > without waiting for the TTL. `nlm login --check` is always live.
 
-| Status | Meaning | What to do |
-|--------|---------|------------|
-| `configured` | Live check passed. Credentials are good. | Nothing. |
-| `not_configured` | No credentials are stored at all (first-time setup). | Run `nlm login`. |
-| `stale` | Credentials are known-bad: the live check was redirected to `accounts.google.com` (cookies expired), the on-disk profile failed to load, or the last successful validation is older than 7 days. | Run `nlm login` to refresh. Subsequent API calls will fail. |
-| `unverified` | The live check could not be completed (network timeout, DNS failure, proxy block, non-200 HTTP). Cached credentials on disk are still intact and may work for actual API calls. | Retry later, or check your network/proxy. Do not assume the user needs to re-auth — operations often still succeed. |
-| `error` | Unexpected exception inside the check itself (very rare). | File a bug with the traceback. |
+| Status           | Meaning                                                                                                                                                                                          | What to do                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `configured`     | Live check passed. Credentials are good.                                                                                                                                                         | Nothing.                                                                                                            |
+| `not_configured` | No credentials are stored at all (first-time setup).                                                                                                                                             | Run `nlm login`.                                                                                                    |
+| `stale`          | Credentials are known-bad: the live check was redirected to `accounts.google.com` (cookies expired), the on-disk profile failed to load, or the last successful validation is older than 7 days. | Run `nlm login` to refresh. Subsequent API calls will fail.                                                         |
+| `unverified`     | The live check could not be completed (network timeout, DNS failure, proxy block, non-200 HTTP). Cached credentials on disk are still intact and may work for actual API calls.                  | Retry later, or check your network/proxy. Do not assume the user needs to re-auth — operations often still succeed. |
+| `error`          | Unexpected exception inside the check itself (very rare).                                                                                                                                        | File a bug with the traceback.                                                                                      |
 
 > **Heads up for AI agents:** If you see `auth_status = "stale"`, prompt the
 > user to re-authenticate. If you see `auth_status = "unverified"` while
@@ -337,6 +346,7 @@ Close your browser completely and try again. On Mac, use **Cmd+Q** to fully quit
 ### Auto mode fails to connect
 
 Try file mode instead:
+
 ```bash
 nlm login --manual
 ```
@@ -348,6 +358,7 @@ Your cookies have expired. Run the auth command again to refresh.
 ### Browser opens with strange branding (e.g., Antigravity IDE)
 
 Some browser extensions or tools modify the browser's behavior. Try a different browser or use file mode:
+
 ```bash
 nlm login --manual
 ```

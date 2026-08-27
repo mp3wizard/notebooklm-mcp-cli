@@ -420,6 +420,19 @@ class StudioMixin(BaseClient):
                         elif len(slide_deck_options) > 3 and isinstance(slide_deck_options[3], str):
                             slide_deck_url = slide_deck_options[3]
 
+                # Type-10 file exports expose metadata at position 24. The
+                # MIME determines whether the export is an XLSX data table or
+                # another generic file format.
+                download_filename = None
+                mime_type = None
+                if type_code == self.STUDIO_TYPE_DATA_TABLE_XLSX and len(artifact_data) > 24:
+                    file_metadata = artifact_data[24]
+                    if isinstance(file_metadata, list):
+                        if len(file_metadata) > 0 and isinstance(file_metadata[0], str):
+                            download_filename = file_metadata[0]
+                        if len(file_metadata) > 1 and isinstance(file_metadata[1], str):
+                            mime_type = file_metadata[1]
+
                 # Report artifacts have content at position 7
                 report_content = None
                 if type_code == self.STUDIO_TYPE_REPORT and len(artifact_data) > 7:
@@ -497,6 +510,13 @@ class StudioMixin(BaseClient):
                     artifact_type = "mind_map"
                 elif is_quiz:
                     artifact_type = "quiz"
+                elif type_code == self.STUDIO_TYPE_DATA_TABLE_XLSX:
+                    artifact_type = (
+                        "data_table_xlsx"
+                        if mime_type
+                        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        else "file"
+                    )
                 else:
                     artifact_type = type_map.get(cast(int, type_code), "unknown")
                 status = self._normalize_studio_status(artifact_data)
@@ -561,6 +581,8 @@ class StudioMixin(BaseClient):
                         "video_url": video_url,
                         "infographic_url": infographic_url,
                         "slide_deck_url": slide_deck_url,
+                        "download_filename": download_filename,
+                        "mime_type": mime_type,
                         "report_content": report_content,
                         "flashcard_count": flashcard_count,
                         "duration_seconds": duration_seconds,

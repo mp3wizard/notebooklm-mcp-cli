@@ -273,6 +273,7 @@ STUDIO_TYPE_FLASHCARDS = 4  # Also Quiz
 STUDIO_TYPE_INFOGRAPHIC = 7
 STUDIO_TYPE_SLIDE_DECK = 8
 STUDIO_TYPE_DATA_TABLE = 9
+STUDIO_TYPE_DATA_TABLE_XLSX = 10
 
 STUDIO_TYPES = CodeMapper(
     {
@@ -283,6 +284,7 @@ STUDIO_TYPES = CodeMapper(
         "infographic": STUDIO_TYPE_INFOGRAPHIC,
         "slide_deck": STUDIO_TYPE_SLIDE_DECK,
         "data_table": STUDIO_TYPE_DATA_TABLE,
+        "data_table_xlsx": STUDIO_TYPE_DATA_TABLE_XLSX,
     }
 )
 

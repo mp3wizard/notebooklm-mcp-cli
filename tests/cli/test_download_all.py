@@ -1,7 +1,7 @@
 """Tests for the `nlm download all` CLI command."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -66,6 +66,37 @@ def _alias_manager():
     alias_mgr = MagicMock()
     alias_mgr.resolve.side_effect = lambda x: x
     return alias_mgr
+
+
+def test_generic_file_command_routes_to_download_service(runner, tmp_path):
+    output = tmp_path / "analysis.md"
+    service_result = {"artifact_type": "file", "path": str(tmp_path / "analysis.pdf")}
+
+    with (
+        patch("notebooklm_tools.cli.commands.download.get_client", return_value=MagicMock()),
+        patch(
+            "notebooklm_tools.cli.commands.download.get_alias_manager",
+            return_value=_alias_manager(),
+        ),
+        patch(
+            "notebooklm_tools.cli.commands.download.downloads_service.download_sync",
+            return_value=service_result,
+        ) as mock_download,
+    ):
+        result = runner.invoke(
+            app,
+            ["file", "nb-1", "--id", "file-1", "--output", str(output)],
+        )
+
+    assert result.exit_code == 0
+    assert "analysis.pdf" in result.output
+    mock_download.assert_called_once_with(
+        ANY,
+        "nb-1",
+        "file",
+        str(output),
+        artifact_id="file-1",
+    )
 
 
 def test_requires_notebook_id_or_all_notebooks_flag(runner):

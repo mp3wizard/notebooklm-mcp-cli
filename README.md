@@ -501,22 +501,21 @@
 
 ### Latest
 
-| **Codex Setup + Cinematic Video & Slides** |
-|:---:|
+|                                   **Codex Setup + Cinematic Video & Slides**                                   |
+| :------------------------------------------------------------------------------------------------------------: |
 | [![Latest](https://img.youtube.com/vi/KrgLCrvU1dw/mqdefault.jpg)](https://www.youtube.com/watch?v=KrgLCrvU1dw) |
 
 ### MCP Demos
 
-| **General Overview** | **Claude Desktop** | **Perplexity Desktop** | **MCP Super Assistant** |
-|:---:|:---:|:---:|:---:|
+|                                              **General Overview**                                               |                                               **Claude Desktop**                                               |                                               **Perplexity Desktop**                                               |                                                  **MCP Super Assistant**                                                   |
+| :-------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------: |
 | [![General](https://img.youtube.com/vi/d-PZDQlO4m4/mqdefault.jpg)](https://www.youtube.com/watch?v=d-PZDQlO4m4) | [![Claude](https://img.youtube.com/vi/PU8JhgLPxes/mqdefault.jpg)](https://www.youtube.com/watch?v=PU8JhgLPxes) | [![Perplexity](https://img.youtube.com/vi/BCKlDNg-qxs/mqdefault.jpg)](https://www.youtube.com/watch?v=BCKlDNg-qxs) | [![MCP SuperAssistant](https://img.youtube.com/vi/7aHDbkr-l_E/mqdefault.jpg)](https://www.youtube.com/watch?v=7aHDbkr-l_E) |
 
 ### CLI Demos
 
-| **CLI Overview** | **CLI, MCP & Skills** | **Setup, Doctor & mcpb** | **Infographics Support** |
-|:---:|:---:|:---:|:---:|
+|                                                   **CLI Overview**                                                   |                                                   **CLI, MCP & Skills**                                                   |                                                   **Setup, Doctor & mcpb**                                                   |                                               **Infographics Support**                                               |
+| :------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------: |
 | [![CLI Overview](https://img.youtube.com/vi/XyXVuALWZkE/mqdefault.jpg)](https://www.youtube.com/watch?v=XyXVuALWZkE) | [![CLI, MCP & Skills](https://img.youtube.com/vi/ZQBQigFK-E8/mqdefault.jpg)](https://www.youtube.com/watch?v=ZQBQigFK-E8) | [![Setup, Doctor & mcpb](https://img.youtube.com/vi/5tOUilBTJ3Q/mqdefault.jpg)](https://www.youtube.com/watch?v=5tOUilBTJ3Q) | [![Infographics](https://img.youtube.com/vi/Uc6iH5NuQ9A/mqdefault.jpg)](https://www.youtube.com/watch?v=Uc6iH5NuQ9A) |
-
 
 ## Two Ways to Use
 
@@ -554,33 +553,34 @@ nlm setup add antigravity
 nlm setup add json
 ```
 
-Then use natural language: *"Create a notebook about quantum computing and generate a podcast"*
+Then use natural language: _"Create a notebook about quantum computing and generate a podcast"_
 
 ## Features
 
-| Capability | CLI Command | MCP Tool |
-|------------|-------------|----------|
-| List notebooks | `nlm notebook list` | `notebook_list` |
-| Create notebook | `nlm notebook create` | `notebook_create` |
-| Add Sources (URL, Text, Drive, File) | `nlm source add` | `source_add` |
-| Query notebook (persists to web UI) | `nlm notebook query` | `notebook_query` |
-| List/view/export chat sessions | `nlm chats list/get/export` | `chat_list`/`chat_get`/`chat_export` |
-| Create Studio Content (Audio, Video, etc.) | `nlm studio create` | `studio_create` |
-| Revise slide decks | `nlm slides revise` | `studio_revise` |
-| Download artifacts | `nlm download <type>` | `download_artifact` |
-| Download all artifacts (one or all notebooks) | `nlm download all` | `download_all_artifacts` |
-| Web/Drive research | `nlm research start` | `research_start` |
-| Share notebook | `nlm share public/invite` | `notebook_share_*` |
-| Sync Drive sources | `nlm source sync` | `source_sync_drive` |
-| Batch operations | `nlm batch query/create/delete` | `batch` |
-| Cross-notebook query | `nlm cross query` | `cross_notebook_query` |
-| Pipelines (multi-step workflows) | `nlm pipeline run/list` | `pipeline` |
-| Tag & smart select | `nlm tag add/list/select` | `tag` |
-| Configure AI tools | `nlm setup add/remove/list` | — |
-| Install AI Skills | `nlm skill install/update` | — |
-| Diagnose issues | `nlm doctor` | — |
+| Capability                                    | CLI Command                     | MCP Tool                             |
+| --------------------------------------------- | ------------------------------- | ------------------------------------ |
+| List notebooks                                | `nlm notebook list`             | `notebook_list`                      |
+| Create notebook                               | `nlm notebook create`           | `notebook_create`                    |
+| Add Sources (URL, Text, Drive, File)          | `nlm source add`                | `source_add`                         |
+| Query notebook (persists to web UI)           | `nlm notebook query`            | `notebook_query`                     |
+| List/view/export chat sessions                | `nlm chats list/get/export`     | `chat_list`/`chat_get`/`chat_export` |
+| Create Studio Content (Audio, Video, etc.)    | `nlm studio create`             | `studio_create`                      |
+| Revise slide decks                            | `nlm slides revise`             | `studio_revise`                      |
+| Download artifacts                            | `nlm download <type>`           | `download_artifact`                  |
+| Download all artifacts (one or all notebooks) | `nlm download all`              | `download_all_artifacts`             |
+| Web/Drive research                            | `nlm research start`            | `research_start`                     |
+| Share notebook                                | `nlm share public/invite`       | `notebook_share_*`                   |
+| Sync Drive sources                            | `nlm source sync`               | `source_sync_drive`                  |
+| Batch operations                              | `nlm batch query/create/delete` | `batch`                              |
+| Cross-notebook query                          | `nlm cross query`               | `cross_notebook_query`               |
+| Pipelines (multi-step workflows)              | `nlm pipeline run/list`         | `pipeline`                           |
+| Tag & smart select                            | `nlm tag add/list/select`       | `tag`                                |
+| Configure AI tools                            | `nlm setup add/remove/list`     | —                                    |
+| Install AI Skills                             | `nlm skill install/update`      | —                                    |
+| Diagnose issues                               | `nlm doctor`                    | —                                    |
 
 📚 **More Documentation:**
+
 - **[Getting Started](docs/GETTING_STARTED.md)** — Install, login, agent setup, and migration from another Gemini Notebook MCP
 - **[CLI Guide](docs/CLI_GUIDE.md)** — Complete command reference
 - **[MCP Guide](docs/MCP_GUIDE.md)** — All 43 MCP tools with examples
@@ -591,6 +591,7 @@ Then use natural language: *"Create a notebook about quantum computing and gener
 ## Important Disclaimer
 
 This MCP and CLI use **internal APIs** that:
+
 - Are undocumented and may change without notice
 - Require cookie extraction from your browser (I have a tool for that!)
 
@@ -603,27 +604,32 @@ Use at your own risk for personal/experimental purposes.
 Install from PyPI. This single package includes **both the CLI and MCP server**:
 
 ### Using uv (Recommended)
+
 ```bash
 uv tool install notebooklm-mcp-cli
 ```
 
 ### Using uvx (Run Without Install)
+
 ```bash
 uvx --from notebooklm-mcp-cli nlm --help
 uvx --from notebooklm-mcp-cli notebooklm-mcp
 ```
 
 ### Using pip
+
 ```bash
 pip install notebooklm-mcp-cli
 ```
 
 ### Using pipx
+
 ```bash
 pipx install notebooklm-mcp-cli
 ```
 
 **After installation, you get:**
+
 - `nlm` — Command-line interface
 - `notebooklm-mcp` — Gemini Notebook MCP server for AI assistants
 
@@ -638,6 +644,7 @@ cd notebooklm-mcp
 # Install with uv
 uv tool install .
 ```
+
 </details>
 
 ## Upgrading
@@ -702,6 +709,7 @@ uv tool list | grep notebooklm
 ```
 
 You should see only:
+
 ```
 notebooklm-mcp-cli v0.2.0
 - nlm
@@ -777,6 +785,7 @@ nlm login --provider openclaw --cdp-url http://127.0.0.1:18800
 ```
 
 **Profile management:**
+
 ```bash
 nlm login --check                    # Show current auth status
 nlm login switch <profile>           # Switch the default profile
@@ -796,9 +805,9 @@ nlm login              # Auto mode (launches browser)
 nlm login --manual     # Manual file mode
 ```
 
-**How it works:** Auto mode launches a dedicated browser profile (supports Chrome, Arc, Brave, Edge, Chromium, Firefox, and more), you log in to Google, and cookies are extracted automatically. Your login persists for future auth refreshes.
+**How it works:** Auto mode launches a dedicated browser profile (supports Chrome, Arc, Dia, Comet, Brave, Edge, Chromium, Firefox, and more), you log in to Google, and cookies are extracted automatically. Your login persists for future auth refreshes.
 
-**Prefer a specific browser?** Set it with `nlm config set auth.browser chromium` (or `brave`, `arc`, `edge`, `chrome`, `firefox`, etc.). Falls back to auto-detection if the preferred browser is not found. When Chromium/CDP is unavailable, `auto` can fall back to Firefox.
+**Prefer a specific browser?** Set it with `nlm config set auth.browser chromium` (or `comet`, `dia`, `brave`, `arc`, `edge`, `chrome`, `firefox`, etc.). Falls back to auto-detection if the preferred named browser is not found. For any other Chromium-compatible browser, set its executable with `nlm config set auth.browser_path /path/to/browser` or `NLM_BROWSER_PATH`; an invalid explicit path fails closed instead of launching a different browser. When Chromium/CDP is unavailable, `auto` can fall back to Firefox.
 
 For detailed instructions and troubleshooting, see **[docs/AUTHENTICATION.md](docs/AUTHENTICATION.md)**.
 
@@ -881,6 +890,7 @@ uvx --from notebooklm-mcp-cli nlm login
 ```
 
 For tools that use JSON config, point them to uvx:
+
 ```json
 {
   "mcpServers": {
@@ -898,12 +908,14 @@ For tools that use JSON config, point them to uvx:
 > **Tip:** Run `nlm setup add json` for an interactive wizard that generates the right JSON snippet for your tool.
 
 **Claude Code / Gemini CLI** support adding MCP servers via their own CLI:
+
 ```bash
 claude mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 gemini mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 ```
 
 **Cursor / Windsurf** resolve commands from your `PATH`, so the command name is enough:
+
 ```json
 {
   "mcpServers": {
@@ -914,12 +926,13 @@ gemini mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 }
 ```
 
-| Tool | Config Location |
-|------|-----------------|
-| Cursor | `~/.cursor/mcp.json` |
+| Tool     | Config Location                       |
+| -------- | ------------------------------------- |
+| Cursor   | `~/.cursor/mcp.json`                  |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 
 **GitHub Copilot (VS Code workspace)** uses `.vscode/mcp.json` with a top-level `servers` key:
+
 ```json
 {
   "servers": {
@@ -932,6 +945,7 @@ gemini mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 ```
 
 **Claude Desktop** may not resolve `PATH` — use the full path to the binary:
+
 ```json
 {
   "mcpServers": {
@@ -944,15 +958,15 @@ gemini mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 
 Find your path with: `which notebooklm-mcp`
 
-| Tool | Config Location |
-|------|-----------------|
-| Claude Desktop (macOS current/3P) | `~/Library/Application Support/Claude-3p/claude_desktop_config.json` |
-| Claude Desktop (macOS legacy) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Claude Desktop (Windows) | `%APPDATA%\Claude\claude_desktop_config.json` (an unambiguous MSIX path is detected automatically) |
-| Claude Desktop (Windows 3P) | `%LOCALAPPDATA%\Claude-3p\claude_desktop_config.json` |
-| Claude Desktop (Linux) | `~/.config/Claude/claude_desktop_config.json` |
-| Claude Desktop (Linux 3P) | `${XDG_CONFIG_HOME:-~/.config}/Claude-3p/claude_desktop_config.json` |
-| GitHub Copilot | `.vscode/mcp.json` |
+| Tool                              | Config Location                                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Claude Desktop (macOS current/3P) | `~/Library/Application Support/Claude-3p/claude_desktop_config.json`                               |
+| Claude Desktop (macOS legacy)     | `~/Library/Application Support/Claude/claude_desktop_config.json`                                  |
+| Claude Desktop (Windows)          | `%APPDATA%\Claude\claude_desktop_config.json` (an unambiguous MSIX path is detected automatically) |
+| Claude Desktop (Windows 3P)       | `%LOCALAPPDATA%\Claude-3p\claude_desktop_config.json`                                              |
+| Claude Desktop (Linux)            | `~/.config/Claude/claude_desktop_config.json`                                                      |
+| Claude Desktop (Linux 3P)         | `${XDG_CONFIG_HOME:-~/.config}/Claude-3p/claude_desktop_config.json`                               |
+| GitHub Copilot                    | `.vscode/mcp.json`                                                                                 |
 
 </details>
 
@@ -985,7 +999,7 @@ Simply chat with your AI tool (Claude Code, Cursor, Gemini CLI) using natural la
 - "Get an AI summary of what this notebook is about"
 - "Configure the chat to use a learning guide style with longer responses"
 
-*(All queries sent from CLI or MCP automatically persist in your Gemini Notebook web UI chat history!)*
+_(All queries sent from CLI or MCP automatically persist in your Gemini Notebook web UI chat history!)_
 
 ### Content Generation
 
@@ -1019,13 +1033,14 @@ Simply chat with your AI tool (Claude Code, Cursor, Gemini CLI) using natural la
 
 ## Authentication Lifecycle
 
-| Component | Duration | Refresh |
-|-----------|----------|---------|
-| Cookies | ~2-4 weeks | Auto-refresh via headless browser (if profile saved) |
-| CSRF Token | ~minutes | Auto-refreshed on every request failure |
-| Session ID | Per MCP session | Auto-extracted on MCP start |
+| Component  | Duration        | Refresh                                              |
+| ---------- | --------------- | ---------------------------------------------------- |
+| Cookies    | ~2-4 weeks      | Auto-refresh via headless browser (if profile saved) |
+| CSRF Token | ~minutes        | Auto-refreshed on every request failure              |
+| Session ID | Per MCP session | Auto-extracted on MCP start                          |
 
 **v0.1.9+**: The server now automatically handles token expiration:
+
 1. Refreshes CSRF tokens immediately when expired
 2. Reloads cookies from disk if updated externally
 3. Runs headless browser auth if profile has saved login
@@ -1043,12 +1058,14 @@ If the `cdp_in_page` probe succeeds while normal replay fails, see
 ### `uv tool upgrade` Not Installing Latest Version
 
 **Symptoms:**
+
 - Running `uv tool upgrade notebooklm-mcp-cli` installs an older version (e.g., 0.1.5 instead of 0.1.9)
 - `uv cache clean` doesn't fix the issue
 
 **Why this happens:** `uv tool upgrade` respects version constraints from your original installation. If you initially installed an older version or with a constraint, `upgrade` stays within those bounds by design.
 
 **Fix — Force reinstall:**
+
 ```bash
 uv tool install --force notebooklm-mcp-cli
 ```
@@ -1056,11 +1073,11 @@ uv tool install --force notebooklm-mcp-cli
 This bypasses any cached constraints and installs the absolute latest version from PyPI.
 
 **Verify:**
+
 ```bash
 uv tool list | grep notebooklm
 # Should show: notebooklm-mcp-cli v0.1.9 (or latest)
 ```
-
 
 ## Limitations
 
@@ -1085,6 +1102,7 @@ Think of it as a chance to mentor an AI-assisted developer through code review. 
 ## Credits
 
 Special thanks to:
+
 - **Le Anh Tuan** ([@latuannetnam](https://github.com/latuannetnam)) for contributing the HTTP transport, debug logging system, and performance optimizations.
 - **David Szabo-Pele** ([@davidszp](https://github.com/davidszp)) for the `source_get_content` tool and Linux auth fixes.
 - **saitrogen** ([@saitrogen](https://github.com/saitrogen)) for the research polling query fallback fix.
@@ -1102,7 +1120,6 @@ Special thanks to:
 - **cbruyndoncx** ([@cbruyndoncx](https://github.com/cbruyndoncx)) for including `cited_text` passages in query output (PR #81).
 - **zxyasfas** ([@zxyasfas](https://github.com/zxyasfas)) for cited-only research import (PR #188).
 - **Serdar Akın** ([@SERDAR-AKIN](https://github.com/SERDAR-AKIN)) for the multi-probe `AuthHealthChecker` that fixes false `"stale"` reports for semi-stale cookies (PR #219).
-
 
 ## Star History
 

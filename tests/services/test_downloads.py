@@ -36,6 +36,7 @@ def mock_client():
     client.download_report.return_value = "/tmp/report.md"  # nosec B108 - mock return value in test double, not a real filesystem path
     client.download_mind_map.return_value = "/tmp/mindmap.json"  # nosec B108 - mock return value in test double, not a real filesystem path
     client.download_data_table.return_value = "/tmp/table.csv"  # nosec B108 - mock return value in test double, not a real filesystem path
+    client.download_file.return_value = "/tmp/analysis.pdf"  # nosec B108 - mock return value in test double, not a real filesystem path
     return client
 
 
@@ -130,6 +131,12 @@ class TestDownloadSync:
     def test_download_data_table(self, mock_client):
         result = download_sync(mock_client, "nb-1", "data_table", "/tmp/t.csv")  # nosec B108 - mock return value in test double, not a real filesystem path
         assert result["path"] == "/tmp/table.csv"  # nosec B108 - mock return value in test double, not a real filesystem path
+
+    def test_download_generic_file(self, mock_client):
+        result = download_sync(mock_client, "nb-1", "file", "/tmp/analysis.md", "file-1")
+
+        assert result == {"artifact_type": "file", "path": "/tmp/analysis.pdf"}
+        mock_client.download_file.assert_called_once_with("nb-1", "/tmp/analysis.md", "file-1")
 
     def test_invalid_type_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="Unknown"):
@@ -338,6 +345,23 @@ class TestDownloadAsync:
         assert result["path"] == "/tmp/table.csv"  # nosec B108 - mock return value in test double, not a real filesystem path
         mock_client.download_data_table.assert_called_once_with("nb-1", "/tmp/dt.csv", None)  # nosec B108 - mock return value in test double, not a real filesystem path
 
+    @pytest.mark.asyncio
+    async def test_download_xlsx_data_table_via_async(self, mock_client):
+        """Issue #305: type-10 XLSX exports use the data-table downloader."""
+        result = await download_async(mock_client, "nb-1", "data_table_xlsx", "/tmp/dt.xlsx")
+        assert result["artifact_type"] == "data_table_xlsx"
+        assert result["path"] == "/tmp/table.csv"
+        mock_client.download_data_table.assert_called_once_with("nb-1", "/tmp/dt.xlsx", None)
+
+    @pytest.mark.asyncio
+    async def test_download_generic_file_via_async(self, mock_client):
+        result = await download_async(
+            mock_client, "nb-1", "file", "/tmp/analysis.md", artifact_id="file-1"
+        )
+
+        assert result == {"artifact_type": "file", "path": "/tmp/analysis.pdf"}
+        mock_client.download_file.assert_called_once_with("nb-1", "/tmp/analysis.md", "file-1")
+
 
 class TestValidateAudioExtension:
     """Test validate_audio_extension — Issue #185."""
@@ -427,7 +451,7 @@ def bulk_client():
         "download_flashcards",
     ):
         setattr(client, name, AsyncMock(side_effect=_echo_path_async))
-    for name in ("download_report", "download_mind_map", "download_data_table"):
+    for name in ("download_report", "download_mind_map", "download_data_table", "download_file"):
         getattr(client, name).side_effect = _echo_path_sync
     return client
 
@@ -475,6 +499,81 @@ class TestDownloadAll:
         assert paths["mind_map"].endswith("Map.json")
         assert paths["slide_deck"].endswith("Deck.pdf")
         assert (tmp_path / "My Notebook").is_dir()
+
+    @pytest.mark.asyncio
+    async def test_downloads_xlsx_data_table_with_xlsx_extension(
+        self, bulk_client, monkeypatch, tmp_path
+    ):
+        _patch_lookups(
+            monkeypatch,
+            [
+                _artifact(
+                    artifact_id="xlsx-1",
+                    type="data_table_xlsx",
+                    title="Excel Table",
+                    download_filename="sawn-lumber-design.xlsx",
+                )
+            ],
+        )
+
+        result = await download_all(bulk_client, "nb-1", str(tmp_path))
+
+        assert result["downloaded"] == 1
+        assert result["items"][0]["artifact_type"] == "data_table_xlsx"
+        assert result["items"][0]["path"].endswith("sawn-lumber-design.xlsx")
+
+    @pytest.mark.asyncio
+    async def test_downloads_generic_file_with_export_filename(
+        self, bulk_client, monkeypatch, tmp_path
+    ):
+        _patch_lookups(
+            monkeypatch,
+            [
+                _artifact(
+                    artifact_id="file-1",
+                    type="file",
+                    title="Generated analysis",
+                    download_filename="analysis.md",
+                    mime_type="text/markdown",
+                )
+            ],
+        )
+
+        result = await download_all(bulk_client, "nb-1", str(tmp_path))
+
+        assert result["downloaded"] == 1
+        assert result["items"][0]["artifact_type"] == "file"
+        assert result["items"][0]["path"].endswith("analysis.md")
+        bulk_client.download_file.assert_called_once_with(
+            "nb-1",
+            str(tmp_path / "My Notebook" / "analysis.md"),
+            "file-1",
+        )
+
+    @pytest.mark.asyncio
+    async def test_deduplicates_duplicate_xlsx_filenames(self, bulk_client, monkeypatch, tmp_path):
+        _patch_lookups(
+            monkeypatch,
+            [
+                _artifact(
+                    artifact_id="xlsx-1",
+                    type="data_table_xlsx",
+                    title="First",
+                    download_filename="same.xlsx",
+                ),
+                _artifact(
+                    artifact_id="xlsx-2",
+                    type="data_table_xlsx",
+                    title="Second",
+                    download_filename="same.xlsx",
+                ),
+            ],
+        )
+
+        result = await download_all(bulk_client, "nb-1", str(tmp_path))
+
+        names = sorted(item["path"].rsplit("/", 1)[-1] for item in result["items"])
+        assert names == ["same.xlsx", "same_2.xlsx"]
 
     @pytest.mark.asyncio
     async def test_skips_non_completed_artifacts(self, bulk_client, monkeypatch, tmp_path):

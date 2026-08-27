@@ -397,6 +397,41 @@ class TestGetStudioStatus:
         assert result["completed"] == 2  # 1 studio + 1 mind map
         assert result["in_progress"] == 1
 
+    def test_preserves_xlsx_download_filename(self, mock_client):
+        mock_client.poll_studio_status.return_value = [
+            {
+                "artifact_id": "xlsx-1",
+                "type": "data_table_xlsx",
+                "title": "Excel Table",
+                "status": "completed",
+                "download_filename": "sawn-lumber-design.xlsx",
+            }
+        ]
+        mock_client.list_mind_maps.return_value = []
+
+        result = get_studio_status(mock_client, "nb-1")
+
+        assert result["artifacts"][0]["download_filename"] == "sawn-lumber-design.xlsx"
+
+    def test_preserves_generic_file_metadata(self, mock_client):
+        mock_client.poll_studio_status.return_value = [
+            {
+                "artifact_id": "file-1",
+                "type": "file",
+                "title": "analysis.md",
+                "status": "completed",
+                "download_filename": "analysis.md",
+                "mime_type": "text/markdown",
+            }
+        ]
+        mock_client.list_mind_maps.return_value = []
+
+        result = get_studio_status(mock_client, "nb-1")
+
+        assert result["artifacts"][0]["type"] == "file"
+        assert result["artifacts"][0]["download_filename"] == "analysis.md"
+        assert result["artifacts"][0]["mime_type"] == "text/markdown"
+
     def test_mind_map_fetch_failure_ignored(self, mock_client):
         mock_client.list_mind_maps.side_effect = RuntimeError("fail")
         result = get_studio_status(mock_client, "nb-1")

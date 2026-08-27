@@ -107,13 +107,15 @@ def _simple_download(
     output: str | None,
     artifact_id: str | None,
     default_suffix: str,
+    client: Any | None = None,
 ) -> None:
     """Common pattern for simple (synchronous) downloads."""
     notebook_id = get_alias_manager().resolve(notebook_id)
     downloads_service.validate_artifact_type(artifact_type)
 
     path = output or f"{notebook_id}_{default_suffix}"
-    client = get_client()
+    if client is None:
+        client = get_client()
 
     try:
         result = downloads_service.download_sync(
@@ -467,8 +469,60 @@ def download_data_table(
     ),
     artifact_id: str | None = typer.Option(None, "--id", help="Specific artifact ID"),
 ):
-    """Download Data Table (CSV)."""
-    _simple_download(notebook_id, "data_table", output, artifact_id, "table.csv")
+    """Download Data Table (CSV or XLSX)."""
+    if output is not None:
+        _simple_download(notebook_id, "data_table", output, artifact_id, "table.csv")
+        return
+
+    # The legacy command accepts both CSV (type 9) and XLSX (type 10)
+    # artifacts. Inspect the selected artifact before choosing the default
+    # filename so an XLSX payload is not misleadingly saved as .csv.
+    client = get_client()
+    default_suffix = "table.csv"
+    try:
+        status = downloads_service.get_studio_status(
+            client, get_alias_manager().resolve(notebook_id), include_details=False
+        )
+        candidates = [
+            artifact
+            for artifact in status["artifacts"]
+            if artifact.get("status") == "completed"
+            and artifact.get("type") in ("data_table", "data_table_xlsx")
+        ]
+        target = (
+            next(
+                (artifact for artifact in candidates if artifact.get("artifact_id") == artifact_id),
+                None,
+            )
+            if artifact_id
+            else (candidates[0] if candidates else None)
+        )
+        if target and target.get("type") == "data_table_xlsx":
+            default_suffix = "table.xlsx"
+    except ServiceError:
+        # Let the actual download perform its normal readiness/error handling.
+        pass
+
+    _simple_download(
+        notebook_id,
+        "data_table",
+        output,
+        artifact_id,
+        default_suffix,
+        client=client,
+    )
+
+
+@app.command("file")
+def download_file(
+    notebook_id: str = typer.Argument(..., help="Notebook ID"),
+    output: str | None = typer.Option(
+        None, "--output", "-o", help="Output path (default: ./{notebook_id}_file.bin)"
+    ),
+    artifact_id: str | None = typer.Option(None, "--id", help="Specific artifact ID"),
+):
+    """Download a generic Studio file export."""
+    _simple_download(notebook_id, "file", output, artifact_id, "file.bin")
 
 
 # --- Interactive format downloads (quiz/flashcards) ---

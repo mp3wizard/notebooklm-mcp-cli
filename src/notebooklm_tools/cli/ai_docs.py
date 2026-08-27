@@ -23,7 +23,7 @@ health result as confirmed expiration.
 ```bash
 nlm login
 ```
-This opens NotebookLM in your browser (Chrome, Arc, Brave, Edge, Chromium, or another supported Chromium-family browser) and extracts cookies automatically.
+This opens NotebookLM in your browser (Chrome, Arc, Dia, Comet, Brave, Edge, Chromium, or another supported Chromium-family browser) and extracts cookies automatically.
 Output on success: `✓ Successfully authenticated!`
 
 ### Check If Already Authenticated
@@ -535,6 +535,7 @@ nlm download slide-deck <notebook-id>                          # Download slides
 nlm download slide-deck <notebook-id> --format pptx            # Download slides (PPTX)
 nlm download infographic <notebook-id>                         # Download infographic
 nlm download data-table <notebook-id>                          # Download data table
+nlm download file <notebook-id> --id <artifact-id>             # Generic Studio file export
 ```
 
 **Download Workflow:**
@@ -772,7 +773,8 @@ nlm set config <key> <value>    # Update setting
 ```
 
 **Available config keys:**
-- `auth.browser` — Preferred browser for login: auto (default), chrome, arc, brave, edge, chromium, firefox, vivaldi, opera. Falls back to auto if preferred browser is not found.
+- `auth.browser` — Preferred browser for login: auto (default), chrome, arc, dia, comet, brave, edge, chromium, firefox, vivaldi, opera. Falls back to auto if a preferred named browser is not found.
+- `auth.browser_path` — Explicit Chromium-compatible executable path (default: empty). Overrides named discovery; can also be set with `NLM_BROWSER_PATH`.
 - `auth.default_profile` — Default profile name (default: "default")
 - `output.format` — Default output format: table, json (default: "table")
 - `output.color` — Enable colored output (default: true)

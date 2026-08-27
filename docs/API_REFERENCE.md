@@ -1153,6 +1153,11 @@ params = [
 
 Data Tables use the `R7cb6c` RPC with **type code 9** (STUDIO_TYPE_DATA_TABLE).
 
+Excel exports of data tables are returned by the same status RPC with **type
+code 10** (`STUDIO_TYPE_DATA_TABLE_XLSX`). Their file metadata is at
+`artifact[24]` as `[filename, mime_type, viewer_url, download_url]`. The
+download path streams `download_url` as binary XLSX without CSV parsing.
+
 ### Data Table Request Structure
 ```python
 params = [

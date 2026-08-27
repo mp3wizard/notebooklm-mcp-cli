@@ -6,6 +6,7 @@ Supports automatic migration from old locations:
 - ~/.nlm/ (old CLI location)
 """
 
+import json
 import os
 import shutil
 from pathlib import Path
@@ -443,8 +444,12 @@ class AuthConfig(BaseModel):
     browser: str = Field(
         default="auto",
         description=(
-            "Browser for auth: auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera"
+            "Browser for auth: auto, chrome, arc, brave, dia, comet, edge, chromium, firefox, vivaldi, opera"
         ),
+    )
+    browser_path: str = Field(
+        default="",
+        description="Optional path to a Chromium-compatible browser executable",
     )
     default_profile: str = Field(default="default", description="Default profile name")
 
@@ -484,6 +489,9 @@ def load_config() -> Config:
     if browser := os.environ.get("NLM_BROWSER"):
         config_data.setdefault("auth", {})["browser"] = browser
 
+    if browser_path := os.environ.get("NLM_BROWSER_PATH"):
+        config_data.setdefault("auth", {})["browser_path"] = browser_path
+
     if profile := os.environ.get("NLM_PROFILE"):
         config_data.setdefault("auth", {})["default_profile"] = profile
 
@@ -512,6 +520,7 @@ def _config_to_toml(config: Config) -> str:
 
     lines.append("[auth]")
     lines.append(f'browser = "{config.auth.browser}"')
+    lines.append(f"browser_path = {json.dumps(config.auth.browser_path)}")
     lines.append(f'default_profile = "{config.auth.default_profile}"')
     lines.append("")
 

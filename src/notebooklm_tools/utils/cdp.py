@@ -315,6 +315,8 @@ def _macos_browser_candidates() -> list[tuple[str, str]]:
     entries: list[tuple[str, str]] = [
         ("Google Chrome", "Google Chrome.app/Contents/MacOS/Google Chrome"),
         ("Arc", "Arc.app/Contents/MacOS/Arc"),
+        ("Dia", "Dia.app/Contents/MacOS/Dia"),
+        ("Comet", "Comet.app/Contents/MacOS/Comet"),
         ("Brave Browser", "Brave Browser.app/Contents/MacOS/Brave Browser"),
         ("Microsoft Edge", "Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
         ("Chromium", "Chromium.app/Contents/MacOS/Chromium"),
@@ -386,6 +388,8 @@ _BROWSER_CONFIG_MAP: dict[str, list[str]] = {
     "chrome": ["Google Chrome"],
     "arc": ["Arc"],
     "brave": ["Brave Browser"],
+    "dia": ["Dia"],
+    "comet": ["Comet"],
     "edge": ["Microsoft Edge"],
     "chromium": ["Chromium"],
     "vivaldi": ["Vivaldi"],
@@ -403,6 +407,16 @@ def _get_preferred_browser() -> str:
         return "auto"
 
 
+def _get_preferred_browser_path() -> str:
+    """Read the optional explicit Chromium executable path."""
+    try:
+        from notebooklm_tools.utils.config import load_config
+
+        return load_config().auth.browser_path.strip()
+    except Exception:
+        return ""
+
+
 def _get_chromium_path(preferred: str | None = None) -> str | None:
     """Return the path/executable for the first available Chromium-based browser.
 
@@ -412,7 +426,7 @@ def _get_chromium_path(preferred: str | None = None) -> str | None:
       falls back to the full priority list if not found.
 
     Set via ``nlm config set auth.browser <name>`` or ``NLM_BROWSER`` env var.
-    Valid names: auto, chrome, arc, brave, edge, chromium, vivaldi, opera.
+    Valid names: auto, chrome, arc, brave, dia, comet, edge, chromium, vivaldi, opera.
     """
     global _detected_browser_name
     if preferred is None:
@@ -435,6 +449,17 @@ def _get_chromium_path(preferred: str | None = None) -> str | None:
         else:
             _logger.info("Using preferred browser: %s", name)
         return path
+
+    explicit_path = _get_preferred_browser_path()
+    if explicit_path:
+        candidate = Path(explicit_path).expanduser()
+        is_executable = candidate.is_file() and (
+            platform.system() == "Windows" or os.access(candidate, os.X_OK)
+        )
+        if is_executable:
+            return _found("Custom Chromium browser", str(candidate))
+        _logger.error("Configured browser path is not an executable file: %s", candidate)
+        return None
 
     system = platform.system()
 

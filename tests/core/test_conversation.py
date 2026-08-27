@@ -394,6 +394,26 @@ class TestConversationMixinMethods:
         assert answer == ""
         assert citation_data == {}
 
+    def test_parse_query_response_does_not_copy_entire_response_body(self):
+        """Large streamed responses are scanned without strip/split copies."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        answer_text = "A sufficiently long answer with an emoji 📊."
+        inner = json.dumps([[answer_text, None, [], None, [1]]], ensure_ascii=False)
+        chunk = json.dumps([["wrb.fr", None, inner]], ensure_ascii=False)
+        raw = str(len(chunk)) + "\n" + chunk
+
+        class NoWholeBodyCopy(str):
+            def strip(self, *args, **kwargs):
+                raise AssertionError("the full response body must not be stripped")
+
+            def split(self, *args, **kwargs):
+                raise AssertionError("the full response body must not be split")
+
+        parsed_answer, citation_data, _ = mixin._parse_query_response(NoWholeBodyCopy(raw))
+
+        assert parsed_answer == answer_text
+        assert citation_data == {}
+
     def test_extract_answer_from_chunk_handles_invalid_json(self):
         """Test that _extract_answer_from_chunk handles invalid JSON."""
         mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")

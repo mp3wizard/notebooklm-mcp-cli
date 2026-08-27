@@ -1,6 +1,7 @@
 """Tests for supported authentication browser behavior."""
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -60,6 +61,122 @@ def test_get_chromium_path_ignores_explicit_firefox_preference():
     from notebooklm_tools.utils.cdp import _get_chromium_path
 
     assert _get_chromium_path("firefox") is None
+
+
+def test_select_auth_backend_passes_comet_preference_to_chromium_discovery():
+    from notebooklm_tools.utils.auth_browser import select_auth_backend
+
+    with (
+        patch(
+            "notebooklm_tools.utils.cdp._get_chromium_path",
+            return_value="/Applications/Comet.app/Contents/MacOS/Comet",
+        ) as get_path,
+        patch("notebooklm_tools.utils.cdp.get_browser_display_name", return_value="Comet"),
+        patch("notebooklm_tools.utils.firefox.get_firefox_path", return_value=None),
+    ):
+        backend = select_auth_backend("comet")
+
+    assert backend == {"backend": "chromium_cdp", "browser": "Comet"}
+    get_path.assert_called_once_with("comet")
+
+
+def test_get_chromium_path_selects_named_comet_on_macos():
+    from notebooklm_tools.utils.cdp import _get_chromium_path
+
+    expected = "/Applications/Comet.app/Contents/MacOS/Comet"
+
+    def fake_exists(path: Path) -> bool:
+        return str(path) == expected
+
+    with (
+        patch("notebooklm_tools.utils.cdp.platform.system", return_value="Darwin"),
+        patch.object(Path, "exists", fake_exists),
+        patch(
+            "notebooklm_tools.utils.cdp._get_preferred_browser_path",
+            return_value="",
+            create=True,
+        ),
+    ):
+        result = _get_chromium_path("comet")
+
+    assert result == expected
+
+
+def test_explicit_browser_path_wins_over_named_discovery(tmp_path):
+    from notebooklm_tools.utils.cdp import _get_chromium_path
+
+    executable = tmp_path / "future-browser"
+    executable.write_text("browser", encoding="utf-8")
+    executable.chmod(0o755)
+
+    with (
+        patch("notebooklm_tools.utils.cdp.platform.system", return_value="Linux"),
+        patch("notebooklm_tools.utils.cdp.shutil.which", return_value="/usr/bin/google-chrome"),
+        patch(
+            "notebooklm_tools.utils.cdp._get_preferred_browser_path",
+            return_value=str(executable),
+            create=True,
+        ),
+    ):
+        result = _get_chromium_path("chrome")
+
+    assert result == str(executable)
+
+
+def test_invalid_explicit_browser_path_does_not_fall_back(tmp_path):
+    from notebooklm_tools.utils.cdp import _get_chromium_path
+
+    missing = tmp_path / "missing-browser"
+
+    with (
+        patch("notebooklm_tools.utils.cdp.platform.system", return_value="Linux"),
+        patch("notebooklm_tools.utils.cdp.shutil.which", return_value="/usr/bin/google-chrome"),
+        patch(
+            "notebooklm_tools.utils.cdp._get_preferred_browser_path",
+            return_value=str(missing),
+            create=True,
+        ),
+    ):
+        result = _get_chromium_path("chrome")
+
+    assert result is None
+
+
+def test_invalid_explicit_browser_path_suppresses_firefox_fallback():
+    from notebooklm_tools.utils.auth_browser import select_auth_backend
+
+    with (
+        patch("notebooklm_tools.utils.cdp._get_chromium_path", return_value=None),
+        patch(
+            "notebooklm_tools.utils.cdp._get_preferred_browser_path",
+            return_value="/missing/browser",
+            create=True,
+        ),
+        patch("notebooklm_tools.utils.firefox.get_firefox_path", return_value="/usr/bin/firefox"),
+    ):
+        backend = select_auth_backend("auto")
+
+    assert backend is None
+
+
+def test_browser_path_environment_override_is_loaded(monkeypatch, tmp_path):
+    from notebooklm_tools.utils.config import load_config
+
+    config_file = tmp_path / "missing-config.toml"
+    monkeypatch.setenv("NLM_BROWSER_PATH", "/opt/custom/chromium")
+
+    with patch("notebooklm_tools.utils.config.get_config_file", return_value=config_file):
+        config = load_config()
+
+    assert config.auth.browser_path == "/opt/custom/chromium"
+
+
+def test_browser_path_is_serialized_to_toml():
+    from notebooklm_tools.utils.config import AuthConfig, Config, _config_to_toml
+
+    config = Config(auth=AuthConfig(browser_path="/opt/custom/chromium"))
+
+    assert 'browser_path = "/opt/custom/chromium"' in _config_to_toml(config)
 
 
 def test_saved_legacy_browser_backend_is_read_from_metadata(tmp_path, monkeypatch):

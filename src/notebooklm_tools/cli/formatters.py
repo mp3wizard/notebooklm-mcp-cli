@@ -313,6 +313,8 @@ class JsonFormatter(Formatter):
         "infographic_url",
         "slide_deck_url",
         "report_content",
+        "download_filename",
+        "mime_type",
         "flashcard_count",
         "duration_seconds",
         "source_ids",

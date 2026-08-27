@@ -718,7 +718,21 @@ Download slide deck from notebook [notebook_id]:
 
 ---
 
-### Test 6.6 - Download All Artifacts
+### Test 6.6 - Download Data Table Excel Export
+**Tool:** `download_artifact`
+
+**Prompt:**
+```
+Download the Excel data-table export from notebook [notebook_id]:
+- artifact_type: data_table_xlsx
+- output_path: /tmp/data-table.xlsx
+```
+
+**Expected:** The completed type-10 artifact is downloaded byte-for-byte as XLSX.
+
+---
+
+### Test 6.7 - Download All Artifacts
 **Tool:** `download_all_artifacts`
 **CLI:** `nlm download all [notebook_id] --output-dir /tmp/exports`
 

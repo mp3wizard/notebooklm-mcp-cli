@@ -4,16 +4,16 @@ This document provides detailed solutions for common issues when using the `nlm`
 
 ## Quick Diagnosis
 
-| Symptom | Likely Cause | Quick Fix |
-|---------|--------------|-----------|
-| "Cookies have expired" / auth status `stale` | Credentials rejected | `nlm login` |
-| Auth status `unverified` | Network/proxy probe failure | Check connectivity or try an API call |
-| "Notebook not found" | Invalid/stale ID | `nlm notebook list` |
-| "Source not found" | Invalid source ID | `nlm source list <nb-id>` |
-| Browser doesn't open | Port conflict | Close existing browser, retry |
-| "Research already in progress" | Pending task | `--force` or import existing |
-| "nodename nor servname" | Network blocked | See [Sandbox Users](#sandbox-environments) |
-| Commands hang forever | Network/auth issue | Ctrl+C, `nlm login` |
+| Symptom                                      | Likely Cause                | Quick Fix                                  |
+| -------------------------------------------- | --------------------------- | ------------------------------------------ |
+| "Cookies have expired" / auth status `stale` | Credentials rejected        | `nlm login`                                |
+| Auth status `unverified`                     | Network/proxy probe failure | Check connectivity or try an API call      |
+| "Notebook not found"                         | Invalid/stale ID            | `nlm notebook list`                        |
+| "Source not found"                           | Invalid source ID           | `nlm source list <nb-id>`                  |
+| Browser doesn't open                         | Port conflict               | Close existing browser, retry              |
+| "Research already in progress"               | Pending task                | `--force` or import existing               |
+| "nodename nor servname"                      | Network blocked             | See [Sandbox Users](#sandbox-environments) |
+| Commands hang forever                        | Network/auth issue          | Ctrl+C, `nlm login`                        |
 
 ---
 
@@ -22,6 +22,7 @@ This document provides detailed solutions for common issues when using the `nlm`
 ### Session Expired
 
 **Symptoms:**
+
 ```
 Error: Cookies have expired. Please run 'nlm login' to re-authenticate.
 Error: authentication may have expired
@@ -31,11 +32,13 @@ Error: authentication may have expired
 usable for weeks, so do not re-authenticate solely because time has passed.
 
 **Solution:**
+
 ```bash
 nlm login
 ```
 
 **Prevention:** For long-running scripts, implement periodic re-authentication:
+
 ```bash
 # Check auth before critical operations
 nlm login --check || nlm login
@@ -44,18 +47,21 @@ nlm login --check || nlm login
 ### Browser Doesn't Launch
 
 **Symptoms:**
+
 - `nlm login` hangs with no browser window
 - Error about no supported browser found
 
 **Solutions:**
 
 1. **Ensure a supported Chromium-based browser is installed:**
-   Supported browsers (in priority order): Google Chrome, Arc (macOS), Brave, Microsoft Edge, Chromium, Vivaldi, Opera.
+   Supported browsers (in priority order): Google Chrome, Arc (macOS), Dia (macOS) Brave, Microsoft Edge, Chromium, Vivaldi, Opera.
+
    ```bash
    which google-chrome || which brave-browser || which chromium
    ```
 
 2. **Close existing browser instances:**
+
    ```bash
    pkill -f "Chrome\|Brave\|Arc\|Edge"
    # Wait a moment, then retry
@@ -77,22 +83,26 @@ nlm login --check || nlm login
 **Solutions:**
 
 1. **List existing profiles:**
+
    ```bash
    nlm login profile list
    ```
 
 2. **Create a new profile:**
+
    ```bash
    nlm login --profile work
    ```
 
 3. **Delete corrupted profile:**
+
    ```bash
    nlm login profile delete <profile-name>
    nlm login --profile <profile-name>
    ```
 
 4. **Switch default profile:**
+
    ```bash
    nlm login switch <profile-name>
    ```
@@ -133,6 +143,7 @@ without a drift diagnosis.
 ### Sandbox Environments
 
 **Symptom:**
+
 ```
 Error: Request failed: [Errno 8] nodename nor servname provided, or not known
 Hint: Check your internet connection.
@@ -143,12 +154,14 @@ Hint: Check your internet connection.
 **Solution for OpenAI Codex:**
 
 Add to `~/.codex/config.toml`:
+
 ```toml
 [sandbox_workspace_write]
 network_access = true
 ```
 
 Or run with full network access:
+
 ```bash
 codex exec --sandbox danger-full-access "nlm notebook list"
 ```
@@ -159,6 +172,7 @@ Ensure the container has network access and can reach `notebook.google.com`.
 ### Rate Limiting
 
 **Symptom:**
+
 ```
 Error: Rate limit exceeded
 ```
@@ -169,6 +183,7 @@ limits are separate and undocumented; video limits may require a longer pause.
 **Solutions:**
 
 1. **Wait and retry:**
+
    ```bash
    sleep 120  # Studio/video generation; shorter waits may be enough for queries
    # Retry command
@@ -178,6 +193,7 @@ limits are separate and undocumented; video limits may require a longer pause.
    They do not wait through a minute-scale Studio quota window.
 
 2. **Implement throttling in scripts:**
+
    ```bash
    # Run Studio/video creation sequentially; avoid parallel generation batches.
    # Wait 2 seconds between lightweight source operations.
@@ -203,6 +219,7 @@ path. Errors include the underlying file reason and the received path.
 ### Source Not Found
 
 **Symptom:**
+
 ```
 Error: Source not found
 ```
@@ -210,6 +227,7 @@ Error: Source not found
 **Solutions:**
 
 1. **Verify source exists:**
+
    ```bash
    nlm source list <notebook-id>
    ```
@@ -230,6 +248,7 @@ Error: Source not found
    Extract from URL: `https://docs.google.com/document/d/[DOC_ID]/edit`
 
 2. **Specify correct type:**
+
    ```bash
    nlm source add <nb-id> --drive <doc-id> --type slides  # for Slides
    nlm source add <nb-id> --drive <doc-id> --type sheets  # for Sheets
@@ -247,6 +266,7 @@ Error: Source not found
 **Symptom:** Drive source content is outdated.
 
 **Solution:**
+
 ```bash
 # Check which sources are stale
 nlm source stale <notebook-id>
@@ -268,6 +288,7 @@ checked. It does not mean the source is fresh.
 ### Research Already in Progress
 
 **Symptom:**
+
 ```
 Error: Research already in progress
 ```
@@ -275,11 +296,13 @@ Error: Research already in progress
 **Solutions:**
 
 1. **Wait for completion:**
+
    ```bash
    nlm research status <notebook-id>
    ```
 
 2. **Import existing results:**
+
    ```bash
    nlm research status <notebook-id> --full  # Get task ID
    nlm research import <notebook-id> <task-id>
@@ -293,12 +316,14 @@ Error: Research already in progress
 ### Research Takes Too Long
 
 **Expected durations:**
+
 - Fast mode: ~30 seconds
 - Deep mode: ~5 minutes
 
 **If exceeding these times:**
 
 1. **Check status without waiting:**
+
    ```bash
    nlm research status <notebook-id> --max-wait 0
    ```
@@ -315,6 +340,7 @@ Error: Research already in progress
 **Symptom:** `nlm studio status` shows "in_progress" for extended time.
 
 **Expected generation times:**
+
 - Reports, quizzes, flashcards: 30-60 seconds
 - Audio podcasts: 2-5 minutes
 - Videos: 3-7 minutes
@@ -324,6 +350,7 @@ Deep research can take longer. MCP `research_status` and CLI auto-import wait
 up to 15 minutes by default.
 
 **Solution:** Keep polling:
+
 ```bash
 nlm studio status <notebook-id>
 ```
@@ -335,6 +362,7 @@ nlm studio status <notebook-id>
 **Possible causes and solutions:**
 
 1. **No sources in notebook:**
+
    ```bash
    nlm source list <notebook-id>
    # If empty, add sources first
@@ -354,6 +382,7 @@ nlm studio status <notebook-id>
 ### Missing --confirm Flag
 
 **Symptom:**
+
 ```
 Error: Missing required flag: --confirm
 ```
@@ -361,6 +390,7 @@ Error: Missing required flag: --confirm
 **Cause:** All generation and delete commands require explicit confirmation.
 
 **Solution:** Add `--confirm` or `-y`:
+
 ```bash
 nlm audio create <notebook-id> --confirm
 # or
@@ -394,11 +424,13 @@ nlm data-table create <notebook-id> "Extract all dates" --confirm
 ### Custom Chat Prompt Without --goal
 
 **Symptom:**
+
 ```
 Error: --prompt is required when goal is 'custom'
 ```
 
 **Solution:**
+
 ```bash
 # CORRECT: specify both --goal custom AND --prompt
 nlm chat configure <id> --goal custom --prompt "Act as a tutor..."
@@ -409,16 +441,19 @@ nlm chat configure <id> --goal custom --prompt "Act as a tutor..."
 ## Getting More Help
 
 1. **Check command help:**
+
    ```bash
    nlm <command> --help
    ```
 
 2. **Get full AI documentation:**
+
    ```bash
    nlm --ai
    ```
 
 3. **Check version:**
+
    ```bash
    nlm --version
    ```

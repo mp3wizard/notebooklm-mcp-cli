@@ -27,7 +27,7 @@ nlm login profile rename <old> <new>  # Rename a profile
 nlm login --provider openclaw --cdp-url http://127.0.0.1:18800
 ```
 
-Each profile gets its own isolated browser session (supports Chrome, Arc, Brave, Edge, Chromium, Firefox, and more), so you can stay logged into multiple Google accounts simultaneously.
+Each profile gets its own isolated browser session (supports Chrome, Arc, Dia, Brave, Edge, Chromium, Firefox, and more), so you can stay logged into multiple Google accounts simultaneously.
 
 ## Command Structure
 
@@ -38,7 +38,7 @@ The CLI supports **two styles** - use whichever feels natural:
 nlm notebook create "Title"
 nlm source add <notebook> --url <url>
 
-# Verb-first (action-oriented)  
+# Verb-first (action-oriented)
 nlm create notebook "Title"
 nlm add url <notebook> <url>
 ```
@@ -245,12 +245,12 @@ nlm config set output.format json       # Change default output format
 
 **Available Settings:**
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `output.format` | `table` | Default output format (table, json) |
-| `output.color` | `true` | Enable colored output |
-| `output.short_ids` | `true` | Show shortened IDs |
-| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if the preferred browser is not found. |
+| Key                    | Default   | Description                                                                                                                                                                                        |
+| ---------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `output.format`        | `table`   | Default output format (table, json)                                                                                                                                                                |
+| `output.color`         | `true`    | Enable colored output                                                                                                                                                                              |
+| `output.short_ids`     | `true`    | Show shortened IDs                                                                                                                                                                                 |
+| `auth.browser`         | `auto`    | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if the preferred browser is not found.                                         |
 | `auth.default_profile` | `default` | Profile to use when `--profile` not specified. **Note:** The MCP Server always uses the active default profile. Changing this setting will instantaneously switch the MCP server's Google account. |
 
 ### Aliases (Shortcuts)
@@ -351,12 +351,12 @@ nlm doctor --verbose    # Include additional details (Python version, paths, etc
 
 **Checks performed:**
 
-| Category | What it checks |
-|----------|---------------|
-| Installation | Package version, `nlm` and `notebooklm-mcp` binary paths |
-| Authentication | Profile status, cookies present, CSRF token, account email |
-| Browser | Chromium-based browser installed, saved profiles for headless auth |
-| AI Tools | MCP configuration status for each supported client |
+| Category       | What it checks                                                     |
+| -------------- | ------------------------------------------------------------------ |
+| Installation   | Package version, `nlm` and `notebooklm-mcp` binary paths           |
+| Authentication | Profile status, cookies present, CSRF token, account email         |
+| Browser        | Chromium-based browser installed, saved profiles for headless auth |
+| AI Tools       | MCP configuration status for each supported client                 |
 
 Each issue includes a suggested fix (e.g., "Run `nlm login` to authenticate").
 
@@ -364,13 +364,13 @@ Each issue includes a suggested fix (e.g., "Run `nlm login` to authenticate").
 
 ## Output Formats
 
-| Flag | Description |
-|------|-------------|
-| (none) | Rich table format |
-| `--json` | JSON output, including source/Studio creation and deletion results |
-| `--quiet` | IDs only |
-| `--title` | "ID: Title" format |
-| `--full` | All columns |
+| Flag      | Description                                                        |
+| --------- | ------------------------------------------------------------------ |
+| (none)    | Rich table format                                                  |
+| `--json`  | JSON output, including source/Studio creation and deletion results |
+| `--quiet` | IDs only                                                           |
+| `--title` | "ID: Title" format                                                 |
+| `--full`  | All columns                                                        |
 
 ---
 

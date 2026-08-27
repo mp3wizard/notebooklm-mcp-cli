@@ -615,7 +615,7 @@ nlm download <type> <notebook-id> [OPTIONS]
 ```
 
 **Available types:** `audio`, `video`, `report`, `mind-map`, `slide-deck`,
-`infographic`, `quiz`, `flashcards`, `data-table`
+`infographic`, `quiz`, `flashcards`, `data-table`, `file`
 
 | Option | Description |
 |--------|-------------|
@@ -628,6 +628,7 @@ nlm download <type> <notebook-id> [OPTIONS]
 nlm download audio <nb-id> --output podcast.mp3
 nlm download video <nb-id> --output video.mp4
 nlm download report <nb-id> --output report.md
+nlm download file <nb-id> --id <artifact-id> --output export.bin
 nlm download quiz <nb-id> --output quiz.html --format html
 nlm download flashcards <nb-id> --output cards.json --format json
 ```
@@ -964,7 +965,8 @@ nlm config set <key> <value>
 | `output.format` | `table` | Default output format (table, json) |
 | `output.color` | `true` | Enable colored output |
 | `output.short_ids` | `true` | Show shortened IDs |
-| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if preferred browser is not found. |
+| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, dia, comet, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if a preferred named browser is not found. |
+| `auth.browser_path` | empty | Explicit Chromium-compatible executable path. Overrides named discovery; `NLM_BROWSER_PATH` provides the environment override. |
 | `auth.default_profile` | `default` | Profile to use when `--profile` not specified. **Note:** The MCP Server always uses the active default profile. Changing this setting will instantaneously switch the MCP server's Google account. |
 
 **Example**: Set default profile to avoid typing `--profile` for every command:

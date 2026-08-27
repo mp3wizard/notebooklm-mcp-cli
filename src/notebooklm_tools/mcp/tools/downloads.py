@@ -23,7 +23,7 @@ def download_artifact(
 
     Unified download tool replacing 9 separate download tools.
     Supports all artifact types: audio, video, report, mind_map, slide_deck,
-    infographic, data_table, quiz, flashcards.
+    infographic, data_table, file, quiz, flashcards.
 
     Args:
         notebook_id: Notebook UUID
@@ -35,6 +35,8 @@ def download_artifact(
             - slide_deck: Slide Deck (PDF or PPTX)
             - infographic: Infographic (PNG)
             - data_table: Data Table (CSV)
+            - data_table_xlsx: Data Table Excel export (XLSX)
+            - file: Generic Studio file export
             - quiz: Quiz (json|markdown|html)
             - flashcards: Flashcards (json|markdown|html)
         output_path: Path to save the file

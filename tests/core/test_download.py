@@ -8,7 +8,7 @@ import pytest
 
 from notebooklm_tools.core.base import BaseClient
 from notebooklm_tools.core.download import DownloadMixin
-from notebooklm_tools.core.errors import ArtifactDownloadError
+from notebooklm_tools.core.errors import ArtifactDownloadError, ArtifactParseError
 
 
 class TestDownloadMixinImport:
@@ -88,6 +88,240 @@ class TestDownloadMixinMethods:
                 [],
             ],
         ]
+
+    @staticmethod
+    def _xlsx_artifact() -> list:
+        artifact = [
+            "xlsx-1",
+            "sawn-lumber-design.xlsx",
+            10,
+            None,
+            3,
+        ]
+        artifact.extend([None] * 20)
+        artifact[24] = [
+            "sawn-lumber-design.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "https://drive.google.com/viewer/upload?ds=viewer-token",
+            "https://contribution.usercontent.google/download?c=download-token",
+        ]
+        return artifact
+
+    def test_download_data_table_streams_xlsx_artifact(self, tmp_path):
+        """Type-10 data tables are downloaded as binary XLSX, not parsed as CSV."""
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        mixin._list_raw = Mock(return_value=[self._xlsx_artifact()])
+        captured: dict[str, str] = {}
+
+        class FakeResponse:
+            headers = {
+                "content-length": "7",
+                "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            }
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def raise_for_status(self):
+                return None
+
+            def iter_bytes(self, chunk_size=65536):
+                yield b"PK\x03\x04"
+                yield b"xlsx"
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                captured["url"] = ""
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def stream(self, method, url):
+                captured["method"] = method
+                captured["url"] = url
+                return FakeResponse()
+
+        output = tmp_path / "table.xlsx"
+        with patch("notebooklm_tools.core.download.httpx.Client", FakeClient):
+            result = mixin.download_data_table("nb-1", str(output), "xlsx-1")
+
+        assert result == str(output)
+        assert output.read_bytes() == b"PK\x03\x04xlsx"
+        assert captured == {
+            "method": "GET",
+            "url": "https://contribution.usercontent.google/download?c=download-token",
+        }
+
+    @staticmethod
+    def _generic_file_artifact(metadata: list[str]) -> list:
+        artifact = ["file-1", "analysis.md", 10, None, 3]
+        artifact.extend([None] * 20)
+        artifact[24] = metadata
+        return artifact
+
+    def test_download_file_streams_direct_export_url(self, tmp_path):
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        direct_url = "https://contribution.usercontent.google/download?c=file-token"
+        mixin._list_raw = Mock(
+            return_value=[
+                self._generic_file_artifact(
+                    [
+                        "analysis.md",
+                        "text/markdown",
+                        "https://drive.google.com/viewer/upload?ds=viewer-token",
+                        direct_url,
+                    ]
+                )
+            ]
+        )
+        requested_urls: list[str] = []
+
+        class FakeResponse:
+            headers = {"content-length": "8", "content-type": "text/markdown"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def raise_for_status(self):
+                return None
+
+            def iter_bytes(self, chunk_size=65536):
+                yield b"# Answer"
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def stream(self, method, url):
+                requested_urls.append(url)
+                return FakeResponse()
+
+        output = tmp_path / "analysis.md"
+        with patch("notebooklm_tools.core.download.httpx.Client", FakeClient):
+            result = mixin.download_file("nb-1", str(output), "file-1")
+
+        assert result == str(output)
+        assert output.read_text(encoding="utf-8") == "# Answer"
+        assert requested_urls == [direct_url]
+
+    @pytest.mark.parametrize(
+        ("output_name", "resolved_name"),
+        [("analysis.md", "analysis.pdf"), ("nb_file.bin", "nb_file.pdf")],
+    )
+    def test_download_file_resolves_trusted_viewer_envelope(
+        self, tmp_path, output_name, resolved_name
+    ):
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        viewer_url = "https://drive.google.com/viewer/upload?ds=viewer-token"
+        pdf_url = "https://doc-1-apps-viewer.googleusercontent.com/file.pdf"
+        mixin._list_raw = Mock(
+            return_value=[self._generic_file_artifact(["analysis.md", "text/markdown", viewer_url])]
+        )
+        requested_urls: list[str] = []
+
+        class ViewerResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"pdf": pdf_url, "meta": "redacted"}
+
+        class DownloadResponse:
+            headers = {"content-length": "8", "content-type": "application/pdf"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def raise_for_status(self):
+                return None
+
+            def iter_bytes(self, chunk_size=65536):
+                yield b"%PDF-1.7"
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def get(self, url):
+                requested_urls.append(url)
+                return ViewerResponse()
+
+            def stream(self, method, url):
+                requested_urls.append(url)
+                return DownloadResponse()
+
+        output = tmp_path / output_name
+        resolved_output = tmp_path / resolved_name
+        with patch("notebooklm_tools.core.download.httpx.Client", FakeClient):
+            result = mixin.download_file("nb-1", str(output), "file-1")
+
+        assert result == str(resolved_output)
+        assert resolved_output.read_bytes() == b"%PDF-1.7"
+        assert not output.exists()
+        assert requested_urls == [viewer_url, pdf_url]
+
+    def test_download_file_rejects_untrusted_viewer_target(self, tmp_path):
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        viewer_url = "https://drive.google.com/viewer/upload?ds=viewer-token"
+        mixin._list_raw = Mock(
+            return_value=[self._generic_file_artifact(["analysis.md", "text/markdown", viewer_url])]
+        )
+
+        class ViewerResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"pdf": "https://evil.example/file.pdf"}
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def get(self, url):
+                return ViewerResponse()
+
+            def stream(self, method, url):
+                raise AssertionError("untrusted target must not be downloaded")
+
+        output = tmp_path / "analysis.pdf"
+        with (
+            patch("notebooklm_tools.core.download.httpx.Client", FakeClient),
+            pytest.raises(ArtifactParseError, match="trusted Google host"),
+        ):
+            mixin.download_file("nb-1", str(output), "file-1")
+
+        assert not output.exists()
 
     def _download_error(self, status_code: int, final_url: str) -> ArtifactDownloadError:
         request = httpx.Request("GET", final_url)
@@ -227,6 +461,33 @@ class TestDownloadMixinMethods:
         assert mixin._list_raw.call_count == 2
         mixin._download_url.assert_any_await(first_url, "/tmp/audio.m4a", None)  # nosec B108 - mock return value in test double, not a real filesystem path
         mixin._download_url.assert_any_await(second_url, "/tmp/audio.m4a", None)  # nosec B108 - mock return value in test double, not a real filesystem path
+
+    @pytest.mark.asyncio
+    async def test_download_audio_retries_transient_drum_media_404(self):
+        """The current drum.usercontent.google.com redirect is retryable."""
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        first_url = "https://drum.usercontent.google.com/notebooklm/audio=m140-dv"
+        second_url = "https://drum.usercontent.google.com/notebooklm/audio2=m140-dv"
+        retryable_error = self._download_error(
+            404,
+            "https://drum.usercontent.google.com/rd-notebooklm/audio=s512-m140-dv",
+        )
+
+        mixin._list_raw = Mock(
+            side_effect=[
+                [self._audio_artifact(first_url)],
+                [self._audio_artifact(second_url)],
+            ]
+        )
+        mixin._download_url = AsyncMock(side_effect=[retryable_error, "/tmp/audio.m4a"])
+        mixin._AUDIO_DOWNLOAD_RETRY_DELAYS = (0,)
+
+        result = await mixin.download_audio("nb-1", "/tmp/audio.m4a", artifact_id="art-1")
+
+        assert result == "/tmp/audio.m4a"
+        assert mixin._list_raw.call_count == 2
+        mixin._download_url.assert_any_await(first_url, "/tmp/audio.m4a", None)
+        mixin._download_url.assert_any_await(second_url, "/tmp/audio.m4a", None)
 
     @pytest.mark.asyncio
     async def test_download_audio_does_not_retry_unrelated_404(self):

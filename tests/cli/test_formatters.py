@@ -114,6 +114,27 @@ def test_json_formatter_format_artifacts_full_preserves_rich_fields(capsys):
     ]
 
 
+def test_json_formatter_format_artifacts_full_includes_file_metadata(capsys):
+    """Legacy CLI JSON must identify downloadable generic Studio files."""
+    formatter = JsonFormatter()
+    artifacts = [
+        {
+            "artifact_id": "art-file-1",
+            "type": "file",
+            "status": "completed",
+            "title": "Generated notes",
+            "download_filename": "generated-notes.md",
+            "mime_type": "text/markdown",
+        }
+    ]
+
+    formatter.format_artifacts(artifacts, full=True)
+
+    data = json.loads(capsys.readouterr().out)
+    assert data[0]["download_filename"] == "generated-notes.md"
+    assert data[0]["mime_type"] == "text/markdown"
+
+
 def test_json_formatter_format_artifacts_without_full_keeps_minimal_shape(capsys):
     formatter = JsonFormatter()
     artifacts = [

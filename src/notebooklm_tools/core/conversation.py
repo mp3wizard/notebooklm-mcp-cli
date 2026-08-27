@@ -577,10 +577,20 @@ class ConversationMixin(BaseClient):
             backend (used for persistent chat history), or None if not found.
         """
         # Remove anti-XSSI prefix
-        if response_text.startswith(")]}'"):
-            response_text = response_text[4:]
+        start_offset = 4 if response_text.startswith(")]}'") else 0
 
-        lines = response_text.strip().split("\n")
+        def _iter_lines():
+            """Yield response lines without materializing the full body."""
+            line_start = start_offset
+            response_length = len(response_text)
+            while line_start < response_length:
+                line_end = response_text.find("\n", line_start)
+                if line_end == -1:
+                    yield response_text[line_start:]
+                    return
+                yield response_text[line_start:line_end]
+                line_start = line_end + 1
+
         longest_answer = ""
         longest_thinking = ""
         answer_citation_data: dict[str, Any] = {}
@@ -605,23 +615,20 @@ class ConversationMixin(BaseClient):
                     longest_thinking = text
 
         # Parse chunks - prioritize type 1 (answers) over type 2 (thinking)
-        i = 0
-        while i < len(lines):
-            line = lines[i].strip()
+        lines = iter(_iter_lines())
+        for raw_line in lines:
+            line = raw_line.strip()
             if not line:
-                i += 1
                 continue
 
             # Try to parse as byte count (indicates next line is JSON)
             try:
                 int(line)
-                i += 1
-                if i < len(lines):
-                    _process_chunk(lines[i])
-                i += 1
+                json_line = next(lines, None)
+                if json_line is not None:
+                    _process_chunk(json_line)
             except ValueError:
                 _process_chunk(line)
-                i += 1
 
         result = longest_answer if longest_answer else longest_thinking
 
