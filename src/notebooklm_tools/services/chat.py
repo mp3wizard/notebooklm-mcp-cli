@@ -225,21 +225,6 @@ def query(
             user_message="Please provide a question to ask.",
         )
 
-    # Validate notebook has sources
-    if not source_ids:
-        # We only check if we target the whole notebook
-        try:
-            nb = notebook_service.get_notebook(client, notebook_id)
-            if nb["source_count"] == 0:
-                raise ValidationError(
-                    "Cannot query an empty notebook.",
-                    user_message="This notebook has no sources to query. Add a source first using 'nlm source add' or 'nlm research start'.",
-                )
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.debug("Could not prefetch notebook details for empty-check: %s", e)
-
     budget = _QueryBudget(timeout)
     try:
         resolved_source_ids = _resolve_query_source_ids(

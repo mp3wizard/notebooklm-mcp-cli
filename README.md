@@ -10,6 +10,22 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.9.15 — August 2026)
+- **Generic Chromium-family authentication (#302)** — auth discovers Perplexity Comet on macOS and accepts an explicit Chromium-compatible executable via `auth.browser_path`/`NLM_BROWSER_PATH`, so new browser forks don't require a dedicated release; invalid explicit paths fail closed.
+- **Dia browser support** — added as a discoverable Chromium-family browser for `nlm login`.
+- **Reachable generic Studio file exports (#315)** — Studio type `10` is now classified by MIME instead of being assumed to be XLSX; non-spreadsheet exports appear as `file` with filename/MIME preserved and download through CLI, MCP, and bulk downloads. XLSX exports retain their existing route.
+- **Private vulnerability intake (#308)** — GitHub private vulnerability reporting enabled upstream.
+- Two post-release fixes: CLI artifact JSON now exposes file metadata; data-table downloads preserve the `.xlsx` extension.
+
+### Security scan (August 2026 — v0.9.15)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit, mcp-exfil-scan, skillspector (`--no-llm`)
+- **14 Medium findings fixed** (Bandit `B108`, mock `/tmp/...` paths in test doubles — annotated `# nosec` per existing file convention). 0 High/Critical findings
+- **0 secrets** (Gitleaks, Trivy, OSV-Scanner clean; TruffleHog's 26 hits confirmed non-secret test-identifier false positives), **0 dependency vulnerabilities** (OSV-Scanner + Trivy against resolved lockfile versions)
+- mcps-audit's 129 CRITICAL/HIGH and skillspector's 308 findings (all 30 unique categories sampled) individually reviewed and confirmed false positives — CDP browser-automation strings, `--confirm`/`-y` safety flags, HTTP client core functionality, credential-handling code central to the tool's purpose, doc/changelog prose, and a non-version-aware dependency fallback contradicted by OSV-Scanner/Trivy
+- **Bonus catch**: the merge itself introduced a functional regression (query() calling `get_notebook` twice per whole-notebook query, doubling backend load) — caught by the test suite, not a scanner, and fixed
+- mcp-scan skipped (opt-in, unattended scheduled run)
+- Full report: [`docs/security-scan-report-2026-08-27.md`](docs/security-scan-report-2026-08-27.md)
+
 ### Upstream sync (v0.9.13 – v0.9.14 — August 2026)
 - **Native NotebookLM collections (#303)** — Manage collections through the CLI and MCP server (create, list, edit, delete, emoji). Thanks to **@rodrigopazTech**!
 - **Windows standalone Chromium authentication (#302)** — browser discovery now includes Chromium in standard machine-wide and per-user Windows install locations. Thanks to **@zaidLMS**!

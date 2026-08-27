@@ -133,10 +133,10 @@ class TestDownloadSync:
         assert result["path"] == "/tmp/table.csv"  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_download_generic_file(self, mock_client):
-        result = download_sync(mock_client, "nb-1", "file", "/tmp/analysis.md", "file-1")
+        result = download_sync(mock_client, "nb-1", "file", "/tmp/analysis.md", "file-1")  # nosec B108 - test-only destination path, not a real filesystem path
 
-        assert result == {"artifact_type": "file", "path": "/tmp/analysis.pdf"}
-        mock_client.download_file.assert_called_once_with("nb-1", "/tmp/analysis.md", "file-1")
+        assert result == {"artifact_type": "file", "path": "/tmp/analysis.pdf"}  # nosec B108 - mock return value in test double, not a real filesystem path
+        mock_client.download_file.assert_called_once_with("nb-1", "/tmp/analysis.md", "file-1")  # nosec B108 - test-only destination path, not a real filesystem path
 
     def test_invalid_type_raises_validation_error(self, mock_client):
         with pytest.raises(ValidationError, match="Unknown"):
@@ -348,19 +348,23 @@ class TestDownloadAsync:
     @pytest.mark.asyncio
     async def test_download_xlsx_data_table_via_async(self, mock_client):
         """Issue #305: type-10 XLSX exports use the data-table downloader."""
-        result = await download_async(mock_client, "nb-1", "data_table_xlsx", "/tmp/dt.xlsx")
+        result = await download_async(mock_client, "nb-1", "data_table_xlsx", "/tmp/dt.xlsx")  # nosec B108 - test-only destination path, not a real filesystem path
         assert result["artifact_type"] == "data_table_xlsx"
-        assert result["path"] == "/tmp/table.csv"
-        mock_client.download_data_table.assert_called_once_with("nb-1", "/tmp/dt.xlsx", None)
+        assert result["path"] == "/tmp/table.csv"  # nosec B108 - mock return value in test double, not a real filesystem path
+        mock_client.download_data_table.assert_called_once_with("nb-1", "/tmp/dt.xlsx", None)  # nosec B108 - test-only destination path, not a real filesystem path
 
     @pytest.mark.asyncio
     async def test_download_generic_file_via_async(self, mock_client):
         result = await download_async(
-            mock_client, "nb-1", "file", "/tmp/analysis.md", artifact_id="file-1"
+            mock_client,
+            "nb-1",
+            "file",
+            "/tmp/analysis.md",
+            artifact_id="file-1",  # nosec B108 - test-only destination path, not a real filesystem path
         )
 
-        assert result == {"artifact_type": "file", "path": "/tmp/analysis.pdf"}
-        mock_client.download_file.assert_called_once_with("nb-1", "/tmp/analysis.md", "file-1")
+        assert result == {"artifact_type": "file", "path": "/tmp/analysis.pdf"}  # nosec B108 - mock return value in test double, not a real filesystem path
+        mock_client.download_file.assert_called_once_with("nb-1", "/tmp/analysis.md", "file-1")  # nosec B108 - test-only destination path, not a real filesystem path
 
 
 class TestValidateAudioExtension:
@@ -373,10 +377,14 @@ class TestValidateAudioExtension:
 
     @pytest.mark.parametrize("ext", [".m4a", ".mp4", ".m4b"])
     def test_compatible_extensions_pass(self, ext):
-        validate_audio_extension(f"/tmp/podcast{ext}")  # should not raise  # nosec B108 - mock return value in test double, not a real filesystem path
+        validate_audio_extension(
+            f"/tmp/podcast{ext}"
+        )  # should not raise  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_no_extension_passes(self):
-        validate_audio_extension("/tmp/podcast")  # should not raise  # nosec B108 - mock return value in test double, not a real filesystem path
+        validate_audio_extension(
+            "/tmp/podcast"
+        )  # should not raise  # nosec B108 - mock return value in test double, not a real filesystem path
 
     def test_case_insensitive(self):
         with pytest.raises(ValidationError, match="cannot honor"):
