@@ -10,6 +10,23 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.10.0 — August 2026)
+- **Gemini Notebook Enterprise support (#309)** — CLI and MCP users can target Enterprise notebooks on Cloud or Vertex hosts with project/location-aware routing, profile-based credentials, Enterprise notebook listing/queries, and Enterprise-aware notebook URLs. Opt-in; personal routing stays the default when Enterprise settings are absent. Thanks to **@Fang-Bo-Hsieh**!
+- **Dia browser authentication (#313)** — Dia added as a macOS Chromium-family authentication browser, alongside generic executable-path support for compatible forks. Thanks to **@thezaidsheikh**!
+- **Studio artifact recovery and downloads (#315, #305)** — generic type-10 artifacts classified by MIME, exposed consistently through CLI/MCP JSON, downloadable with correct filename extension; XLSX data tables keep `.xlsx`, CSV data tables keep `.csv`.
+- **Query parser memory use (#314)** — query response parsing no longer creates full-body strip/split copies that could multiply memory use on source-heavy notebooks.
+- **Authentication and media edge cases (#302, #304, #310, #311)** — broader Chromium-family browser discovery, rebranded Notebook host recognition during CDP login, expired-credential vs network-failure distinction, transient audio download retries against the current media host.
+- This release also consolidates the previously-unpublished v0.9.15 maintenance work (see below) into the same tag.
+
+### Security scan (August 2026 — v0.10.0)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, skillspector (`--no-llm`)
+- **0 High/Critical findings, 0 actionable Medium** — the single raw Bandit Medium is a pre-existing, already-`# nosec`-annotated test-fixture false positive that this bandit build doesn't parse; no fix needed
+- **0 secrets** (Gitleaks, Trivy, OSV-Scanner clean; TruffleHog's 30 hits confirmed non-secret test-identifier/doc-placeholder false positives), **0 dependency vulnerabilities** (OSV-Scanner + Trivy against resolved lockfile versions, 88 packages)
+- mcps-audit's 131 CRITICAL/HIGH and skillspector's 32 findings reviewed/sampled and confirmed false positives — CDP browser-automation strings, `--confirm`/`-y` safety flags, doc-length/heading-text pattern matches, and the tool's own documented cookie-based auth flow being misread as credential theft
+- **Coverage gap this run:** config-audit, skill-audit, and mcp-exfil-scan were skipped — the installed `claude-code-security-plugins` (v1.8.0) doesn't ship their bundled scripts. Flagged for the plugin to be reinstalled/updated before the next scheduled run
+- mcp-scan skipped (opt-in, unattended scheduled run)
+- Full report: [`docs/security-scan-report-2026-08-28.md`](docs/security-scan-report-2026-08-28.md)
+
 ### Upstream sync (v0.9.15 — August 2026)
 - **Generic Chromium-family authentication (#302)** — auth discovers Perplexity Comet on macOS and accepts an explicit Chromium-compatible executable via `auth.browser_path`/`NLM_BROWSER_PATH`, so new browser forks don't require a dedicated release; invalid explicit paths fail closed.
 - **Dia browser support** — added as a discoverable Chromium-family browser for `nlm login`.
