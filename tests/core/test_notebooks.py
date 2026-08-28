@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def test_notebook_mixin_import():
     """Test that NotebookMixin can be imported."""
@@ -34,6 +36,25 @@ def test_notebook_mixin_has_methods():
 
     for method_name in expected_methods:
         assert hasattr(NotebookMixin, method_name), f"Missing method: {method_name}"
+
+
+def test_enterprise_list_does_not_fallback_to_consumer_rpc():
+    """Enterprise failures must remain visible instead of hiding behind a consumer call."""
+    from notebooklm_tools.core.notebooks import NotebookMixin
+
+    mixin = NotebookMixin(cookies={"SID": "x"}, csrf_token="csrf")
+    mixin._is_enterprise = lambda: True
+    mixin._enterprise_project_id = "project-123"
+    with (
+        patch.object(mixin, "_call_rpc", side_effect=RuntimeError("enterprise RPC failed")) as rpc,
+        pytest.raises(RuntimeError, match="enterprise RPC failed"),
+    ):
+        mixin.list_notebooks()
+
+    rpc.assert_called_once_with(
+        mixin.RPC_LIST_NOTEBOOKS_ENTERPRISE,
+        ["projects/project-123/locations/global", None, None, 1],
+    )
 
 
 def test_list_notebooks_uses_correct_rpc():

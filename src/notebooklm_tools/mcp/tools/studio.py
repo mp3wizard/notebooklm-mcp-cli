@@ -5,7 +5,7 @@ from typing import Any
 
 from ...services import ServiceError, ValidationError
 from ...services import studio as studio_service
-from ...utils.config import get_base_url, get_default_language
+from ...utils.config import get_default_language, get_notebook_url
 from ._utils import ResultDict, coerce_list, error_result, get_client, logged_tool
 
 # Auth guard: avoid a live HTTP check on every studio_create call. We check
@@ -254,7 +254,7 @@ def studio_create(
         return {
             **result_payload,
             "status": "success",
-            "notebook_url": f"{get_base_url()}/notebook/{notebook_id}",
+            "notebook_url": get_notebook_url(notebook_id),
         }
     except ValidationError as e:
         return error_result(_normalize_studio_validation_error(str(e)))
@@ -348,7 +348,7 @@ def studio_status(
                 "limit": status_result["limit"],
                 "has_more": status_result["has_more"],
             },
-            "notebook_url": f"{get_base_url()}/notebook/{notebook_id}",
+            "notebook_url": get_notebook_url(notebook_id),
         }
     except (ValidationError, ServiceError) as e:
         message = e.user_message if isinstance(e, ServiceError) else str(e)
@@ -455,7 +455,7 @@ def studio_revise(
         )
         return {
             "status": "success",
-            "notebook_url": f"{get_base_url()}/notebook/{notebook_id}",
+            "notebook_url": get_notebook_url(notebook_id),
             **result,
         }
     except (ValidationError, ServiceError) as e:

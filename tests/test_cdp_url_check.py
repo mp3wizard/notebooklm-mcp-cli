@@ -44,6 +44,8 @@ from notebooklm_tools.utils.cdp import _is_notebooklm_url, is_logged_in
         ),
         # Workspace/enterprise variant of the rebrand host (issue #270).
         ("https://notebook.cloud.google.com/", True),
+        # Vertex AI Search enterprise host advertised by the Enterprise setup.
+        ("https://vertexaisearch.cloud.google.com/", True),
         # Standard Google sign-in redirect: not logged in.
         ("https://accounts.google.com/v3/signin/identifier?continue=...", False),
         ("https://accounts.google.com/", False),
@@ -69,6 +71,7 @@ def test_is_logged_in(url: str, expected: bool) -> None:
         ("https://notebooklm.cloud.google.com/notebook/abc", True),
         ("https://notebook.google.com/", True),
         ("https://notebook.cloud.google.com/", True),
+        ("https://vertexaisearch.cloud.google.com/", True),
         (
             "https://accounts.google.com/v3/signin/identifier"
             "?continue=https%3A%2F%2Fnotebooklm.google.com%2F",

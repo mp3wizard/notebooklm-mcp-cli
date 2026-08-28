@@ -28,6 +28,10 @@ def test_studio_status_is_lean_and_bounded_by_default():
     with (
         patch("notebooklm_tools.mcp.tools.studio.get_client", return_value=mock_client),
         patch(
+            "notebooklm_tools.mcp.tools.studio.get_notebook_url",
+            return_value="https://notebook.cloud.google.com/eu/notebook/nb-1?project=project-123",
+        ) as get_notebook_url,
+        patch(
             "notebooklm_tools.mcp.tools.studio.studio_service.get_studio_status",
             return_value=service_result,
         ) as get_status,
@@ -49,6 +53,10 @@ def test_studio_status_is_lean_and_bounded_by_default():
         "limit": 20,
         "has_more": True,
     }
+    assert result["notebook_url"] == (
+        "https://notebook.cloud.google.com/eu/notebook/nb-1?project=project-123"
+    )
+    get_notebook_url.assert_called_once_with("nb-1")
 
 
 def test_studio_status_can_request_one_detailed_artifact():
@@ -111,6 +119,37 @@ def test_studio_create_preserves_rate_limit_hint():
     assert result["hint"] == "Wait 1-2 minutes and try again."
 
 
+def test_studio_create_uses_configured_notebook_url():
+    mock_client = MagicMock()
+
+    with (
+        patch("notebooklm_tools.mcp.tools.studio.get_client", return_value=mock_client),
+        patch(
+            "notebooklm_tools.mcp.tools.studio.get_notebook_url",
+            return_value="https://notebook.cloud.google.com/eu/notebook/nb-1?project=project-123",
+        ) as get_notebook_url,
+        patch(
+            "notebooklm_tools.mcp.tools.studio._studio_auth_is_valid",
+            return_value=(True, None, None),
+        ),
+        patch(
+            "notebooklm_tools.mcp.tools.studio.studio_service.create_artifact",
+            return_value={"artifact_id": "art-1"},
+        ),
+    ):
+        result = studio.studio_create(
+            notebook_id="nb-1",
+            artifact_type="video",
+            confirm=True,
+        )
+
+    assert result["status"] == "success"
+    assert result["notebook_url"] == (
+        "https://notebook.cloud.google.com/eu/notebook/nb-1?project=project-123"
+    )
+    get_notebook_url.assert_called_once_with("nb-1")
+
+
 def test_studio_revise_preserves_hint_on_service_error():
     mock_client = MagicMock()
 
@@ -138,3 +177,31 @@ def test_studio_revise_preserves_hint_on_service_error():
     assert result["status"] == "error"
     assert "PERMISSION_DENIED" in result["error"]
     assert "editable notebook you own" in result["hint"]
+
+
+def test_studio_revise_uses_configured_notebook_url():
+    mock_client = MagicMock()
+
+    with (
+        patch("notebooklm_tools.mcp.tools.studio.get_client", return_value=mock_client),
+        patch(
+            "notebooklm_tools.mcp.tools.studio.get_notebook_url",
+            return_value="https://notebook.cloud.google.com/eu/notebook/nb-1?project=project-123",
+        ) as get_notebook_url,
+        patch(
+            "notebooklm_tools.mcp.tools.studio.studio_service.revise_artifact",
+            return_value={"artifact_id": "art-2"},
+        ),
+    ):
+        result = studio.studio_revise(
+            notebook_id="nb-1",
+            artifact_id="art-1",
+            slide_instructions=[{"slide": 1, "instruction": "Tighten the title"}],
+            confirm=True,
+        )
+
+    assert result["status"] == "success"
+    assert result["notebook_url"] == (
+        "https://notebook.cloud.google.com/eu/notebook/nb-1?project=project-123"
+    )
+    get_notebook_url.assert_called_once_with("nb-1")

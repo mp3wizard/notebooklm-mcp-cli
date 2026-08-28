@@ -3,7 +3,7 @@
 import httpx
 
 from ..core.client import NotebookLMClient
-from ..utils.config import get_base_url
+from ..utils.config import get_notebook_url
 from ._compat import TypedDict
 from .errors import CreationError, NotFoundError, ServiceError, ValidationError
 
@@ -183,7 +183,7 @@ def get_notebook(
                 "notebook_id": nb_id,
                 "title": title,
                 "source_count": len(sources),
-                "url": f"{get_base_url()}/notebook/{nb_id}",
+                "url": get_notebook_url(nb_id),
                 "sources": sources,
                 "emoji": emoji,
             }
@@ -194,7 +194,7 @@ def get_notebook(
             "notebook_id": nb.id,
             "title": getattr(nb, "title", "Untitled"),
             "source_count": getattr(nb, "source_count", 0),
-            "url": getattr(nb, "url", f"{get_base_url()}/notebook/{nb.id}"),
+            "url": getattr(nb, "url", get_notebook_url(nb.id)),
             "sources": [],
             "emoji": getattr(nb, "emoji", None),
         }

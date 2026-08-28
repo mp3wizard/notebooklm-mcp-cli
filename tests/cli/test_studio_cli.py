@@ -87,6 +87,10 @@ def test_studio_status_can_emit_mcp_compatible_json(runner):
         patch("notebooklm_tools.cli.commands.studio.get_alias_manager", return_value=alias_manager),
         patch("notebooklm_tools.cli.commands.studio.get_client", return_value=client),
         patch(
+            "notebooklm_tools.cli.commands.studio.get_notebook_url",
+            return_value="https://notebook.cloud.google.com/eu/notebook/nb-1?project=project-123",
+        ) as get_notebook_url,
+        patch(
             "notebooklm_tools.cli.commands.studio.studio_service.get_studio_status",
             return_value=_status_result(),
         ) as get_status,
@@ -100,6 +104,9 @@ def test_studio_status_can_emit_mcp_compatible_json(runner):
     payload = json.loads(result.output)
     assert payload["status"] == "success"
     assert payload["artifacts"][0]["artifact_id"] == "video-1"
+    assert payload["notebook_url"] == (
+        "https://notebook.cloud.google.com/eu/notebook/nb-1?project=project-123"
+    )
     assert payload["pagination"] == {
         "returned": 2,
         "offset": 0,
@@ -114,6 +121,7 @@ def test_studio_status_can_emit_mcp_compatible_json(runner):
         limit=20,
         offset=0,
     )
+    get_notebook_url.assert_called_once_with("nb-1")
 
 
 def test_video_list_only_emits_video_artifacts(runner):

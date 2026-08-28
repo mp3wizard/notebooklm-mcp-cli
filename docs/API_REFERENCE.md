@@ -240,6 +240,45 @@ prompt rather than an undocumented payload change.
 POST https://notebook.google.com/_/LabsTailwindUi/data/batchexecute
 ```
 
+### Gemini Notebook Enterprise
+
+Enterprise uses a project- and location-scoped Cloud NotebookLM endpoint. The
+configured base host may be `notebook.cloud.google.com` (current documented
+host), `notebooklm.cloud.google.com`, or `vertexaisearch.cloud.google.com` for
+older deployments. Set `NOTEBOOKLM_PROJECT_ID` and `NOTEBOOKLM_LOCATION` before
+starting the client. `NOTEBOOKLM_PROJECT_ID` is required for Enterprise; the
+location defaults to `global`.
+
+For the documented `notebook.cloud.google.com` host, the routes are:
+
+```
+POST https://notebook.cloud.google.com/{location}/_/CloudNotebookLmUi/data/batchexecute
+POST https://notebook.cloud.google.com/{location}/_/CloudNotebookLmUi/data/google.cloud.notebooklm.v1main.NotebookService/GenerateFreeFormStreamed
+POST https://notebook.cloud.google.com/{location}/upload/_/
+```
+
+The Enterprise list-notebooks RPC is `rG2vCb` with a project-qualified parent:
+
+```json
+["projects/{project}/locations/{location}", null, null, 1]
+```
+
+Enterprise streamed-query requests identify the notebook with the resource
+name `projects/{project}/locations/{location}/notebooks/{notebook_id}`:
+
+```json
+[
+  [[["source-id"]]],
+  "question",
+  {"70000": "projects/{project}/locations/{location}/notebooks/{notebook_id}"}
+]
+```
+
+These structures are based on a contributor-provided Enterprise web-client
+capture and are covered by the Enterprise routing tests. Live validation still
+requires access to an Enterprise deployment; record a redacted network capture
+when updating them because Google may rotate the internal RPC IDs and paths.
+
 ## Request Format
 
 ```

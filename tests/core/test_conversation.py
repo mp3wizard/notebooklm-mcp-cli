@@ -324,6 +324,26 @@ class TestQueryUsesServerConversationId:
         assert result["conversation_id"] != "server-conv-id"
         assert len(result["conversation_id"]) == 36
 
+    def test_enterprise_default_query_skips_consumer_conversation_lookup(self):
+        """Enterprise has no consumer conversation RPC on its streamed route."""
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._is_enterprise = lambda: True
+        mixin._enterprise_project_id = "project-123"
+        mixin._location = "global"
+        with (
+            patch.object(mixin, "get_conversation_id", side_effect=AssertionError),
+            patch("notebooklm_tools.core.conversation._httpx.Client") as mock_client_class,
+        ):
+            mock_response = mock_client_class.return_value.__enter__.return_value.post.return_value
+            mock_response.text = ")]}'\n100\n" + json.dumps(
+                [["wrb.fr", None, json.dumps([["An Enterprise answer.", None, [], None, [1]]])]]
+            )
+            mock_response.raise_for_status = lambda: None
+
+            result = mixin.query("nb-123", "Hello?", source_ids=["src-1"])
+
+        assert result["answer"] == "An Enterprise answer."
+
     def test_query_passes_timeout_to_internal_lookups(self):
         mixin = self._make_mixin()
         with (

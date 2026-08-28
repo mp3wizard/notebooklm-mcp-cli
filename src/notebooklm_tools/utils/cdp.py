@@ -75,7 +75,12 @@ def _normalize_ws_url(url: str | None) -> str | None:
 
 
 from notebooklm_tools.core.exceptions import AuthenticationError  # noqa: E402
-from notebooklm_tools.utils.config import get_base_url, get_home_dir  # noqa: E402
+from notebooklm_tools.utils.config import (  # noqa: E402
+    get_base_url,
+    get_enterprise_location,
+    get_enterprise_project_id,
+    get_home_dir,
+)
 
 __all__ = [
     "get_chrome_path",
@@ -91,7 +96,33 @@ __all__ = [
 
 CDP_DEFAULT_PORT = 9222
 CDP_PORT_RANGE = range(9222, 9232)  # Ports to scan for existing/available
-NOTEBOOKLM_URL = f"{get_base_url()}/"
+
+
+def get_notebooklm_url() -> str:
+    """Return the browser URL used to authenticate the configured account."""
+    base_url = get_base_url()
+    host = (urlparse(base_url).hostname or "").lower()
+    enterprise_hosts = {
+        "notebooklm.cloud.google.com",
+        "notebook.cloud.google.com",
+        "vertexaisearch.cloud.google.com",
+    }
+    if host not in enterprise_hosts:
+        return f"{base_url}/"
+
+    project_id = get_enterprise_project_id()
+    if not project_id:
+        raise ValueError(
+            "NOTEBOOKLM_PROJECT_ID is required when authenticating Gemini Notebook Enterprise."
+        )
+    location = get_enterprise_location()
+    prefix = (
+        f"/notebooklm/{location}" if host == "vertexaisearch.cloud.google.com" else f"/{location}"
+    )
+    return f"{base_url}{prefix}/?project={quote(project_id, safe='')}"
+
+
+NOTEBOOKLM_URL = get_notebooklm_url()
 
 import logging as _logging  # noqa: E402
 
@@ -1121,7 +1152,7 @@ def find_or_create_notebooklm_page_by_cdp_url(cdp_http_url: str) -> dict | None:
             return page
 
     try:
-        encoded_url = quote(NOTEBOOKLM_URL, safe="")
+        encoded_url = quote(get_notebooklm_url(), safe="")
         response = httpx_client.put(
             f"{cdp_http_url}/json/new?{encoded_url}",
             timeout=15,
@@ -1138,7 +1169,7 @@ def find_or_create_notebooklm_page_by_cdp_url(cdp_http_url: str) -> dict | None:
             page = response.json()
             ws_url = _normalize_ws_url(page.get("webSocketDebuggerUrl"))
             if ws_url:
-                navigate_to_url(ws_url, NOTEBOOKLM_URL)
+                navigate_to_url(ws_url, get_notebooklm_url())
             return page
         _logger.debug(
             "Failed to create blank page via PUT /json/new: HTTP %s", response.status_code
@@ -1154,7 +1185,7 @@ def find_or_create_notebooklm_page_by_cdp_url(cdp_http_url: str) -> dict | None:
             ws_url = _normalize_ws_url(page.get("webSocketDebuggerUrl"))
             if ws_url:
                 _logger.debug("Reusing page with url %s", url)
-                navigate_to_url(ws_url, NOTEBOOKLM_URL)
+                navigate_to_url(ws_url, get_notebooklm_url())
                 return page
 
     return None
@@ -1339,6 +1370,7 @@ def _is_notebooklm_url(url: str) -> bool:
         "notebook.google.com",
         "notebooklm.cloud.google.com",
         "notebook.cloud.google.com",
+        "vertexaisearch.cloud.google.com",
     }
 
 
@@ -1668,7 +1700,7 @@ def extract_cookies_from_page(
     # Navigate to NotebookLM if needed
     current_url = page.get("url", "")
     if not _is_notebooklm_url(current_url):
-        navigate_to_url(ws_url, NOTEBOOKLM_URL)
+        navigate_to_url(ws_url, get_notebooklm_url())
 
     # Check login status
     current_url = get_current_url(ws_url)

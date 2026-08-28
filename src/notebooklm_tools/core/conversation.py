@@ -403,9 +403,18 @@ class ConversationMixin(BaseClient):
 
         # If no source_ids provided, get them from the notebook
         if source_ids is None:
-            notebook_client = cast(_NotebookLookupProtocol, self)
-            notebook_data = notebook_client.get_notebook(notebook_id, timeout=remaining_timeout())
-            source_ids = self._extract_source_ids_from_notebook(notebook_data)
+            if getattr(self, "_is_enterprise", lambda: False)():
+                all_nbs = cast(_NotebookLookupProtocol, self).list_notebooks()
+                target_nb = next((nb for nb in all_nbs if nb.id == notebook_id), None)
+                source_ids = (
+                    [s["id"] for s in target_nb.sources] if target_nb and target_nb.sources else []
+                )
+            else:
+                notebook_client = cast(_NotebookLookupProtocol, self)
+                notebook_data = notebook_client.get_notebook(
+                    notebook_id, timeout=remaining_timeout()
+                )
+                source_ids = self._extract_source_ids_from_notebook(notebook_data)
 
         # Determine if this is a new conversation or follow-up
         is_new_conversation = conversation_id is None
@@ -414,16 +423,23 @@ class ConversationMixin(BaseClient):
                 conversation_id = str(uuid.uuid4())
                 conversation_history = None
             else:
-                # Try to get the persistent conversation ID from the server first.
-                # This is what makes CLI/MCP chats appear in the web UI's chat history.
-                server_conv_id = self.get_conversation_id(notebook_id, timeout=remaining_timeout())
-                if server_conv_id:
-                    conversation_id = server_conv_id
-                    # Build history from local cache if we have it
-                    conversation_history = self._build_conversation_history(conversation_id)
-                else:
+                # Enterprise's streamed route does not expose the consumer
+                # conversation lookup RPC. Start with a local ID there.
+                if self._is_enterprise():
                     conversation_id = str(uuid.uuid4())
                     conversation_history = None
+                else:
+                    # This is what makes consumer CLI/MCP chats appear in the
+                    # web UI's chat history.
+                    server_conv_id = self.get_conversation_id(
+                        notebook_id, timeout=remaining_timeout()
+                    )
+                    if server_conv_id:
+                        conversation_id = server_conv_id
+                        conversation_history = self._build_conversation_history(conversation_id)
+                    else:
+                        conversation_id = str(uuid.uuid4())
+                        conversation_history = None
         else:
             # Check if we have cached history for this conversation
             assert conversation_id is not None  # nosec B101 — type narrowing
@@ -439,22 +455,50 @@ class ConversationMixin(BaseClient):
         # Build source IDs structure: [[[sid]]] for each source (3 brackets, not 4!)
         sources_array = [[[sid]] for sid in source_ids] if source_ids else []
 
-        # Query params structure (from network capture)
-        # For new conversations: params[2] = None
-        # For follow-ups: params[2] = [[answer, null, 2], [query, null, 1], ...]
-        params = [
-            sources_array,
-            query_text,
-            conversation_history,  # None for new, history array for follow-ups
-            [2, None, [1]],
-            conversation_id,
-        ]
+        if getattr(self, "_is_enterprise", lambda: False)():
+            # Enterprise query params structure:
+            # [[[[sid]]], query, {"70000": "projects/{project_id}/locations/{location}/notebooks/{notebook_id}"}]
+            from notebooklm_tools.utils.config import (
+                get_enterprise_location,
+                get_enterprise_project_id,
+            )
+
+            project_id = getattr(self, "_enterprise_project_id", "") or get_enterprise_project_id()
+            loc = getattr(self, "_location", "") or get_enterprise_location()
+            project_prefix = f"projects/{project_id}/" if project_id else ""
+            resource_name = f"{project_prefix}locations/{loc}/notebooks/{notebook_id}"
+            params = [
+                sources_array,
+                query_text,
+                {"70000": resource_name},
+            ]
+        else:
+            # Query params structure (from network capture)
+            # For new conversations: params[2] = None
+            # For follow-ups: params[2] = [[answer, null, 2], [query, null, 1], ...]
+            params = [
+                sources_array,
+                query_text,
+                conversation_history,  # None for new, history array for follow-ups
+                [2, None, [1]],
+                conversation_id,
+            ]
 
         # Use compact JSON format matching Chrome (no spaces)
         params_json = json.dumps(params, separators=(",", ":"), ensure_ascii=False)
 
         f_req = [None, params_json]
         f_req_json = json.dumps(f_req, separators=(",", ":"), ensure_ascii=False)
+
+        if (
+            not self.csrf_token
+            or (getattr(self, "_is_enterprise", lambda: False)() and not self._session_id)
+        ) and not self._cdp_rpc_transport_enabled():
+            try:
+                self._refresh_auth_tokens()
+            except Exception:
+                if not self.csrf_token:
+                    raise
 
         # URL encode with safe='' to encode all characters including /
         body_parts = [f"f.req={urllib.parse.quote(f_req_json, safe='')}"]
@@ -466,8 +510,13 @@ class ConversationMixin(BaseClient):
         with self._state_lock:
             self._reqid_counter += 100000
             reqid = self._reqid_counter
+        fallback_bl = (
+            getattr(self, "_BL_FALLBACK_ENTERPRISE", self._BL_FALLBACK)
+            if getattr(self, "_is_enterprise", lambda: False)()
+            else self._BL_FALLBACK
+        )
         url_params = {
-            "bl": os.environ.get("NOTEBOOKLM_BL") or getattr(self, "_bl", "") or self._BL_FALLBACK,
+            "bl": os.environ.get("NOTEBOOKLM_BL") or getattr(self, "_bl", "") or fallback_bl,
             "hl": os.environ.get("NOTEBOOKLM_HL", "en"),
             "_reqid": str(reqid),
             "rt": "c",
@@ -476,7 +525,8 @@ class ConversationMixin(BaseClient):
             url_params["f.sid"] = self._session_id
 
         query_string = urllib.parse.urlencode(url_params)
-        url = f"{self._get_base_url()}{self.QUERY_ENDPOINT}?{query_string}"
+        endpoint = getattr(self, "_get_query_endpoint", lambda: self.QUERY_ENDPOINT)()
+        url = f"{self._get_base_url()}{endpoint}?{query_string}"
 
         cookies = self._get_httpx_cookies()
         # The streamed query endpoint is stricter than batchexecute and rejects

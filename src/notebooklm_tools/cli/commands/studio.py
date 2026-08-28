@@ -9,7 +9,7 @@ from notebooklm_tools.core.alias import get_alias_manager
 from notebooklm_tools.core.exceptions import NLMError
 from notebooklm_tools.services import ServiceError, ValidationError
 from notebooklm_tools.services import studio as studio_service
-from notebooklm_tools.utils.config import get_base_url, get_default_language
+from notebooklm_tools.utils.config import get_default_language, get_notebook_url
 
 console = make_console()
 
@@ -190,7 +190,7 @@ def studio_status(
                         "limit": result["limit"],
                         "has_more": result["has_more"],
                     },
-                    "notebook_url": f"{get_base_url()}/notebook/{notebook_id}",
+                    "notebook_url": get_notebook_url(notebook_id),
                 }
             )
             return

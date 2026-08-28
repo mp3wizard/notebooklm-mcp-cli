@@ -193,11 +193,39 @@ class BaseClient:
     def _get_base_url(self) -> str:
         return get_base_url(getattr(self, "_base_host", "") or None)
 
+    def _is_enterprise(self) -> bool:
+        """Return True if connected to Gemini Notebook Enterprise (Vertex AI Search / Cloud)."""
+        base_url = self._get_base_url()
+        return "vertexaisearch.cloud.google.com" in base_url or "cloud.google.com" in base_url
+
+    def _get_enterprise_location(self) -> str:
+        """Return the enterprise location/region (e.g. global, us, eu)."""
+        from notebooklm_tools.utils.config import get_enterprise_location
+
+        return getattr(self, "_location", None) or get_enterprise_location()
+
+    def _get_enterprise_prefix(self) -> str:
+        base_url = self._get_base_url()
+        loc = self._get_enterprise_location()
+        if "vertexaisearch.cloud.google.com" in base_url:
+            return f"/notebooklm/{loc}"
+        # notebooklm.cloud.google.com uses /{location}
+        return f"/{loc}"
+
     def _get_batchexecute_url(self) -> str:
+        if self._is_enterprise():
+            return f"{self._get_base_url()}{self._get_enterprise_prefix()}/_/CloudNotebookLmUi/data/batchexecute"
         return f"{self._get_base_url()}/_/LabsTailwindUi/data/batchexecute"
 
     def _get_upload_url(self) -> str:
+        if self._is_enterprise():
+            return f"{self._get_base_url()}{self._get_enterprise_prefix()}/upload/_/"
         return f"{self._get_base_url()}/upload/_/"
+
+    def _get_query_endpoint(self) -> str:
+        if self._is_enterprise():
+            return f"{self._get_enterprise_prefix()}/_/CloudNotebookLmUi/data/google.cloud.notebooklm.v1main.NotebookService/GenerateFreeFormStreamed"
+        return self.QUERY_ENDPOINT
 
     # Keep class-level attributes for backward compatibility with code that
     # reads them directly (e.g. tests). These are the defaults; runtime code
@@ -206,6 +234,7 @@ class BaseClient:
     BATCHEXECUTE_URL = f"{BASE_URL}/_/LabsTailwindUi/data/batchexecute"
     UPLOAD_URL = "https://notebooklm.google.com/upload/_/"
     _BL_FALLBACK = "boq_labs-tailwind-frontend_20260108.06_p0"
+    _BL_FALLBACK_ENTERPRISE = "boq_cloud-ml-notebooklm-ui_20260816.08_p0"
 
     # SEC-010: Chrome version string used in User-Agent and sec-ch-ua headers for
     # CSRF token extraction. Update this constant when Chrome releases a new major
@@ -218,6 +247,7 @@ class BaseClient:
 
     # Notebook operations
     RPC_LIST_NOTEBOOKS = "wXbhsf"
+    RPC_LIST_NOTEBOOKS_ENTERPRISE = "rG2vCb"
     RPC_GET_NOTEBOOK = "rLM1Ne"
     RPC_CREATE_NOTEBOOK = "CCqFvf"
     RPC_RENAME_NOTEBOOK = "s0tc2d"
@@ -413,6 +443,8 @@ class BaseClient:
         build_label: str = "",
         base_host: str = "",
         profile_name: str | None = None,
+        location: str | None = None,
+        project_id: str | None = None,
     ):
         """
         Initialize the base client.
@@ -426,8 +458,12 @@ class BaseClient:
                 (optional - falls back to NOTEBOOKLM_BASE_URL or the default host)
             profile_name: Auth profile that owns these credentials. Uses the
                 configured default when omitted.
+            location: GCP region for Enterprise (e.g. global, us, eu). Defaults to NOTEBOOKLM_LOCATION or 'global'.
+            project_id: GCP project ID for Enterprise. Defaults to NOTEBOOKLM_PROJECT_ID.
         """
         import time as _time
+
+        from notebooklm_tools.utils.config import get_enterprise_location, get_enterprise_project_id
 
         self.cookies = cookies
         self.csrf_token = csrf_token
@@ -436,6 +472,13 @@ class BaseClient:
         self._bl = build_label
         self._base_host = base_host
         self._profile_name = profile_name
+        self._location = location or get_enterprise_location()
+        self._enterprise_project_id = project_id or get_enterprise_project_id()
+        if self._is_enterprise() and not self._enterprise_project_id:
+            raise ValueError(
+                "NOTEBOOKLM_PROJECT_ID is required when NOTEBOOKLM_BASE_URL points to "
+                "Gemini Notebook Enterprise."
+            )
         self._created_at: float = _time.time()
 
         # Conversation cache for follow-up queries.
@@ -476,6 +519,12 @@ class BaseClient:
 
         # Apply any runtime RPC-ID overrides (hot-patch for rotated method IDs).
         self._apply_rpc_overrides()
+
+        # In Enterprise mode, ensure we have enterprise-compatible tokens and session ID
+        if self._is_enterprise() and self._bl and "tailwind" in self._bl:
+            self._bl = ""
+            self._session_id = ""
+            self.csrf_token = ""
 
         # Only refresh CSRF token if not provided - tokens actually last hours/days, not minutes
         # The retry logic in _call_rpc() handles expired tokens gracefully
@@ -640,10 +689,11 @@ class BaseClient:
 
     def _build_url(self, rpc_id: str, source_path: str = "/") -> str:
         """Build the batchexecute URL with query params."""
+        fallback_bl = self._BL_FALLBACK_ENTERPRISE if self._is_enterprise() else self._BL_FALLBACK
         params = {
             "rpcids": rpc_id,
             "source-path": source_path,
-            "bl": os.environ.get("NOTEBOOKLM_BL") or getattr(self, "_bl", "") or self._BL_FALLBACK,
+            "bl": os.environ.get("NOTEBOOKLM_BL") or getattr(self, "_bl", "") or fallback_bl,
             "hl": os.environ.get("NOTEBOOKLM_HL", "en"),
             "rt": "c",
         }
@@ -1169,7 +1219,8 @@ class BaseClient:
             from .cookie_rotation import rotate_google_cookies
 
             rotate_google_cookies(client)
-            response = client.get(f"{self._get_base_url()}/")
+            home_path = f"{self._get_enterprise_prefix()}/" if self._is_enterprise() else "/"
+            response = client.get(f"{self._get_base_url()}{home_path}")
 
             # Check if redirected to login (cookies expired)
             if "accounts.google.com" in str(response.url):

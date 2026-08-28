@@ -36,10 +36,23 @@ class NotebookMixin(BaseClient):
 
     def list_notebooks(self, debug: bool = False) -> list[Notebook]:
         """List all notebooks."""
-        # [null, 1, null, [2]] - params for list notebooks
-        params = [None, 1, None, [2]]
+        if getattr(self, "_is_enterprise", lambda: False)():
+            # In Enterprise mode, rG2vCb returns the notebook list
+            rpc_id = getattr(self, "RPC_LIST_NOTEBOOKS_ENTERPRISE", "rG2vCb")
+            from notebooklm_tools.utils.config import (
+                get_enterprise_location,
+                get_enterprise_project_id,
+            )
 
-        result = self._call_rpc(self.RPC_LIST_NOTEBOOKS, params)
+            project_id = getattr(self, "_enterprise_project_id", "") or get_enterprise_project_id()
+            loc = getattr(self, "_location", "") or get_enterprise_location()
+            project_prefix = f"projects/{project_id}/" if project_id else ""
+            params = [f"{project_prefix}locations/{loc}", None, None, 1]
+            result = self._call_rpc(rpc_id, params)
+        else:
+            # [null, 1, null, [2]] - params for list notebooks
+            params = [None, 1, None, [2]]
+            result = self._call_rpc(self.RPC_LIST_NOTEBOOKS, params)
 
         if debug:
             logger.debug(f"Result type: {type(result)}")

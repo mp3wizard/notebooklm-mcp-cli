@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-08-27
+
+This release consolidates the unpublished 0.9.15 maintenance work and adds
+opt-in Gemini Notebook Enterprise support.
+
+### Added
+
+- **Gemini Notebook Enterprise support ([PR #309](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/309))** — CLI and MCP users can target Enterprise notebooks on Cloud or Vertex hosts with project/location-aware routing, profile-based credentials, Enterprise notebook listing and queries, and Enterprise-aware notebook URLs. Enterprise mode is opt-in; when its settings are absent, personal Gemini Notebook routing remains the default. Thanks to **@Fang-Bo-Hsieh** for the original implementation and live redacted verification against a Cloud Enterprise deployment.
+- **Dia browser authentication ([PR #313](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/313))** — Dia is supported as a macOS Chromium-family authentication browser, alongside generic executable-path support for compatible browser forks. Thanks to **@thezaidsheikh**.
+
+### Fixed
+
+- **Studio artifact recovery and downloads (#315, #305)** — Generic type-10 artifacts are classified by MIME, exposed consistently through CLI and MCP JSON, and downloadable with the correct filename extension. XLSX data tables preserve `.xlsx` by default while CSV data tables preserve `.csv`.
+- **Query parser memory use (#314)** — Query response parsing no longer creates full-body strip/split copies that could multiply memory use and trigger out-of-memory failures on source-heavy notebooks.
+- **Authentication and media edge cases (#302, #304, #310, #311)** — Browser discovery covers Chromium-family variants, rebranded Notebook hosts are recognized during CDP login, expired credentials are distinguished from network failures, and transient audio downloads retry the current media host.
+- **Private vulnerability intake (#308)** — GitHub private vulnerability reporting is enabled for safer security disclosures.
+
+### Documentation
+
+- Added Enterprise setup, authentication isolation, project/location requirements, RPC provenance, URL examples, and a focused Enterprise test plan. Enterprise live verification currently covers the Cloud host; the Vertex host has regression coverage but still needs an Enterprise deployment for independent live validation.
+
+### Thanks
+
+Thank you to **@dankkush**, **@Rahulk644**, **@astrofoley**, **@winsonhung77**, **@bubandpop**, **@Naor-Peretz**, and **@zaidLMS** for the detailed reproductions, measurements, real artifact checks, browser diagnostics, and security feedback that made these fixes much easier to verify and ship.
+
+### Verification
+
+- Full tracked-tree suite after the 0.10.0 version bump: 1,477 passed, 39 skipped.
+- Ruff lint and formatting, package build, and version-alignment checks passed on the merged Enterprise head.
+
 ## [0.9.15] - 2026-08-26
 
 ### Added

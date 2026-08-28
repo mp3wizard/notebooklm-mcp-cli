@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from notebooklm_tools.core.conversation import QueryRejectedError
+from notebooklm_tools.core.data_types import Notebook
 from notebooklm_tools.services.chat import (
     _QUERY_TTL_SECONDS,
     _pending_lock,
@@ -21,7 +22,9 @@ from notebooklm_tools.services.errors import ServiceError, ValidationError
 
 @pytest.fixture
 def mock_client():
-    return MagicMock()
+    client = MagicMock()
+    client._is_enterprise.return_value = False
+    return client
 
 
 class TestQuery:
@@ -143,6 +146,25 @@ class TestQuery:
         assert call_kwargs["conversation_id"] is None
         assert call_kwargs["new_conversation"] is True
         assert 0 < call_kwargs["timeout"] <= 120.0
+
+    def test_enterprise_source_resolution_uses_enterprise_list(self, mock_client):
+        """Whole-notebook Enterprise queries must not call consumer get_notebook."""
+        mock_client._is_enterprise.return_value = True
+        mock_client.list_notebooks.return_value = [
+            Notebook(
+                id="nb-123",
+                title="Enterprise notebook",
+                source_count=1,
+                sources=[{"id": "src-1", "title": "Source"}],
+            )
+        ]
+        mock_client.query.return_value = {"answer": "ok"}
+
+        with patch("notebooklm_tools.services.chat.notebook_service.get_notebook") as get_notebook:
+            query(mock_client, "nb-123", "question")
+
+        get_notebook.assert_not_called()
+        assert mock_client.query.call_args.kwargs["source_ids"] == ["src-1"]
 
     def test_timeout_passed_through(self, mock_client):
         mock_client.query.return_value = {"answer": "ok"}

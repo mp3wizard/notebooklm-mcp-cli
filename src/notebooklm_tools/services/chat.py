@@ -129,22 +129,42 @@ def _resolve_query_source_ids(
         return source_ids
 
     try:
-        notebook = notebook_service.get_notebook(
-            client,
-            notebook_id,
-            timeout=budget.remaining(),
-        )
-        if notebook["source_count"] == 0:
-            raise ValidationError(
-                "Cannot query an empty notebook.",
-                user_message="This notebook has no sources to query. Add a source first using 'nlm source add' or 'nlm research start'.",
+        is_enterprise = getattr(client, "_is_enterprise", None)
+        if callable(is_enterprise) and is_enterprise():
+            notebooks = client.list_notebooks()
+            notebook = next((nb for nb in notebooks if nb.id == notebook_id), None)
+            if notebook is None:
+                raise ValidationError(
+                    f"Notebook {notebook_id} not found.",
+                    user_message=f"Notebook {notebook_id} not found.",
+                )
+            if notebook.source_count == 0:
+                raise ValidationError(
+                    "Cannot query an empty notebook.",
+                    user_message="This notebook has no sources to query. Add a source first using 'nlm source add' or 'nlm research start'.",
+                )
+            resolved_source_ids = [
+                source["id"]
+                for source in notebook.sources
+                if isinstance(source, dict) and source.get("id")
+            ]
+        else:
+            notebook = notebook_service.get_notebook(
+                client,
+                notebook_id,
+                timeout=budget.remaining(),
             )
+            if notebook["source_count"] == 0:
+                raise ValidationError(
+                    "Cannot query an empty notebook.",
+                    user_message="This notebook has no sources to query. Add a source first using 'nlm source add' or 'nlm research start'.",
+                )
 
-        resolved_source_ids = [
-            source["id"]
-            for source in notebook.get("sources", [])
-            if isinstance(source, dict) and source.get("id")
-        ]
+            resolved_source_ids = [
+                source["id"]
+                for source in notebook.get("sources", [])
+                if isinstance(source, dict) and source.get("id")
+            ]
         return resolved_source_ids or None
     except ValidationError:
         raise
