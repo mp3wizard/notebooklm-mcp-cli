@@ -89,6 +89,7 @@ nlm status artifacts <notebook>
 | Command | Description |
 |---------|-------------|
 | `nlm login` | Authenticate with NotebookLM and manage profiles (**START HERE**) |
+| `nlm auth refresh` | Non-interactive headless session refresh (for unattended/schedulers) |
 | `nlm config` | View/edit configuration (show, get, set) |
 | `nlm notebook` | Manage notebooks (list, create, get, describe, rename, delete, query) |
 | `nlm source` | Manage sources (list, add, get, describe, content, rename, delete, stale, sync) |
@@ -177,6 +178,7 @@ nlm login switch <profile>          # Switch the default profile
 nlm login profile list              # List all profiles with email addresses
 nlm login profile delete <name>     # Delete a profile
 nlm login profile rename <old> <new> # Rename a profile
+nlm auth refresh                    # Non-interactive headless refresh (unattended/schedulers)
 ```
 
 
@@ -527,7 +529,7 @@ nlm delete artifact <notebook-id> <artifact-id> --confirm  # Delete artifact
 **Noun-First:**
 ```bash
 nlm download audio <notebook-id> --id <artifact-id>              # Download specific audio
-nlm download audio <notebook-id> --output podcast.mp3          # Download latest audio to file
+nlm download audio <notebook-id> --output podcast.m4a          # Download latest audio to file
 nlm download video <notebook-id>                               # Download latest video (default filename)
 nlm download report <notebook-id> --output report.md           # Download report
 nlm download mind-map <notebook-id>                            # Download mind map
@@ -557,14 +559,14 @@ nlm download file <notebook-id> --id <artifact-id>             # Generic Studio 
 
 **Download with format conversion:**
 ```bash
-nlm download quiz <notebook-id> <artifact-id>                    # JSON (default)
-nlm download quiz <notebook-id> <artifact-id> --format json      # Structured JSON
-nlm download quiz <notebook-id> <artifact-id> --format markdown  # Markdown format
-nlm download quiz <notebook-id> <artifact-id> --format html      # Interactive HTML
+nlm download quiz <notebook-id> --id <artifact-id>                    # JSON (default)
+nlm download quiz <notebook-id> --id <artifact-id> --format json      # Structured JSON
+nlm download quiz <notebook-id> --id <artifact-id> --format markdown  # Markdown format
+nlm download quiz <notebook-id> --id <artifact-id> --format html      # Interactive HTML
 
-nlm download flashcards <notebook-id> <artifact-id>                    # JSON (default)
-nlm download flashcards <notebook-id> <artifact-id> --format markdown  # Markdown format
-nlm download flashcards <notebook-id> <artifact-id> --format html      # Interactive HTML
+nlm download flashcards <notebook-id> --id <artifact-id>                    # JSON (default)
+nlm download flashcards <notebook-id> --id <artifact-id> --format markdown  # Markdown format
+nlm download flashcards <notebook-id> --id <artifact-id> --format html      # Interactive HTML
 ```
 
 **Format Options:**
@@ -889,7 +891,7 @@ nlm studio status ai
 # Note artifact ID: audio789...
 
 # 9. Download when ready
-nlm download audio ai audio789... --output podcast.mp3
+nlm download audio ai audio789... --output podcast.m4a
 ```
 
 ### Sequence 1 Alternative: Research → Podcast → Download (Verb-First)
@@ -921,7 +923,7 @@ nlm create audio ai --confirm
 nlm status artifacts ai
 
 # 9. Download
-nlm download-verb audio ai audio789... --output podcast.mp3
+nlm download-verb audio ai audio789... --output podcast.m4a
 ```
 
 ### Sequence 2: Quick Source Ingestion
@@ -1001,9 +1003,9 @@ nlm download infographic <notebook-id> --id <infographic-id>
 11. **DO NOT launch REPL** - Never use `nlm chat start` - it opens an interactive REPL that AI tools cannot control. Use `nlm notebook query` or `nlm query notebook` for one-shot Q&A instead.
 12. **Choose output format wisely** - Default output (no flags) is compact and token-efficient—use it for status checks. Use `--quiet` to capture IDs for piping. Only use `--json` when you need to parse specific fields programmatically.
 13. **Verb-first vs Noun-first** - Both command styles work identically. Use whichever is more natural for the context. Noun-first groups by resource (notebook, source), verb-first groups by action (create, list, delete).
-14. **Download workflow** - Always wait for artifact completion before downloading. Check status with `nlm studio status <notebook>`, get the artifact ID, then download with `nlm download <type> <notebook> <artifact-id>`.
+14. **Download workflow** - Always wait for artifact completion before downloading. Check status with `nlm studio status <notebook>`, get the artifact ID, then download with `nlm download <type> <notebook> --id <artifact-id>`.
 15. **Artifact generation takes time** - Audio/video: 1-5 minutes. Reports/quizzes: 30-60 seconds. Always poll status before attempting download.
-16. **Download output files** - If no `--output` specified, files are saved with default names (e.g., `audio_<id>.mp3`, `video_<id>.mp4`, `report_<id>.txt`). Use `--output` to specify custom filenames.
+16. **Download output files** - If no `--output` specified, files are saved with default names (e.g., `audio_<id>.m4a`, `video_<id>.mp4`, `report_<id>.md`). Use `--output` to specify custom filenames.
 17. **Streaming downloads** - All downloads use efficient streaming to handle large files without memory issues. This is automatic.
 18. **Drive source sync** - Use `nlm source stale <notebook>` or `nlm list stale-sources <notebook>` to check which Drive sources need syncing before running sync commands.
 19. **Use --wait for blocking source adds** - When adding sources before querying, use `nlm source add ... --wait` to block until processing completes. This ensures the source is ready for queries.

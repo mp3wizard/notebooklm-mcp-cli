@@ -95,6 +95,22 @@ nlm login switch <profile>
 |----------|-------------|
 | `<profile>` | Profile name to switch to |
 
+### nlm auth refresh
+
+Refresh a session non-interactively so Google reissues its short-lived
+cookies. Runs a headless-browser pass against the saved profile — no user
+interaction — which keeps an unattended session (cron/launchd) alive without
+an interactive `nlm login`. Exits non-zero if the refresh fails.
+
+```bash
+nlm auth refresh
+nlm auth refresh --profile work
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile` | `-p` | Profile to refresh (default: the configured default profile) |
+
 **Example:**
 ```bash
 nlm login switch work
@@ -625,12 +641,22 @@ nlm download <type> <notebook-id> [OPTIONS]
 
 **Examples:**
 ```bash
-nlm download audio <nb-id> --output podcast.mp3
+nlm download audio <nb-id> --output podcast.m4a
 nlm download video <nb-id> --output video.mp4
 nlm download report <nb-id> --output report.md
 nlm download file <nb-id> --id <artifact-id> --output export.bin
 nlm download quiz <nb-id> --output quiz.html --format html
 nlm download flashcards <nb-id> --output cards.json --format json
+```
+
+Audio arrives as AAC in an MP4 container, so it needs a `.m4a` or `.mp4`
+suffix; `.mp3` and other mismatched extensions are rejected rather than
+written with bytes that contradict the name. Transcode afterwards if you
+need MP3:
+
+```bash
+nlm download audio <notebook> --id <artifact-id> --output raw.m4a
+ffmpeg -i raw.m4a -acodec libmp3lame -q:a 2 podcast.mp3
 ```
 
 ### nlm download all

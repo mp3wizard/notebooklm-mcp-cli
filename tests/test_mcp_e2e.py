@@ -257,7 +257,7 @@ class TestMCPDownloadTools:
     def test_download_artifact_no_artifact(self, mcp_tools, test_notebook):
         """Test download when no artifact exists."""
         result = mcp_tools["downloads"].download_artifact(
-            notebook_id=test_notebook, artifact_type="audio", output_path="test_audio.mp3"
+            notebook_id=test_notebook, artifact_type="audio", output_path="test_audio.m4a"
         )
         # Should fail gracefully - no audio exists
         assert result["status"] == "error"

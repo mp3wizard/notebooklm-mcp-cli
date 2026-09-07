@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.10.0"
+version: "0.11.0"
 description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "podcast generation", "audio overview", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
@@ -51,7 +51,7 @@ nlm --version           # Check installed version
 
 1. **Authenticate when needed**: Run `nlm login` for first-time setup or confirmed stale/missing credentials. Saved cookies often remain usable for weeks.
 2. **Do not confuse network failures with expired auth**: `auth_status="unverified"` means the probe was inconclusive. Check connectivity or try an API call before asking the user to log in again.
-3. **Auto-Authentication Recovery**: The CLI includes automatic 3-layer auth recovery (CSRF refresh -> Token reload -> Headless Auth) and 3x server error retries. Most errors are handled automatically. You only need to manually run `nlm login` if all recovery layers fail.
+3. **Auto-Authentication Recovery**: The CLI includes automatic 3-layer auth recovery (CSRF refresh -> Token reload -> Headless Auth) and 3x server error retries. Most errors are handled automatically. You only need to manually run `nlm login` if all recovery layers fail. For unattended machines, `nlm auth refresh` refreshes a session non-interactively (headless) from a scheduler so it never lapses between jobs.
 4. **⚠️ ALWAYS ASK USER BEFORE DELETE**: Before executing ANY delete command, ask the user for explicit confirmation. Deletions are **irreversible**. Show what will be deleted and warn about permanent data loss.
 5. **Always obtain approval before generation or deletion**: Direct
    `studio_create` and delete operations enforce `--confirm` / `confirm=True`.
@@ -157,6 +157,7 @@ nlm login switch <profile>          # Switch the default profile
 nlm login profile list              # List all profiles with email addresses
 nlm login profile delete <name>     # Delete a profile
 nlm login profile rename <old> <new> # Rename a profile
+nlm auth refresh                    # Non-interactive headless refresh (schedulers/unattended)
 ````
 
 **Multi-Profile Support**: Each profile gets its own isolated browser session (supports Chrome, Arc, Dia, Comet, Brave, Edge, Chromium, Firefox, and more), so you can be logged into multiple Google accounts simultaneously.
@@ -469,6 +470,18 @@ notebook (or every notebook with `all_notebooks=True`) into per-notebook
 folders, `export_artifact` with `export_type` (`docs`/`sheets`), and
 `studio_delete` with `confirm=True`.
 
+**Where MCP downloads go.** Downloads through the MCP tools are confined to one
+download directory: `~/Downloads/gemini-notebook` by default, or whatever the
+operator set in `NOTEBOOKLM_DOWNLOAD_DIR`. Pass `output_path` relative to that
+directory (`"podcast.m4a"`, `"My Notebook/report.md"`); a path outside it is
+refused. The result carries the absolute path the file was written to, so read
+the destination from the response rather than assuming it. If a user asks for a
+file somewhere else, tell them the download location and let them move it, or
+have them run the `nlm` CLI, which writes wherever they point it. Do not try to
+work around the boundary: it exists because source content can carry
+instructions, and it stops a download from overwriting shell startup files,
+agent instruction files, or git hooks.
+
 #### CLI Commands
 
 ```bash
@@ -482,7 +495,7 @@ nlm studio status <nb-id> --json --mcp-compatible  # MCP-shaped paginated output
 nlm video list <nb-id> --json                      # List videos only
 
 # Download artifacts
-nlm download audio <nb-id> --output podcast.mp3
+nlm download audio <nb-id> --output podcast.m4a   # AAC/MP4; .mp3 is rejected
 nlm download video <nb-id> --output video.mp4
 nlm download report <nb-id> --output report.md
 nlm download file <nb-id> --id <artifact-id> --output export.bin  # Generic type-10 file export
@@ -491,6 +504,8 @@ nlm download slide-deck <nb-id> --output slides.pptx --format pptx  # PPTX
 nlm download quiz <nb-id> --output quiz.html --format html    # Also: json, markdown
 nlm download all <nb-id> -d ./exports                          # Every completed artifact
 nlm download all --all-notebooks -d ./exports --skip-existing  # Sweep every notebook
+# The CLI writes wherever the user points it. Only MCP downloads are confined
+# to the download directory. Setting NOTEBOOKLM_DOWNLOAD_DIR bounds both.
 
 # Export to Google Docs/Sheets
 nlm export sheets <nb-id> <artifact-id> --title "My Data Table"

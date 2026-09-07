@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-09-07
+
+Reliability release for long-lived and unattended sessions. Upgrading is
+recommended for anyone running the MCP server or scheduled `nlm` jobs.
+
+### Added
+
+- **`nlm auth refresh` — non-interactive session refresh ([#316](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/316))** — Runs a headless-browser pass against the saved profile so Google reissues the short-lived cookies that keep a session alive, without an interactive `nlm login`. It exits non-zero on failure, so schedulers (cron/launchd) on unattended machines can keep a session alive between jobs and react to failures. Refuses up front when `NOTEBOOKLM_COOKIES` is set in the environment, since that value overrides saved credentials. Suggested by **@Scouer**.
+
+### Fixed
+
+- **Sessions no longer die after ~8 hours ([#316](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/316))** — Auth recovery loaded fresh cookies from disk but blanked the CSRF token, then retried in a mode that skipped the only step that re-extracts it — so the retry sent an empty token, got an HTTP 400, and raised "Authentication expired" even when valid cookies were already on disk. The headless-browser refresh that revives an aged-out session was also unreachable because the disk-reload path always returned early. Recovery now re-extracts the CSRF token after loading cookies, only reloads disk cookies when they actually differ from the known-bad ones (otherwise it falls through to the headless refresh), and corrects docstrings that overstated what Google's `RotateCookies` endpoint refreshes (it rotates the `*SIDCC` session cookies, not `*PSIDTS`, from a plain HTTP client). Thoroughly diagnosed and reported by **@Scouer**, who also verified the behavior against a live session.
+
+### Changed
+
+- **CI: `actions/checkout` pinned to v6 across all workflows ([#317](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/317))** — The release, publish, and version-check workflows pinned `actions/checkout` v4 (Node 20), which GitHub force-runs on Node 24 runners with a deprecation annotation. All workflows now share the v6 (node24) pin already used by lint-test.
+
+## [0.10.1] - 2026-09-03
+
+Security release. Upgrading is recommended for anyone running the MCP server.
+
+### Security
+
+- **Artifact downloads are confined to an approved directory ([GHSA-92q4-9x75-55rf](https://github.com/jacob-bd/gemini-notebook-mcp-cli/security/advisories/GHSA-92q4-9x75-55rf))** — `validate_output_path` relied on a denylist of sensitive locations, so every path it did not happen to list stayed writable. A prompt injection carried in notebook source content could steer an MCP client into saving artifact bytes over shell startup files (`~/.zshenv`, `~/.zprofile`), agent instruction files (`~/.codex/AGENTS.md`, `~/.cursor/skills/*/SKILL.md`), git hooks, or launch agents, which other programs then execute or read as instructions. The MCP download tools (`download_artifact`, `download_all_artifacts`) now confine every write to a single download directory, resolve each path before checking it so a symlink cannot hop outside, and write to the path that was actually validated. The denylist stays as a second layer and now covers more locations. Reported by **@Naor-Peretz**.
+
+### Added
+
+- `NOTEBOOKLM_DOWNLOAD_DIR` sets the download directory for MCP tools. When unset, downloads land in `~/Downloads/gemini-notebook`, falling back to `~/.notebooklm-mcp-cli/downloads/` on systems with no `~/Downloads` directory, such as headless Linux hosts, containers, and Windows installs with a relocated Downloads folder.
+
+### Changed
+
+- **MCP downloads now default to a fixed directory.** A relative path from an MCP client resolves inside the download directory instead of the server's working directory, and an absolute path outside it is refused. CLI downloads are unchanged: `nlm download ... -o <path>` still writes wherever you point it, because there the path comes from the person running the command rather than from a model.
+
 ## [0.10.0] - 2026-08-27
 
 This release consolidates the unpublished 0.9.15 maintenance work and adds

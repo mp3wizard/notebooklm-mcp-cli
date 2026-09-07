@@ -63,7 +63,9 @@ source_add(
 ```
 
 A browser or phone path is not uploaded automatically. Likewise,
-`download_artifact(output_path=...)` writes to the server host; it does not
+`download_artifact(output_path=...)` writes to the server host, inside that
+host's download directory (`~/Downloads/gemini-notebook` by default, or
+`NOTEBOOKLM_DOWNLOAD_DIR`), and paths outside it are refused. It does not
 return a secure browser download URL. Remote file upload and download require a
 separate, authenticated file-transfer layer.
 

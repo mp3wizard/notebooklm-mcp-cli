@@ -155,11 +155,13 @@ The server cannot read a path from the user's phone or browser. Similarly:
 download_artifact(
     notebook_id="...",
     artifact_type="audio",
-    output_path="/path/on/server/audio.m4a",
+    output_path="audio.m4a",
 )
 ```
 
-The artifact is saved on the server host. The current MCP does not provide a
+The artifact is saved on the server host, inside the server's download
+directory (`~/Downloads/gemini-notebook` by default, or `NOTEBOOKLM_DOWNLOAD_DIR`).
+Paths outside that directory are refused. The current MCP does not provide a
 browser upload mechanism or a secure download URL for returning that file to a
 remote client.
 

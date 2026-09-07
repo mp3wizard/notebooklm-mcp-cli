@@ -69,6 +69,7 @@ def test_single_notebook_success_routes_to_download_all():
         output_format="json",
         slide_deck_format="pdf",
         skip_existing=False,
+        enforce_root=True,
     )
     assert result["status"] == "success"
     assert result["downloaded"] == 2
@@ -131,6 +132,7 @@ def test_all_notebooks_routes_to_sweep_and_coerces_types():
         output_format="json",
         slide_deck_format="pdf",
         skip_existing=True,
+        enforce_root=True,
     )
     assert result["status"] == "success"
     assert result["total_notebooks"] == 3
@@ -216,6 +218,7 @@ def test_download_artifact_forwards_readiness_options():
         artifact_id=None,
         output_format="json",
         slide_deck_format="pdf",
+        enforce_root=True,
         wait=True,
         wait_timeout=9,
         poll_interval=0.5,

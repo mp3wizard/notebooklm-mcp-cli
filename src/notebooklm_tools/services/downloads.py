@@ -11,6 +11,7 @@ from typing import Any, cast
 
 from ..core.client import NotebookLMClient
 from ..core.errors import ArtifactDownloadError
+from ..utils.config import get_home_dir, get_storage_dir
 from ._compat import TypedDict
 from .errors import ServiceError, ValidationError
 from .notebooks import get_notebook, list_notebooks
@@ -132,8 +133,45 @@ _BLOCKED_DIRS = {
     ".config",
     ".aws",
     ".kube",
+    # Agent instruction and skill directories: files here are read as
+    # instructions by other tools, so a write is an injection vector.
+    ".codex",
+    ".cursor",
+    ".gemini",
+    ".agents",
+    ".cline",
+    ".windsurf",
+    ".github",
+    # Things that get executed.
+    ".local",
+    ".git",
+    ".docker",
+    "LaunchAgents",
+    "LaunchDaemons",
 }
 
+
+_SENSITIVE_FILES = {
+    ".bashrc",
+    ".zshrc",
+    ".profile",
+    ".bash_profile",
+    ".gitconfig",
+    "authorized_keys",
+    "known_hosts",
+    "id_rsa",
+    "id_ed25519",
+    # Added for GHSA-92q4-9x75-55rf.
+    ".zshenv",
+    ".zprofile",
+    ".zlogin",
+    ".zlogout",
+    ".bash_login",
+    ".bash_logout",
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
+}
 
 _MISMATCHED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".flac", ".aiff", ".wma"}
 
@@ -158,24 +196,88 @@ def validate_audio_extension(output_path: str) -> None:
         )
 
 
-def validate_output_path(output_path: str) -> None:
-    """Validate that output_path is safe and does not escape to sensitive locations.
+def resolve_download_root() -> Path:
+    """Resolve the directory that enforced downloads are confined to.
 
-    Raises ValidationError if the path resolves to a dangerous location.
-    When NOTEBOOKLM_DOWNLOAD_DIR is set, output must be within that directory.
+    Order:
+      1. ``NOTEBOOKLM_DOWNLOAD_DIR`` when the operator set one.
+      2. ``~/Downloads/gemini-notebook`` when ``~/Downloads`` already exists.
+      3. The app storage directory otherwise.
+
+    Step 2 deliberately never creates ``~/Downloads``. Headless Linux boxes,
+    containers, localized desktops, and Windows installs with a relocated
+    Downloads Known Folder have no such directory, and inventing one there
+    would scatter files somewhere the user does not look.
     """
-    resolved = Path(output_path).expanduser().resolve()
+    if configured := str(os.environ.get("NOTEBOOKLM_DOWNLOAD_DIR") or "").strip():
+        return Path(configured).expanduser()
+
+    downloads = get_home_dir() / "Downloads"
+    if downloads.is_dir():
+        return downloads / "gemini-notebook"
+    return get_storage_dir() / "downloads"
+
+
+def _is_within(candidate: Path, root: Path) -> bool:
+    """Containment check that survives case-insensitive filesystems.
+
+    Windows and macOS compare paths case-insensitively, so a plain string or
+    ``is_relative_to`` comparison rejects legitimate paths that differ only in
+    case. That fails closed rather than open, but it still breaks downloads.
+    """
+    normalized = os.path.normcase(str(candidate))
+    normalized_root = os.path.normcase(str(root)).rstrip(os.sep)
+    return normalized == normalized_root or normalized.startswith(normalized_root + os.sep)
+
+
+def validate_output_path(output_path: str, *, enforce_root: bool = False) -> str:
+    """Validate an output path and return the absolute path to write to.
+
+    Callers MUST write to the returned path. Writing to the original string
+    instead re-derives a path that was never checked, which is how a denylist
+    bypass turns back into an arbitrary write.
+
+    ``enforce_root`` confines the path to :func:`resolve_download_root`, and
+    anchors relative paths there instead of the process working directory. MCP
+    callers set it because the model chooses the path and untrusted source
+    content can steer that choice. CLI callers leave it off: the human typed
+    the path, so the denylist and the optional ``NOTEBOOKLM_DOWNLOAD_DIR``
+    boundary are the appropriate level of protection there.
+
+    Raises:
+        ValidationError: If the path escapes its boundary or targets a
+            sensitive location.
+    """
+    root = resolve_download_root() if enforce_root else None
+
+    candidate = Path(output_path).expanduser()
+    if root is not None and not candidate.is_absolute():
+        candidate = root / candidate
+
+    # resolve() follows symlinks in existing ancestors, so a symlink planted
+    # inside the root cannot be used to hop outside it.
+    resolved = candidate.resolve()
+
+    if root is not None:
+        if not _is_within(resolved, root.resolve()):
+            raise ValidationError(
+                f"Refusing to write outside the download directory. "
+                f"'{resolved}' is not inside '{root}'. "
+                f"Set NOTEBOOKLM_DOWNLOAD_DIR to choose a different location."
+            )
+        return str(resolved)
 
     download_dir_env = os.environ.get("NOTEBOOKLM_DOWNLOAD_DIR", "")
     if download_dir_env:
         download_root = Path(download_dir_env).expanduser().resolve()
-        if not resolved.is_relative_to(download_root):
+        if not _is_within(resolved, download_root):
             raise ValidationError(
                 f"Output path '{resolved}' is outside download directory "
                 f"'{download_root}'. Set NOTEBOOKLM_DOWNLOAD_DIR to change."
             )
 
-    # Block writes into sensitive dotfile directories
+    # Second layer for CLI callers. This list can never be complete, which is
+    # exactly why enforce_root exists for anything the model drives.
     for part in resolved.parts:
         if part in _BLOCKED_DIRS:
             raise ValidationError(
@@ -183,23 +285,13 @@ def validate_output_path(output_path: str) -> None:
                 f"Choose a different output path."
             )
 
-    # Block overwriting common sensitive files
-    _sensitive_files = {
-        ".bashrc",
-        ".zshrc",
-        ".profile",
-        ".bash_profile",
-        ".gitconfig",
-        "authorized_keys",
-        "known_hosts",
-        "id_rsa",
-        "id_ed25519",
-    }
-    if resolved.name in _sensitive_files:
+    if resolved.name in _SENSITIVE_FILES:
         raise ValidationError(
             f"Refusing to overwrite sensitive file: {resolved.name}. "
             f"Choose a different output path."
         )
+
+    return str(resolved)
 
 
 def validate_artifact_type(artifact_type: str) -> None:
@@ -237,6 +329,8 @@ def download_sync(
     output_path: str,
     artifact_id: str | None = None,
     output_format: str = "json",
+    *,
+    enforce_root: bool = False,
 ) -> DownloadResult:
     """Download a non-streaming artifact synchronously.
 
@@ -258,7 +352,10 @@ def download_sync(
         ServiceError: If the download fails
     """
     validate_artifact_type(artifact_type)
-    validate_output_path(output_path)
+    safe_path = validate_output_path(output_path, enforce_root=enforce_root)
+    if enforce_root:
+        # Write to the path containment actually approved, not the raw string.
+        output_path = safe_path
 
     if artifact_type == "audio":
         validate_audio_extension(output_path)
@@ -358,6 +455,7 @@ async def download_async(
     progress_callback: Callable[[int, int], None] | None = None,
     slide_deck_format: str = "pdf",
     *,
+    enforce_root: bool = False,
     wait: bool = False,
     wait_timeout: float = 180.0,
     poll_interval: float = 5.0,
@@ -387,7 +485,10 @@ async def download_async(
         ServiceError: If the download fails or readiness times out
     """
     validate_artifact_type(artifact_type)
-    validate_output_path(output_path)
+    safe_path = validate_output_path(output_path, enforce_root=enforce_root)
+    if enforce_root:
+        # Write to the path containment actually approved, not the raw string.
+        output_path = safe_path
 
     if artifact_type == "audio":
         validate_audio_extension(output_path)
@@ -470,6 +571,8 @@ async def download_all(
     skip_existing: bool = False,
     progress_factory: Callable[[str, str], Callable[[int, int], None] | None] | None = None,
     notebook_dir_name: str | None = None,
+    *,
+    enforce_root: bool = False,
 ) -> DownloadAllResult:
     """Download every completed studio artifact of a notebook.
 
@@ -515,8 +618,9 @@ async def download_all(
         if notebook_dir_name
         else sanitize_filename(notebook_title, fallback=notebook_id)
     )
-    notebook_dir = Path(output_dir).expanduser() / dir_name
-    validate_output_path(str(notebook_dir))
+    base_dir = Path(validate_output_path(output_dir, enforce_root=enforce_root))
+    notebook_dir = base_dir / dir_name
+    validate_output_path(str(notebook_dir), enforce_root=enforce_root)
     notebook_dir.mkdir(parents=True, exist_ok=True)
 
     items: list[DownloadAllItem] = []
@@ -668,6 +772,8 @@ async def download_all_notebooks(
     skip_existing: bool = False,
     progress_factory: Callable[[str, str], Callable[[int, int], None] | None] | None = None,
     on_notebook: Callable[[int, int, str], None] | None = None,
+    *,
+    enforce_root: bool = False,
 ) -> DownloadAllNotebooksResult:
     """Run download_all() over every notebook in the account.
 
@@ -730,6 +836,7 @@ async def download_all_notebooks(
                 skip_existing=skip_existing,
                 progress_factory=progress_factory,
                 notebook_dir_name=dir_name,
+                enforce_root=enforce_root,
             )
         except ServiceError as e:
             sweep.append(
@@ -773,7 +880,7 @@ async def download_all_notebooks(
         )
 
     return {
-        "output_dir": str(Path(output_dir).expanduser()),
+        "output_dir": validate_output_path(output_dir, enforce_root=enforce_root),
         "notebooks": sweep,
         "total_notebooks": len(notebooks),
         "downloaded": total_downloaded,

@@ -561,7 +561,7 @@ nlm notebook list                              # List all notebooks
 nlm notebook create "Research Project"         # Create a notebook
 nlm source add <notebook> --url "https://..."  # Add sources
 nlm audio create <notebook> --confirm          # Generate podcast
-nlm download audio <notebook> <artifact-id>    # Download audio file
+nlm download audio <notebook> --id <artifact-id>    # Download audio file
 nlm download all <notebook> -d ./exports       # Download every artifact
 nlm share public <notebook>                    # Enable public link
 ```
@@ -826,6 +826,21 @@ nlm login profile list               # List all profiles with email addresses
 nlm login profile delete <profile>   # Delete a profile
 nlm login profile rename <old> <new> # Rename a profile
 ```
+
+**Unattended / scheduled refresh:**
+
+A live session self-heals — when Google's short-lived cookies age out, the
+client automatically runs a headless refresh. For unattended machines you can
+also refresh proactively from a scheduler so a session never lapses:
+
+```bash
+nlm auth refresh                     # Headless, no interaction; exits non-zero on failure
+nlm auth refresh --profile work      # Refresh a named profile
+```
+
+Run it on a timer (cron/launchd). It needs a saved Chrome profile from a prior
+`nlm login`, and does not apply when `NOTEBOOKLM_COOKIES` is set as an
+environment variable (that value overrides saved credentials).
 
 ### Enterprise Authentication (Gemini Notebook Enterprise)
 

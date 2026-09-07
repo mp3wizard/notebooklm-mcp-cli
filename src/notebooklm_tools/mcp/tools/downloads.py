@@ -39,7 +39,12 @@ def download_artifact(
             - file: Generic Studio file export
             - quiz: Quiz (json|markdown|html)
             - flashcards: Flashcards (json|markdown|html)
-        output_path: Path to save the file
+        output_path: Where to save the file, relative to the download
+            directory (e.g. "podcast.m4a" or "My Notebook/report.md").
+            Downloads are confined to that directory; a path outside it is
+            refused. It defaults to ~/Downloads/gemini-notebook and the
+            operator can move it with NOTEBOOKLM_DOWNLOAD_DIR. The saved
+            absolute path comes back in the result.
         artifact_id: Optional specific artifact ID (uses latest if not provided)
         output_format: For quiz/flashcards only: json|markdown|html (default: json)
         slide_deck_format: For slide_deck only: pdf (default) or pptx
@@ -51,7 +56,7 @@ def download_artifact(
         dict with status and saved file path
 
     Example:
-        download_artifact(notebook_id="abc123", artifact_type="audio", output_path="podcast.mp3")
+        download_artifact(notebook_id="abc123", artifact_type="audio", output_path="podcast.m4a")
         download_artifact(notebook_id="abc123", artifact_type="quiz", output_path="quiz.html", output_format="html")
         download_artifact(notebook_id="abc123", artifact_type="slide_deck", output_path="slides.pptx", slide_deck_format="pptx")
     """
@@ -69,6 +74,7 @@ def download_artifact(
                 wait=wait,
                 wait_timeout=wait_timeout,
                 poll_interval=poll_interval,
+                enforce_root=True,
             )
         )
         return {"status": "success", **download_result}
@@ -104,7 +110,9 @@ def download_all_artifacts(
 
     Args:
         notebook_id: Notebook UUID (omit when all_notebooks=True)
-        output_dir: Base directory for the per-notebook folders (default: cwd)
+        output_dir: Base directory for the per-notebook folders, relative to
+            the download directory (default: the download directory itself).
+            Paths outside it are refused; see download_artifact.
         artifact_types: Restrict to these types, e.g. ["video", "slide_deck",
             "mind_map", "report"]. Default: all types.
         output_format: For quiz/flashcards only: json|markdown|html
@@ -134,6 +142,7 @@ def download_all_artifacts(
                     output_format=output_format,
                     slide_deck_format=slide_deck_format,
                     skip_existing=skip_existing,
+                    enforce_root=True,
                 )
             )
         else:
@@ -146,6 +155,7 @@ def download_all_artifacts(
                     output_format=output_format,
                     slide_deck_format=slide_deck_format,
                     skip_existing=skip_existing,
+                    enforce_root=True,
                 )
             )
         problems = result["failed"] + result.get("errored_notebooks", 0)

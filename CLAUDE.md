@@ -159,6 +159,14 @@ NotebookLM's internal API uses short RPC "method IDs" (e.g. `wXbhsf`) that Googl
 - **Hot-patches without a release** — set `NOTEBOOKLM_RPC_OVERRIDES` to override an ID for the session. **Restart the MCP server** for it to take effect (read once at client init); the `nlm` CLI picks it up on the next invocation.
 - **Auto-retries throttling** — `RESOURCE_EXHAUSTED` (RPC error code 8) responses are retried with exponential backoff.
 
+**Unattended keep-alive:** A live session self-heals — auth recovery reloads
+newer disk cookies (external re-login) or runs a headless-browser refresh to
+make Google reissue the short-lived `*PSIDTS` freshness cookies when they age
+out. For schedulers, `nlm auth refresh` triggers that headless refresh
+non-interactively so a session never lapses between jobs. (RotateCookies alone
+refreshes only the `*SIDCC` session cookies, not `*PSIDTS`, from a plain HTTP
+client — see issue #316.)
+
 ## MCP Tools
 
 Tools requiring `confirm=True` (irreversible operations): `notebook_delete`, `source_delete`, `studio_delete`, `note_delete`, `source_sync_drive`, `studio_create`, `studio_revise`.
