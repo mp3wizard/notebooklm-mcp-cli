@@ -378,8 +378,8 @@ class TestValidateAudioExtension:
     @pytest.mark.parametrize("ext", [".m4a", ".mp4", ".m4b"])
     def test_compatible_extensions_pass(self, ext):
         validate_audio_extension(
-            f"/tmp/podcast{ext}"
-        )  # should not raise  # nosec B108 - mock return value in test double, not a real filesystem path
+            f"/tmp/podcast{ext}"  # nosec B108 - mock return value in test double, not a real filesystem path
+        )  # should not raise
 
     def test_no_extension_passes(self):
         validate_audio_extension(

@@ -10,6 +10,32 @@
 
 ## What's New (mp3wizard fork)
 
+### Security release — v0.11.1 (September 2026, upstream)
+- **Pipeline names validated against path traversal ([GHSA-596g-p98x-c7hw](https://github.com/jacob-bd/gemini-notebook-mcp-cli/security/advisories/GHSA-596g-p98x-c7hw))** — `_load_pipeline` (MCP `pipeline` tool) and `pipeline_create` (CLI) interpolated a caller-supplied pipeline name straight into a filesystem path; a name containing `..` or an absolute path escaped the pipelines directory, letting a crafted name load and run any `.yaml` on disk as a pipeline (bounded to whitelisted actions, including `notebook_delete`) or write outside the directory. Names are now validated as identifiers. Reported by **@Naor-Peretz**.
+
+### Security scan (September 2026 — v0.11.1 merge)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit
+- **3 findings fixed** — `cryptography` 49.0.0→50.0.1 (High, CVE-2026-69247), `click` 8.3.2→8.5.0 (High, PYSEC-2026-2132), `pydantic-settings` 2.13.1→2.15.0 (Medium, GHSA-4xgf-cpjx-pc3j). All three were introduced transitively while regenerating `uv.lock` during the merge, not from new upstream commits. Re-verified clean with OSV-Scanner; full test suite re-run clean (1580 passed).
+- Kept the local, stricter `fastmcp>=3.2.0,<4.0` pin (CVE-2026-32871) over origin's looser `fastmcp>=2.0.0,<5.0` during the merge conflict.
+- mcps-audit's 574 findings, config-audit's Medium findings, and the `SKILL.md` skill-audit CRITICAL verdict reviewed and confirmed false positives (unchanged from the prior scan) — dev-only CDP debug scripts, RPC constant names, and the skill's own auth/UX documentation misread as dangerous instructions.
+- Full report: [`docs/security-scan-report-2026-09-09.md`](docs/security-scan-report-2026-09-09.md)
+
+### Upstream sync (v0.11.0 — September 2026)
+- **`nlm auth refresh` — non-interactive session refresh (#316)** — headless-browser pass against the saved profile so schedulers (cron/launchd) can keep an unattended session alive without an interactive `nlm login`. Exits non-zero on failure; refuses when `NOTEBOOKLM_COOKIES` overrides saved credentials. Suggested by **@Scouer**.
+- **Sessions no longer die after ~8 hours (#316)** — auth recovery re-extracts the CSRF token after a disk/headless cookie swap instead of retrying with a blanked token; the headless-browser refresh path (previously unreachable) now revives aged-out sessions. Diagnosed and verified live by **@Scouer**.
+- **CI: `actions/checkout` pinned to v6 across all workflows (#317)** — drops the Node 20 deprecation warning GitHub force-runs on v4.
+
+### Security release — v0.10.1 (September 2026, upstream)
+- **Artifact downloads confined to an approved directory ([GHSA-92q4-9x75-55rf](https://github.com/jacob-bd/gemini-notebook-mcp-cli/security/advisories/GHSA-92q4-9x75-55rf))** — the prior denylist-based `validate_output_path` left every unlisted path writable; a prompt injection in notebook source content could steer an MCP client into overwriting shell startup files, agent instruction files, or git hooks. MCP download tools now confine every write to a single resolved download directory (`NOTEBOOKLM_DOWNLOAD_DIR`, default `~/Downloads/gemini-notebook`). CLI downloads are unchanged — that path comes from the person running the command, not a model. Reported by **@Naor-Peretz**.
+
+### Security scan (September 2026 — v0.11.0 merge)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit
+- **1 Medium fixed** (Bandit `B108`) — a `# nosec` suppression comment sat on the wrong line (a continuation line, not the flagged string literal) so it silently didn't apply; moved to the correct line. 0 High/Critical
+- **0 secrets** (Gitleaks, Trivy, OSV-Scanner clean; TruffleHog's 3 hits confirmed non-secret example-URI false positives in old scan-report docs), **0 dependency vulnerabilities** (OSV-Scanner + Trivy, 88 packages)
+- mcps-audit's 566 findings and config-audit's project-scoped Medium/Low findings reviewed and confirmed false positives — CDP browser-automation scripts in `scripts/` (dev-only, not packaged) misread as "dangerous execution", RPC constant names containing `DELETE` misread as privilege escalation, and doc mentions of "verify"/"cookies" misread as suspicious instructions in an authentication tool's own documentation
+- **Coverage gap this run:** `mcp-exfil-scan.sh`'s bundled-script checksum didn't match `SHA256SUMS` — skipped per the tamper-evidence rule rather than running a possibly-modified script. Flagged for the plugin to be reinstalled/verified before the next scheduled run. mcp-scan and skillspector LLM-mode skipped (opt-in, unattended run)
+- Full report: [`docs/security-scan-report-2026-09-07.md`](docs/security-scan-report-2026-09-07.md)
+
 ### Upstream sync (v0.10.0 — August 2026)
 - **Gemini Notebook Enterprise support (#309)** — CLI and MCP users can target Enterprise notebooks on Cloud or Vertex hosts with project/location-aware routing, profile-based credentials, Enterprise notebook listing/queries, and Enterprise-aware notebook URLs. Opt-in; personal routing stays the default when Enterprise settings are absent. Thanks to **@Fang-Bo-Hsieh**!
 - **Dia browser authentication (#313)** — Dia added as a macOS Chromium-family authentication browser, alongside generic executable-path support for compatible forks. Thanks to **@thezaidsheikh**!
