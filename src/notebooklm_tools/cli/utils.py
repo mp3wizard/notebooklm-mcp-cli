@@ -42,11 +42,12 @@ def get_client(profile: str | None = None) -> NotebookLMClient:
     Args:
         profile: Optional profile name. Uses config default_profile if not specified.
 
-    Tries to load cached tokens first. If unavailable, guides the user to login.
+    An explicit profile takes precedence over environment cookies. Without a
+    profile, tries environment cookies, then the configured default profile.
     """
-    # 1. Try environment variables first (most explicit)
+    # 1. Environment auth applies only when no profile was explicitly selected.
     env_cookies = os.environ.get("NOTEBOOKLM_COOKIES")
-    if env_cookies:
+    if env_cookies and not profile:
         return NotebookLMClient(cookies=extract_cookies_from_string(env_cookies))
 
     # 2. Try loading specified profile, or fall back to config default

@@ -108,6 +108,16 @@ def test_empty_window_list_raises():
         get_usage(FakeClient([1, [], None, []]))
 
 
+def test_empty_usage_response_explains_enterprise_limit_and_debug_surfaces():
+    with pytest.raises(ServiceError) as excinfo:
+        get_usage(FakeClient([1, [], None, []]))
+
+    error = excinfo.value
+    assert "Enterprise/Workspace" in error.user_message
+    assert "nlm --debug usage" in error.hint
+    assert "notebooklm-mcp --debug" in error.hint
+
+
 def test_malformed_payload_raises():
     with pytest.raises(ServiceError):
         get_usage(FakeClient(["unexpected"]))

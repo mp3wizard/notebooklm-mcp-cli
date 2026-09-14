@@ -46,6 +46,7 @@ def _format_percent(value: float | None) -> str:
 def usage(
     ctx: typer.Context,
     json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile name"),
 ) -> None:
     """
     Show how much of your plan's usage allowance is left.
@@ -55,13 +56,14 @@ def usage(
 
     Examples:
         nlm usage
+        nlm usage --profile work
         nlm usage --json
     """
     if ctx.invoked_subcommand is not None:
         return
 
     try:
-        client = get_client()
+        client = get_client(profile) if profile else get_client()
         result = usage_service.get_usage(client)
     except Exception as e:
         handle_error(e, json_output)

@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.11.3"
+version: "0.11.4"
 description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
@@ -195,6 +195,12 @@ Call `usage_get()` for a read-only account-level usage report. It returns:
 - `resets_at`: ISO 8601 UTC reset timestamp
 - `tier`: subscription tier when available
 
+To check separate accounts, call `usage_get(profile="work")` and
+`usage_get(profile="personal")` using their saved profile names. Each call
+uses that account without switching the default or affecting other MCP tools.
+An explicit profile overrides `NOTEBOOKLM_COOKIES`; a missing profile returns
+an error instead of falling back to another account.
+
 The API may return windows in either order, so consumers should use the window
 name. If the usage request fails with an authentication error, refresh with
 `nlm auth refresh` or `nlm login`; do not interpret the failure as zero quota.
@@ -204,6 +210,8 @@ name. If the usage request fails with an authentication error, refresh with
 ```bash
 nlm usage                 # Human-readable table in the local timezone
 nlm usage --json          # Machine-readable JSON; reset timestamps stay in UTC
+nlm usage --profile work  # Check work without changing the default account
+nlm usage -p personal    # Check personal separately
 ```
 
 Use this check before quota-limited chat or Studio work when the remaining

@@ -1062,6 +1062,18 @@ How much of my Gemini Notebook usage allowance is left?
 - With an expired session it reports an authentication error and hints at
   `nlm auth refresh`. It must NOT report the allowance as exhausted.
 
+### Test 13.2 - Check Work and Personal Profiles
+**Tool:** `usage_get(profile="work")`, then `usage_get(profile="personal")`
+**CLI:** `nlm usage --profile work`, then `nlm usage -p personal --json`
+
+**Expected:**
+- Each call reads the selected saved account's usage, even when
+  `NOTEBOOKLM_COOKIES` is set for a different account.
+- The configured default and the account used by other MCP tools are unchanged.
+- Missing profiles return an error without falling back to environment cookies
+  or the default account.
+- Omitting the profile keeps the existing environment/default authentication.
+
 ---
 
 ## Summary: 31 Consolidated Tools

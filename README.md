@@ -637,7 +637,7 @@ Then use natural language: _"Create a notebook about quantum computing and gener
 | Configure AI tools                            | `nlm setup add/remove/list`     | —                                    |
 | Install AI Skills                             | `nlm skill install/update`      | —                                    |
 | Diagnose issues                               | `nlm doctor`                    | —                                    |
-| Check remaining plan usage                    | `nlm usage`                     | `usage_get`                          |
+| Check remaining plan usage                    | `nlm usage [--profile <name>]`  | `usage_get`                          |
 
 📚 **More Documentation:**
 

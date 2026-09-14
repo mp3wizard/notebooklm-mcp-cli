@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.4] - 2026-09-13
+
+Patch release adding account-isolated usage checks for named profiles.
+
+### Added
+
+- **Named-profile usage checks** — `nlm usage --profile <name>` and
+  `usage_get(profile="<name>")` inspect a saved work or personal account
+  without changing the configured default or the MCP server's shared client.
+  Thanks to **@insane66613** for the contribution in
+  [PR #328](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/328).
+
+### Fixed
+
+- **Profile credential isolation** — An explicit CLI profile now takes
+  precedence over `NOTEBOOKLM_COOKIES`; missing profiles fail instead of
+  silently checking another account.
+- **Release formatting** — The profile usage regression tests now satisfy the
+  repository's Ruff formatting and lint checks.
+
+### Known limitation
+
+- **Enterprise “Pro” usage reporting** — Google may return no usage windows for
+  Enterprise/Workspace accounts on the “Pro” tier. In that case `nlm usage` and
+  `usage_get` cannot display allowance data, even though the same account's
+  other NotebookLM operations work normally.
+
+### Verification
+
+- Full non-E2E suite: 1,609 passed, 38 skipped, 1 deselected.
+- Ruff lint, formatting, package version alignment, and GitHub CI checks passed.
+
 ## [0.11.3] - 2026-09-12
 
 Patch release adding visibility into the account's compute-based Gemini
