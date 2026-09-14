@@ -1,7 +1,7 @@
 ---
 name: nlm-skill
-version: "0.11.2"
-description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "podcast generation", "audio overview", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
+version: "0.11.3"
+description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
 # Gemini Notebook CLI & MCP Expert
@@ -45,6 +45,8 @@ nlm --help              # List all commands
 nlm <command> --help    # Help for specific command
 nlm --ai                # Full AI-optimized documentation (RECOMMENDED)
 nlm --version           # Check installed version
+nlm usage               # Check rolling and weekly plan usage and reset times
+nlm usage --json        # Return usage data as machine-readable JSON
 ```
 
 ## Critical Rules (Read First!)
@@ -65,10 +67,12 @@ nlm --version           # Check installed version
 11. **Choose output format wisely**: Default output (no flags) is compact and token-efficient—use it for status checks. Use `--quiet` to capture IDs for piping. Only use `--json` when you need to parse specific fields programmatically.
 12. **Use `--help` when unsure**: Run `nlm <command> --help` to see available options and flags for any command.
 13. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
+14. **Check plan usage before quota-limited work**: Run `nlm usage` (MCP: `usage_get`) before expensive chat or Studio work when budget availability matters. It reports measured compute usage, remaining percentage, and UTC reset times for the rolling and weekly windows. If the check returns an authentication error, refresh the session instead of treating the allowance as exhausted.
 
-**Current MCP surface:** 43 tools. Consolidated action tools include `note`,
+**Current MCP surface:** 49 tools. Consolidated action tools include `note`,
 `label`, `studio_status`, `batch`, `pipeline`, and `tag`. Consolidated type
-tools include `source_add`, `studio_create`, and `download_artifact`.
+tools include `source_add`, `studio_create`, and `download_artifact`. The
+read-only `usage_get` tool reports rolling and weekly plan usage windows.
 
 ## Workflow Decision Tree
 
@@ -86,6 +90,10 @@ User wants to...
 │   ├─► From pasted text → nlm source add <nb-id> --text "content" --title "Title"
 │   ├─► From Google Drive → nlm source add <nb-id> --drive <doc-id> --type doc
 │   └─► Discover new sources → nlm research start "query" --notebook-id <nb-id>
+│
+├─► Check plan usage or quota availability
+│   └─► nlm usage (MCP: usage_get)
+│       (Use --json when a script needs percentages or reset timestamps)
 │
 ├─► Generate content from sources (→ Studio Prompting for optimal focus_prompt)
 │   ├─► Podcast/Audio → nlm audio create <nb-id> --confirm
@@ -169,6 +177,37 @@ probe was inconclusive; `error` means the health check itself failed.
 **Switching MCP Accounts**: The MCP server always uses the active default profile. If you need to switch which Google account the MCP server is communicating with, you MUST use the CLI: run `nlm login switch <name>`. Your next MCP tool call will instantly use the new account.
 
 **Note**: Both MCP and CLI share the same authentication backend, so authenticating with one works for both.
+
+### Plan Usage and Quotas
+
+Gemini Notebook meters chat and Studio usage as compute against two simultaneous
+windows: a short rolling window (about five hours) and a weekly cap. The API
+reports the measured percentage used, percentage remaining, and reset timestamp;
+the client does not estimate cost from request counts.
+
+#### MCP Tool
+
+Call `usage_get()` for a read-only account-level usage report. It returns:
+
+- `windows`: `rolling` and `weekly` entries, sorted in that order
+- `percent_used`: percentage consumed (0.0 when the backend confirms a full allowance)
+- `percent_remaining`: percentage left
+- `resets_at`: ISO 8601 UTC reset timestamp
+- `tier`: subscription tier when available
+
+The API may return windows in either order, so consumers should use the window
+name. If the usage request fails with an authentication error, refresh with
+`nlm auth refresh` or `nlm login`; do not interpret the failure as zero quota.
+
+#### CLI
+
+```bash
+nlm usage                 # Human-readable table in the local timezone
+nlm usage --json          # Machine-readable JSON; reset timestamps stay in UTC
+```
+
+Use this check before quota-limited chat or Studio work when the remaining
+budget or reset time affects the decision.
 
 ### 2. Notebook Management
 
@@ -953,7 +992,7 @@ nlm pipeline run ingest-and-podcast --notebook <id> --input-url "https://example
 | "authentication may have expired"                    | Session timeout                                    | `nlm login`                                                                                                  |
 | "Notebook not found"                                 | Invalid ID                                         | `nlm notebook list`                                                                                          |
 | "Source not found"                                   | Invalid ID                                         | `nlm source list <nb-id>`                                                                                    |
-| "Rate limit exceeded"                                | Too many calls                                     | Studio creation: wait 1-2 minutes; avoid parallel video batches                                              |
+| "Rate limit exceeded"                                | Too many calls or an exhausted usage window      | Run `nlm usage` / `usage_get` to inspect remaining budget; wait for the reported reset time when a window is exhausted |
 | "Research already in progress"                       | Pending research                                   | Use `--force` or import first                                                                                |
 | "Import timed out"                                   | Too many sources                                   | Use `--timeout 600` for larger notebooks                                                                     |
 | "Google API error code 3"                            | Transient deep research error                      | Retry in a few minutes, or use `--mode fast`                                                                 |
@@ -970,6 +1009,8 @@ Wait between operations to avoid rate limits:
 - Content generation: run sequentially; after a rate limit, wait 1-2 minutes
 - Research operations: 2 seconds
 - Query operations: 2 seconds
+- Before quota-limited chat or Studio work, check `nlm usage` (MCP: `usage_get`)
+  to see the rolling and weekly percentages and reset timestamps.
 
 ## Advanced Reference
 

@@ -184,7 +184,46 @@ New in v0.9.1: `chat_list`/`chat_get`/`chat_export` MCP tools and `nlm chats lis
 | 401/403 | Cookies expired | Re-extract from Chrome DevTools |
 | "Invalid CSRF token" | `at=` value expired | Re-extract cookies |
 | Empty notebook list | Wrong Google account | Verify account in cookies |
-| Rate limit | Free tier ~50 queries/day | Wait or upgrade |
+| Rate limit | Since 2026-09-02, chat and Studio usage is metered against a rolling (~5h) and a weekly window, scaling with plan tier | Run `nlm usage` (MCP: `usage_get`) to see remaining allowance and reset times; brief throttling auto-retries with backoff, an exhausted window needs to wait for reset |
+
+## Documentation
+
+### API Reference
+
+**For detailed API documentation** (RPC IDs, parameter structures, response formats), see:
+
+**[docs/API_REFERENCE.md](./docs/API_REFERENCE.md)**
+
+This includes:
+- All discovered RPC endpoints and their parameters
+- Source type structures (URL, text, Drive)
+- Studio content creation (audio, video, reports, etc.)
+- Research workflow details
+- Mind map generation process
+- Source metadata structures
+
+Only read API_REFERENCE.md when:
+- Debugging API issues
+- Adding new features
+- Understanding internal API behavior
+
+### MCP Test Plan
+
+**For comprehensive MCP tool testing**, see:
+
+**[docs/MCP_CLI_TEST_PLAN.md](./docs/MCP_CLI_TEST_PLAN.md)**
+
+This includes:
+- Step-by-step test cases for all 43 MCP tools and CLI commands
+- Authentication and basic operations tests
+- Source management and Drive sync tests
+- Studio content generation tests (audio, video, infographics, etc.)
+- Quick copy-paste test prompts for validation
+
+Use this test plan when:
+- Validating MCP server functionality after code changes
+- Testing new tool implementations
+- Debugging MCP tool issues
 
 ## Contributing
 

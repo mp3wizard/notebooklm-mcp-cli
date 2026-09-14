@@ -590,7 +590,9 @@ To avoid hitting API rate limits:
 | Query operations | 2 seconds |
 | Batch operations | 10 seconds |
 
-**Daily limits (free tier):** ~50 queries/operations per day.
+**Measured usage windows:** Chat and Studio usage is metered as compute against
+a rolling window (about five hours) and a weekly cap. Run `nlm usage` (MCP:
+`usage_get`) before quota-limited work to see percentages and reset timestamps.
 
 ---
 

@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.3] - 2026-09-12
+
+Patch release adding visibility into the account's compute-based Gemini
+Notebook allowance.
+
+### Added
+
+- **Plan usage reporting** — `nlm usage` and the MCP `usage_get` tool now report
+  the measured percentage used, percentage remaining, reset timestamp, and
+  subscription tier for the rolling and weekly usage windows. The report keeps
+  the two windows deterministic even when the backend returns them in a
+  different order. Thanks to **@WAOmaster** for the implementation in
+  [PR #327](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/327).
+
+### Fixed
+
+- **Quota guidance in the bundled skill** — The skill, AI help output, and
+  linked references now direct assistants to check `nlm usage` or `usage_get`
+  before quota-limited work and distinguish an expired session from an
+  exhausted allowance.
+
+### Changed
+
+- Updated the bundled skill and generated command reference to document the
+  rolling and weekly compute windows, UTC reset timestamps, JSON output shape,
+  and the current 49-tool MCP surface.
+
+### Removed
+
+- No functionality was removed in this patch release.
+
+### Verification
+
+- Release-gate test selection (`not e2e`): 1,590 passed, 38 skipped, 1 deselected.
+- Live CLI and stdio MCP checks returned both usage windows and the active
+  subscription tier successfully.
+
 ## [0.11.2] - 2026-09-08
 
 Security release. Recommended for anyone who set up WSL login, and for anyone

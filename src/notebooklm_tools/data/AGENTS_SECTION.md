@@ -1,10 +1,10 @@
 <!-- nlm-skill-start -->
-<!-- nlm-version: 0.11.2 -->
+<!-- nlm-version: 0.11.3 -->
 ## NLM - Gemini Notebook (formerly Google NotebookLM) CLI Expert
 
-**Triggers:** "nlm", "notebooklm", "Gemini Notebook", "podcast", "audio overview", "research"
+**Triggers:** "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast", "audio overview", "research"
 
-Expert assistant for Gemini Notebook automation via CLI. Use when users want to create/manage notebooks, add sources (URLs, YouTube, text, Google Drive), generate AI content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conduct research, or chat with sources.
+Expert assistant for Gemini Notebook automation via CLI. Use when users want to create/manage notebooks, check plan usage and quota windows, add sources (URLs, YouTube, text, Google Drive), generate AI content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conduct research, or chat with sources.
 
 ### Quick Reference
 
@@ -16,6 +16,8 @@ nlm source add <id> --url "https://..."  # Add web source
 nlm audio create <id> --confirm          # Generate podcast
 nlm research start "query" --notebook-id <id>  # Discover sources
 nlm research start "query" --title "New Research"  # Create destination notebook
+nlm usage                    # Check rolling + weekly plan usage and reset times
+nlm usage --json             # Machine-readable usage percentages and timestamps
 ```
 
 ### Critical Rules
@@ -29,6 +31,7 @@ nlm research start "query" --title "New Research"  # Create destination notebook
 7. **⚠️ NEVER use `nlm chat start`**: It's an interactive REPL. Use `nlm notebook query` instead
 8. **Use the configured MCP name**: Register this server as `gemini-notebook-mcp`; the executable remains `notebooklm-mcp` for compatibility.
 9. **Never configure blindly**: `nlm setup` verifies the MCP executable and detected client profile before writing. User-level skills require the target tool to be detected; use `--level project` for an intentional project-local install.
+10. **Check plan usage before quota-limited work**: Run `nlm usage` or call `usage_get` to inspect rolling and weekly percentages and reset times. Authentication failures should be refreshed with `nlm auth refresh`, not treated as exhausted quota.
 
 ### Common Workflows
 
@@ -42,6 +45,16 @@ nlm research import ai <task-id>
 nlm audio create ai --confirm
 nlm studio status ai
 ```
+
+**Plan Usage Check:**
+```bash
+nlm usage
+nlm usage --json
+```
+The report is read-only and shows rolling and weekly compute windows, the
+remaining percentage, reset timestamps in UTC (JSON) or local time (table),
+and the subscription tier when available. Use `usage_get` for the same report
+through MCP.
 
 **Quick Content Ingestion:**
 ```bash

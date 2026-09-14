@@ -189,8 +189,9 @@ Ensure the container has network access and can reach `notebook.google.com`.
 Error: Rate limit exceeded
 ```
 
-**Cause:** Too many API calls in a short period. Query and Studio generation
-limits are separate and undocumented; video limits may require a longer pause.
+**Cause:** Too many API calls in a short period, or an exhausted compute
+allowance window. Chat and Studio usage is measured against a rolling window
+(about five hours) and a weekly cap; the reset time is account-specific.
 
 **Solutions:**
 
@@ -204,7 +205,19 @@ limits are separate and undocumented; video limits may require a longer pause.
    Built-in retries use a short 1/2/4-second backoff for transient failures.
    They do not wait through a minute-scale Studio quota window.
 
-2. **Implement throttling in scripts:**
+2. **Check the measured allowance:**
+
+   ```bash
+   nlm usage
+   nlm usage --json
+   ```
+
+   The MCP equivalent is `usage_get`. Inspect both windows and wait until the
+   reported reset time when the relevant window is exhausted. If the usage
+   request returns an authentication error, run `nlm auth refresh` or
+   `nlm login`; do not treat that error as an exhausted allowance.
+
+3. **Implement throttling in scripts:**
 
    ```bash
    # Run Studio/video creation sequentially; avoid parallel generation batches.
@@ -213,7 +226,7 @@ limits are separate and undocumented; video limits may require a longer pause.
    nlm source add $ID --url "..." && sleep 2
    ```
 
-3. **Use batch operations where possible:**
+4. **Use batch operations where possible:**
    - Use `nlm research import` to import multiple sources at once
    - Use `nlm source sync` to sync all stale sources at once
 

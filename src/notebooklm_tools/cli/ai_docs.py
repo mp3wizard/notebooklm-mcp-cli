@@ -90,6 +90,7 @@ nlm status artifacts <notebook>
 |---------|-------------|
 | `nlm login` | Authenticate with NotebookLM and manage profiles (**START HERE**) |
 | `nlm auth refresh` | Non-interactive headless session refresh (for unattended/schedulers) |
+| `nlm usage` | Show rolling and weekly plan usage, reset times, and subscription tier |
 | `nlm config` | View/edit configuration (show, get, set) |
 | `nlm notebook` | Manage notebooks (list, create, get, describe, rename, delete, query) |
 | `nlm source` | Manage sources (list, add, get, describe, content, rename, delete, stale, sync) |
@@ -180,6 +181,23 @@ nlm login profile delete <name>     # Delete a profile
 nlm login profile rename <old> <new> # Rename a profile
 nlm auth refresh                    # Non-interactive headless refresh (unattended/schedulers)
 ```
+
+
+### Plan Usage
+
+Check the account's measured Gemini Notebook compute allowance before
+quota-limited chat or Studio work:
+
+```bash
+nlm usage                 # Human-readable table; reset times use local timezone
+nlm usage --json          # Machine-readable JSON; reset timestamps are ISO 8601 UTC
+```
+
+The report contains `rolling` (about five hours) and `weekly` windows with
+`percent_used`, `percent_remaining`, and `resets_at`, plus the subscription
+`tier` when available. The backend may return windows in either order; use the
+window name. If this call reports an authentication error, run `nlm auth refresh`
+or `nlm login` rather than treating the allowance as exhausted.
 
 
 ### Notebook Commands
@@ -834,7 +852,7 @@ Many commands support `--json` for structured output:
 | Flag | Description | Available On |
 |------|-------------|------|
 | (none) | Rich table (human-readable) | All |
-| `--json` | JSON output (for parsing/piping) | list, get, describe, query, content, status, source add/delete, notebook delete, Studio create |
+| `--json` | JSON output (for parsing/piping) | list, get, describe, query, content, status, usage, source add/delete, notebook delete, Studio create |
 | `--quiet` | IDs only (for piping) | list |
 | `--title` | "ID: Title" format | notebook list |
 | `--url` | "ID: URL" format | source list |
@@ -852,7 +870,7 @@ Many commands support `--json` for structured output:
 | "authentication may have expired" | Session expired | Run `nlm login` |
 | "Notebook not found" | Invalid ID | Run `nlm notebook list` |
 | "Source not found" | Invalid ID | Run `nlm source list <notebook-id>` |
-| "Rate limit exceeded" | Too many API calls | Briefly auto-retried; Studio limits may require waiting 1-2 minutes |
+| "Rate limit exceeded" | Too many calls or an exhausted usage window | Run `nlm usage`; wait for the reported reset time when a window is exhausted |
 | Server 503/502/500 | Google API flaky | Auto-retried (up to 3x with backoff) |
 | "Research already in progress" | Pending research | Use `--force` or import first |
 
@@ -883,14 +901,17 @@ nlm research status ai --max-wait 900
 # 6. Import all sources
 nlm research import ai task456...
 
-# 7. Generate podcast
+# 7. Check remaining usage before quota-limited generation
+nlm usage --json
+
+# 8. Generate podcast
 nlm audio create ai --format deep_dive --confirm
 
-# 8. Check status until completed
+# 9. Check status until completed
 nlm studio status ai
 # Note artifact ID: audio789...
 
-# 9. Download when ready
+# 10. Download when ready
 nlm download audio ai audio789... --output podcast.m4a
 ```
 
@@ -1012,6 +1033,7 @@ nlm download infographic <notebook-id> --id <infographic-id>
 20. **Export to Google Docs/Sheets** - Reports can be exported to Google Docs, Data Tables to Google Sheets. Use `nlm export to-docs/to-sheets <notebook> <artifact-id>`.
 21. **Batch with tags** - Tag notebooks first (`nlm tag add ... --tags "topic"`), then use `--tags` flag with batch commands for targeted multi-notebook operations.
 22. **Pipelines for automation** - Use `nlm pipeline list` to see available workflows, then `nlm pipeline run` for automated multi-step operations (ingest → generate).
+23. **Check plan usage before quota-limited work** - Run `nlm usage` or call the MCP `usage_get` tool to inspect rolling and weekly percentages and reset times. Refresh authentication when the check fails; an auth error is not an exhausted quota.
 """
 
 
