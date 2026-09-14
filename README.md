@@ -10,6 +10,20 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.11.4 — September 2026)
+- **Plan usage reporting (#327)** — `nlm usage` and the MCP `usage_get` tool report percentage used/remaining, reset timestamp, and subscription tier for the rolling (~5h) and weekly compute windows. Thanks to **@WAOmaster**!
+- **Isolated usage checks for named profiles (#328)** — `nlm usage --profile <name>` / `usage_get(profile="<name>")` inspect a saved profile without touching the configured default or the MCP server's shared client; an explicit CLI profile now takes precedence over `NOTEBOOKLM_COOKIES`, and a missing profile fails instead of silently checking another account. Thanks to **@insane66613**!
+- **Known limitation:** Enterprise "Pro"-tier accounts may get no usage windows back from Google, so `nlm usage`/`usage_get` can't show allowance data even though other operations work normally.
+
+### Security scan (September 2026 — v0.11.4 merge)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, config-audit, skill-audit
+- **0 High/Critical/Medium findings** — clean merge, no security fixes shipped upstream this cycle (0.11.3/0.11.4 are feature/correctness patches)
+- **0 secrets** (Gitleaks, Trivy, OSV-Scanner clean; TruffleHog's 5 hits confirmed non-secret example-URI false positives in old scan-report docs), **0 dependency vulnerabilities** (OSV-Scanner + Trivy, 90 packages)
+- config-audit's Medium findings and the `SKILL.md` skill-audit CRITICAL verdict reviewed and confirmed false positives (unchanged pattern from prior scans) — the tool's own auth/UX documentation misread as dangerous instructions
+- Also finished a stale merge left over from a prior interrupted run (`CLAUDE.md` conflicts, resolved)
+- **Coverage gap:** `mcp-exfil-scan.sh`'s bundled-script checksum still doesn't match `SHA256SUMS` (3rd consecutive run) — plugin needs reinstalling before the next scheduled run
+- Full report: [`docs/security-scan-report-2026-09-14.md`](docs/security-scan-report-2026-09-14.md)
+
 ### Security release — v0.11.1 (September 2026, upstream)
 - **Pipeline names validated against path traversal ([GHSA-596g-p98x-c7hw](https://github.com/jacob-bd/gemini-notebook-mcp-cli/security/advisories/GHSA-596g-p98x-c7hw))** — `_load_pipeline` (MCP `pipeline` tool) and `pipeline_create` (CLI) interpolated a caller-supplied pipeline name straight into a filesystem path; a name containing `..` or an absolute path escaped the pipelines directory, letting a crafted name load and run any `.yaml` on disk as a pipeline (bounded to whitelisted actions, including `notebook_delete`) or write outside the directory. Names are now validated as identifiers. Reported by **@Naor-Peretz**.
 
