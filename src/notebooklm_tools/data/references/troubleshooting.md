@@ -56,6 +56,11 @@ Run it on a timer (e.g. cron/launchd every 30 min). It needs a saved Chrome
 profile from a prior `nlm login`, and does not apply when `NOTEBOOKLM_COOKIES`
 is set as an environment variable (that value overrides saved credentials).
 
+Some Google Workspace accounts have their session revoked when the saved browser
+profile is relaunched. On those accounts, set
+`NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` to turn off the automatic self-heal and
+`nlm auth refresh`.
+
 ### Browser Doesn't Launch
 
 **Symptoms:**

@@ -159,6 +159,11 @@ fails, so a scheduler can react. Example launchd/cron keep-alive (every 30 min):
 > does not help when `NOTEBOOKLM_COOKIES` is set as an environment variable —
 > that value overrides saved credentials, so update it directly instead.
 
+> **Disabling the refresh:** Some Google Workspace accounts have their session
+> revoked server-side whenever the saved browser profile is relaunched (issue
+> #330). Set `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` to turn off both the
+> automatic self-heal and `nlm auth refresh` on those accounts.
+
 ---
 
 ## Enterprise / Google Workspace

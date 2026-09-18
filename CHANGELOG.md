@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.5] - 2026-09-17
+
+Patch release hardening the headless auth refresh and account switching.
+
+### Added
+
+- **Opt-out for headless refresh** — Set `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1`
+  to disable the automatic Layer-3 self-heal and the manual `nlm auth refresh`.
+  Some Google Workspace sessions are revoked server-side when the saved browser
+  profile is relaunched; this switch lets those accounts turn the behavior off.
+  Thanks to **@cr4shOverr1de** for the detailed report in
+  [issue #330](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/330).
+
+### Fixed
+
+- **Headless refresh port collision** — The headless refresh now picks a free
+  port instead of a hardcoded 9223, so a foreign process already holding the
+  default port can no longer make Chrome bind elsewhere while the tool probes
+  the wrong listener ([issue #330](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/330)).
+- **`nlm login --clear` skipped the browser** — When the saved session still
+  validated, `--clear` returned early and never wiped the profile, so switching
+  accounts silently did nothing. `--clear` now always clears and
+  re-authenticates ([issue #330](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/330)).
+
+### Verification
+
+- Full non-E2E suite: 1,614 passed, 38 skipped, 1 deselected. Ruff lint and
+  formatting clean.
+
 ## [0.11.4] - 2026-09-13
 
 Patch release adding account-isolated usage checks for named profiles.

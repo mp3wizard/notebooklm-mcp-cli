@@ -170,3 +170,29 @@ def test_recovery_still_fails_cleanly_when_nothing_helps():
         pytest.raises(AuthenticationError, match="Authentication expired"),
     ):
         client._call_rpc("rLM1Ne", [])
+
+
+def test_headless_refresh_skipped_when_disabled_by_env(monkeypatch):
+    """NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1 must skip the Layer 3 relaunch.
+
+    Relaunching Chrome revokes some Workspace sessions server-side, so the
+    self-heal has to be disableable (issue #330).
+    """
+    monkeypatch.setenv("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH", "1")
+    client = _make_client({"SID": "stale"})
+
+    same_disk = AuthTokens(cookies={"SID": "stale"}, extracted_at=1.0)
+
+    with (
+        patch(
+            "notebooklm_tools.core.auth.load_cached_tokens",
+            return_value=same_disk,
+        ),
+        patch(
+            "notebooklm_tools.utils.auth_browser.run_headless_auth",
+        ) as headless,
+    ):
+        recovered = client._try_reload_or_headless_auth()
+
+    assert recovered is False
+    headless.assert_not_called()

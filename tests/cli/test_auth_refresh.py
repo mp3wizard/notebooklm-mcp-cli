@@ -77,3 +77,23 @@ def test_auth_refresh_blocks_when_env_cookies_override(monkeypatch):
     assert result.exit_code == 1
     assert "NOTEBOOKLM_COOKIES" in result.output
     assert called is False
+
+
+def test_auth_refresh_blocked_when_headless_disabled(monkeypatch):
+    """NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1 refuses the manual refresh (#330)."""
+    called = False
+
+    def fake_headless(*, profile_name, timeout=30):
+        nonlocal called
+        called = True
+        return SimpleNamespace(cookies={"SID": "fresh"})
+
+    monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
+    monkeypatch.setenv("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH", "1")
+    monkeypatch.setattr("notebooklm_tools.utils.auth_browser.run_headless_auth", fake_headless)
+
+    result = CliRunner().invoke(app, ["auth", "refresh", "--profile", "work"])
+
+    assert result.exit_code == 1
+    assert "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH" in result.output
+    assert called is False

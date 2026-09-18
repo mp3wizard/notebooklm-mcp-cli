@@ -324,7 +324,10 @@ def login_callback(
         console.print("[dim]Supported values: builtin, openclaw[/dim]")
         raise typer.Exit(1)
 
-    if not force:
+    # --clear switches accounts, so it must reach the browser even when the
+    # current session still validates; otherwise the early return skips the
+    # profile wipe entirely (issue #330).
+    if not force and not clear:
         try:
             p, notebook_count = _validate_saved_profile(auth)
             _print_auth_valid(p, notebook_count)
@@ -825,6 +828,13 @@ def auth_refresh(
             "[yellow]![/yellow] NOTEBOOKLM_COOKIES is set and overrides saved "
             "credentials, so a refresh won't take effect. Update that value "
             "(e.g. in your MCP config) instead."
+        )
+        raise typer.Exit(1)
+
+    if os.environ.get("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH") == "1":
+        console.print(
+            "[yellow]![/yellow] Headless refresh is disabled via "
+            "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH. Unset it to run a refresh."
         )
         raise typer.Exit(1)
 

@@ -1901,7 +1901,11 @@ def run_headless_auth(
             port = existing_port
             chrome_was_running = True
         else:
-            # No Chrome running - launch in headless mode
+            # No Chrome running - launch in headless mode. Pick a free port
+            # first so a foreign process already holding the default port can't
+            # make Chrome bind elsewhere (e.g. [::1]) while we probe the wrong
+            # listener (issue #330).
+            port = find_available_port(starting_from=port)
             chrome_process = launch_chrome_process(port, headless=True, profile_name=profile_name)
             if not chrome_process:
                 return None

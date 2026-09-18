@@ -145,6 +145,7 @@ save_auth_tokens(
 | `NOTEBOOKLM_BL` | No | Override build label (auto-extracted from page) |
 | `NOTEBOOKLM_HL` | No | Interface language (default: `en`) |
 | `NOTEBOOKLM_RPC_OVERRIDES` | No | Hot-patch rotated batchexecute RPC method IDs without a release. JSON mapping `RPC_*` attribute names (from `core/base.py`) to new IDs, e.g. `{"RPC_LIST_NOTEBOOKS": "abc123"}` |
+| `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH` | No | Set to `1` to disable the automatic headless self-heal and `nlm auth refresh`. Use on Google Workspace accounts whose session is revoked when the saved browser profile is relaunched (issue #330) |
 
 `NOTEBOOKLM_CSRF_TOKEN` and `NOTEBOOKLM_SESSION_ID` are deprecated — auto-extracted now.
 

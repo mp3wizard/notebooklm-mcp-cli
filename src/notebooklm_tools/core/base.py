@@ -1364,7 +1364,12 @@ class BaseClient:
         # Layer 3: Headless auth for the same profile that owns this client.
         # Relaunching Chrome with the saved profile makes Google reissue the
         # short-lived *PSIDTS freshness cookies, which is what revives an
-        # otherwise-valid session that aged out (issue #316).
+        # otherwise-valid session that aged out (issue #316). Some Workspace
+        # accounts instead have the relaunch revoke the session server-side, so
+        # this can be disabled (issue #330).
+        if os.environ.get("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH") == "1":
+            logger.debug("Headless refresh disabled via NOTEBOOKLM_DISABLE_HEADLESS_REFRESH")
+            return False
         try:
             from notebooklm_tools.utils.auth_browser import run_headless_auth
             from notebooklm_tools.utils.config import get_config

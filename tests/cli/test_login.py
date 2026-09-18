@@ -92,6 +92,49 @@ def test_login_force_bypasses_saved_profile_validation(monkeypatch, tmp_path):
     assert "Successfully authenticated!" in result.output
 
 
+def test_login_clear_bypasses_valid_saved_profile(monkeypatch, tmp_path):
+    """--clear must reach the browser even when the saved session still validates.
+
+    Otherwise the early "already valid" return skips the profile wipe, so
+    switching accounts silently does nothing (issue #330).
+    """
+    validate_calls = []
+    extract_kwargs = {}
+
+    def fake_validate(auth):
+        validate_calls.append(auth.profile_name)
+        return SimpleNamespace(name=auth.profile_name, email="user@example.com"), 3
+
+    def fake_extract(**kwargs):
+        extract_kwargs.update(kwargs)
+        return {
+            "cookies": {"SID": "sid"},
+            "csrf_token": "csrf",
+            "session_id": "session",
+            "email": "user@example.com",
+            "build_label": "build",
+        }
+
+    monkeypatch.setattr("notebooklm_tools.core.auth.AuthManager", FakeAuthManager)
+    monkeypatch.setattr("notebooklm_tools.cli.main._validate_saved_profile", fake_validate)
+    monkeypatch.setattr("notebooklm_tools.utils.cdp.get_chrome_path", lambda: "chrome")
+    monkeypatch.setattr("notebooklm_tools.utils.cdp.get_browser_display_name", lambda: "Chrome")
+    monkeypatch.setattr("notebooklm_tools.utils.cdp.terminate_chrome", lambda: True)
+    monkeypatch.setattr("notebooklm_tools.utils.cdp.extract_cookies_via_cdp", fake_extract)
+    monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "notebooklm_tools.utils.config.check_migration_sources",
+        lambda: {"chrome_profiles": []},
+    )
+
+    result = CliRunner().invoke(app, ["login", "--profile", "KS", "--clear"])
+
+    assert result.exit_code == 0
+    assert validate_calls == []
+    assert extract_kwargs.get("clear_profile") is True
+    assert "Successfully authenticated!" in result.output
+
+
 class CheckAuthManager(FakeAuthManager):
     """AuthManager whose check_validity returns a preconfigured result."""
 
