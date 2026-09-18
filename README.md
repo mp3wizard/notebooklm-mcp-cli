@@ -10,6 +10,17 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.11.5 — September 2026)
+- **Headless auth refresh hardening (#330)** — the headless refresh now picks a free port instead of a hardcoded 9223, so a foreign process already holding that port can't make Chrome bind elsewhere while the tool probes the wrong CDP listener; `nlm login --clear` now always clears and re-authenticates instead of returning early when the saved session still validates; new `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` opts out of the automatic self-heal and `nlm auth refresh` for Workspace accounts whose session is revoked server-side on relaunch. Reported by **@cr4shOverr1de**.
+- Also bumped `astral-sh/setup-uv` 7.6.0→10.1.0 in CI (dependabot, #329).
+
+### Security scan (September 2026 — v0.11.5 merge)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit
+- **0 real findings requiring a fix** — 1 Bandit Medium and 137 mcps-audit High/Critical were individually reviewed against source and confirmed false positives (test fixtures, a hardcoded PyPI version-check URL, local CDP debug scripts not shipped in the package, safe JSON deserialization misread as an "injection pattern", and the scanner's autonomous-agent heuristics misreading this CLI's `--confirm`/`-y` flags as "excessive agency")
+- **0 secrets** (Gitleaks, TruffleHog, OSV-Scanner clean; TruffleHog's 6 hits are the same recurring example-URI false positive in old scan-report docs), **0 dependency vulnerabilities** (OSV-Scanner, 90 packages)
+- **Coverage gaps this run:** Trivy failed twice on a DB-download network reset (not retried a third time; OSV-Scanner covered dependency vulns instead); `mcp-exfil-scan.sh`'s bundled-script checksum still doesn't match `SHA256SUMS` — plugin needs reinstalling before it can run again
+- Full report: [`docs/security-scan-report-2026-09-18.md`](docs/security-scan-report-2026-09-18.md)
+
 ### Upstream sync (v0.11.4 — September 2026)
 - **Plan usage reporting (#327)** — `nlm usage` and the MCP `usage_get` tool report percentage used/remaining, reset timestamp, and subscription tier for the rolling (~5h) and weekly compute windows. Thanks to **@WAOmaster**!
 - **Isolated usage checks for named profiles (#328)** — `nlm usage --profile <name>` / `usage_get(profile="<name>")` inspect a saved profile without touching the configured default or the MCP server's shared client; an explicit CLI profile now takes precedence over `NOTEBOOKLM_COOKIES`, and a missing profile fails instead of silently checking another account. Thanks to **@insane66613**!
