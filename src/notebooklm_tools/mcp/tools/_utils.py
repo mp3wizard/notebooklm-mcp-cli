@@ -321,6 +321,8 @@ def coerce_list(
       - A JSON string          → ``'["a","b"]'``
       - A comma-separated str  → ``'a,b,c'``
       - A single bare value    → ``'a'``
+      - A serialized JSON null → ``None``
+      - A null string-list sentinel → ``None``
       - None                   → ``None``
 
     This helper normalizes all forms into ``list[item_type]`` while preserving
@@ -330,14 +332,19 @@ def coerce_list(
     if val is None:
         return None  # Preserve None semantics (means "use default / all")
     if isinstance(val, list):
+        if converter is _DEFAULT_STR_CONVERTER and val == ["null"]:
+            return None
         return [converter(x) for x in val]
     if isinstance(val, str):
         val = val.strip()
-        if not val:
+        if not val or val == "null":
             return None
         if val.startswith("["):
             try:
-                return [converter(x) for x in json.loads(val)]
+                parsed = json.loads(val)
+                if converter is _DEFAULT_STR_CONVERTER and parsed == ["null"]:
+                    return None
+                return [converter(x) for x in parsed]
             except (json.JSONDecodeError, ValueError):
                 pass  # Fall through to comma-split
         return [converter(x.strip()) for x in val.split(",") if x.strip()]

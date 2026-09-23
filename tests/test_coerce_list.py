@@ -11,6 +11,13 @@ class TestCoerceList:
     def test_none_returns_none(self):
         assert coerce_list(None) is None
 
+    def test_serialized_json_null_returns_none(self):
+        assert coerce_list("null") is None
+
+    @pytest.mark.parametrize("value", [["null"], '["null"]'])
+    def test_serialized_json_null_list_returns_none(self, value):
+        assert coerce_list(value) is None
+
     def test_empty_string_returns_none(self):
         assert coerce_list("") is None
         assert coerce_list("   ") is None

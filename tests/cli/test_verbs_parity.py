@@ -26,6 +26,7 @@ def _collect_pairs():
     # Each entry: (verb_func_name, verb_func, target_func, skip_set)
     # skip_set contains params the verb handles differently (e.g. wraps in a list)
     pairs = [
+        ("create_notebook_verb", verbs.create_notebook_verb, notebook.create_notebook, set()),
         ("create_audio_verb", verbs.create_audio_verb, studio.create_audio, set()),
         ("create_video_verb", verbs.create_video_verb, studio.create_video, set()),
         ("create_report_verb", verbs.create_report_verb, studio.create_report, set()),
@@ -44,13 +45,13 @@ def _collect_pairs():
             "add_url_verb",
             verbs.add_url_verb,
             source.add_source,
-            {"text", "drive", "youtube", "file", "title", "doc_type", "notebook_id"},
+            {"text", "drive", "youtube", "file", "notebook_id"},
         ),
         (
             "add_text_verb",
             verbs.add_text_verb,
             source.add_source,
-            {"url", "drive", "youtube", "file", "doc_type", "notebook_id"},
+            {"url", "drive", "youtube", "file", "notebook_id"},
         ),
         (
             "add_drive_verb",
@@ -58,6 +59,9 @@ def _collect_pairs():
             source.add_source,
             {"url", "text", "youtube", "file", "notebook_id"},
         ),
+        ("list_artifacts_verb", verbs.list_artifacts_verb, studio.studio_status, set()),
+        ("status_artifacts_verb", verbs.status_artifacts_verb, studio.studio_status, set()),
+        ("set_alias_verb", verbs.set_alias_verb, alias.set_alias, set()),
         ("describe_notebook_verb", verbs.describe_notebook_verb, notebook.describe_notebook, set()),
         ("describe_source_verb", verbs.describe_source_verb, source.describe_source, set()),
         ("query_notebook_verb", verbs.query_notebook_verb, notebook.query_notebook, set()),
@@ -133,3 +137,90 @@ def test_verb_passes_all_target_params(verb_name, verb_func, target_func, skip_p
         f"{verb_name} does not pass these parameters to {target_func.__name__}: "
         f"{missing}. Either add them to the verb wrapper or add to skip_params with a reason."
     )
+
+
+def test_artifact_verbs_do_not_pass_option_info_as_limit():
+    """nlm list/status artifacts must reach the service with real limit defaults."""
+    from unittest.mock import MagicMock, patch
+
+    from typer.testing import CliRunner
+
+    from notebooklm_tools.cli.main import app
+
+    runner = CliRunner()
+    client = MagicMock()
+    client.__enter__ = lambda instance: instance
+    client.__exit__ = MagicMock(return_value=False)
+    client.poll_studio_status.return_value = []
+    alias_manager = MagicMock()
+    alias_manager.resolve.side_effect = lambda value: value
+
+    with (
+        patch(
+            "notebooklm_tools.cli.commands.studio.get_alias_manager",
+            return_value=alias_manager,
+        ),
+        patch("notebooklm_tools.cli.commands.studio.get_client", return_value=client),
+    ):
+        for args in (["list", "artifacts", "nb-1"], ["status", "artifacts", "nb-1"]):
+            result = runner.invoke(app, args)
+            assert result.exit_code == 0, result.output
+            assert result.exception is None
+
+    assert client.poll_studio_status.call_count == 2
+
+
+def test_create_notebook_verb_passes_real_json_flag():
+    """OptionInfo is truthy, so a leaked json flag would force JSON output."""
+    from unittest.mock import MagicMock, patch
+
+    from typer.testing import CliRunner
+
+    from notebooklm_tools.cli.commands.verbs import create_app
+
+    runner = CliRunner()
+    client = MagicMock()
+    client.__enter__ = lambda instance: instance
+    client.__exit__ = MagicMock(return_value=False)
+
+    with (
+        patch("notebooklm_tools.cli.commands.notebook.get_client", return_value=client),
+        patch(
+            "notebooklm_tools.cli.commands.notebook.notebooks_service.create_notebook",
+            return_value={"id": "nb-1", "title": "T"},
+        ),
+        patch(
+            "notebooklm_tools.cli.commands.notebook.detect_output_format",
+            return_value=MagicMock(),
+        ) as detect_output_format,
+        patch("notebooklm_tools.cli.commands.notebook.get_formatter"),
+    ):
+        result = runner.invoke(create_app, ["notebook", "T"])
+
+    assert result.exit_code == 0, result.output
+    assert detect_output_format.call_args.args[0] is False
+
+
+def test_set_alias_verb_auto_detects_when_type_omitted():
+    """A leaked OptionInfo is truthy and would skip type detection."""
+    from unittest.mock import MagicMock, patch
+
+    from typer.testing import CliRunner
+
+    from notebooklm_tools.cli.commands.verbs import set_app
+
+    runner = CliRunner()
+    manager = MagicMock()
+
+    with (
+        patch("notebooklm_tools.cli.commands.alias.get_alias_manager", return_value=manager),
+        patch(
+            "notebooklm_tools.cli.commands.alias.detect_id_type",
+            return_value="notebook",
+        ) as detect_id_type,
+    ):
+        result = runner.invoke(set_app, ["alias", "my-nb", "abc"])
+
+    assert result.exit_code == 0, result.output
+    detect_id_type.assert_called_once_with("abc", None)
+    manager.set_alias.assert_called_once_with("my-nb", "abc", "notebook")

@@ -106,7 +106,7 @@ def create_notebook_verb(
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Create a new notebook."""
-    create_notebook(title=title, profile=profile)
+    create_notebook(title=title, json_output=False, profile=profile)
 
 
 @create_app.command("audio")
@@ -438,7 +438,16 @@ def list_artifacts_verb(
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """List all studio artifacts."""
-    studio_status(notebook_id=notebook, full=full, json_output=json_output, profile=profile)
+    studio_status(
+        notebook_id=notebook,
+        full=full,
+        json_output=json_output,
+        mcp_compatible=False,
+        artifact_id=None,
+        limit=None,
+        offset=0,
+        profile=profile,
+    )
 
 
 @list_app.command("aliases")
@@ -590,6 +599,8 @@ def add_url_verb(
         drive=None,
         youtube=None,
         file=None,
+        title="",
+        doc_type="doc",
         wait=wait,
         wait_timeout=wait_timeout,
         json_output=json_output,
@@ -617,6 +628,7 @@ def add_text_verb(
         youtube=None,
         file=None,
         title=title or "Pasted Text",
+        doc_type="doc",
         wait=wait,
         wait_timeout=wait_timeout,
         json_output=json_output,
@@ -708,7 +720,16 @@ def status_artifacts_verb(
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ) -> None:
     """Check status of studio artifacts."""
-    studio_status(notebook_id=notebook, full=full, json_output=json_output, profile=profile)
+    studio_status(
+        notebook_id=notebook,
+        full=full,
+        json_output=json_output,
+        mcp_compatible=False,
+        artifact_id=None,
+        limit=None,
+        offset=0,
+        profile=profile,
+    )
 
 
 @status_app.command("research")
@@ -1114,7 +1135,7 @@ def set_alias_verb(
     value: str = typer.Argument(..., help="ID to alias"),
 ) -> None:
     """Set an alias for an ID."""
-    set_alias(name=name, value=value)
+    set_alias(name=name, value=value, alias_type=None, profile=None)
 
 
 @set_app.command("config")
