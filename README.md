@@ -10,6 +10,18 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.11.6 / v0.11.7 — September 2026)
+- **`coerce_list` null-list compatibility (#331)** — MCP clients that serialize optional list parameters as `"null"` or `["null"]` (instead of omitting them or sending JSON `null`) now correctly resolve to `None`. Fixes `source_add(url=...)` / `source_delete(source_id=...)` taking the bulk-operation path and ignoring the valid scalar argument. Thanks to **@ggnoobpvp**.
+- **Verb commands stopped leaking Typer option defaults (#333)** — `nlm list artifacts` and `nlm status artifacts` raised `TypeError` because `limit` arrived as an unresolved Typer `OptionInfo` sentinel instead of a number; `nlm create notebook` always printed JSON; `nlm set alias` skipped type detection. All verb wrappers now pass their unused defaults explicitly. Thanks to **@hkrathore**.
+
+### Security scan (September 2026 — v0.11.7 merge)
+- Full automated scan post-merge: Gitleaks, Bandit, Semgrep (OWASP/Python/secrets), Trivy, TruffleHog, OSV-Scanner, mcps-audit, config-audit, skill-audit, mcp-exfil-scan
+- **1 CRITICAL + 1 MEDIUM fixed** — `anyio` 4.13.0 → 4.14.2 (CVE-2026-63374 critical, CVE-2026-64847 medium), confirmed by both Trivy and OSV-Scanner; `uv lock --upgrade-package anyio` + `uv sync`, full non-e2e suite still green (1,624 passed)
+- **1 Bandit Medium fixed** — confirmed false-positive `B108 hardcoded_tmp_directory` on adversarial test data (`/tmp/account` as an invalid-profile-name string, not an actual temp path); suppressed with `# nosec B108` + justification
+- mcps-audit's 583 High/Critical/Medium findings reviewed against the prior (2026-09-18) audit — same files/lines, no new occurrences from the 4 merged commits; all previously confirmed as scanner/threat-model false positives (CDP debug scripts, RPC constant names, documented `--confirm` flags, etc.)
+- **0 secrets** (Gitleaks, TruffleHog, Semgrep secrets clean), mcp-exfil-scan RISK SCORE 0/100 CLEAN
+- Full report: [`docs/security-scan-report-2026-09-23.md`](docs/security-scan-report-2026-09-23.md)
+
 ### Upstream sync (v0.11.5 — September 2026)
 - **Headless auth refresh hardening (#330)** — the headless refresh now picks a free port instead of a hardcoded 9223, so a foreign process already holding that port can't make Chrome bind elsewhere while the tool probes the wrong CDP listener; `nlm login --clear` now always clears and re-authenticates instead of returning early when the saved session still validates; new `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` opts out of the automatic self-heal and `nlm auth refresh` for Workspace accounts whose session is revoked server-side on relaunch. Reported by **@cr4shOverr1de**.
 - Also bumped `astral-sh/setup-uv` 7.6.0→10.1.0 in CI (dependabot, #329).

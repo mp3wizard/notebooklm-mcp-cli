@@ -36,7 +36,8 @@ def test_profile_session_fields_and_cleanup_on_usage_failure():
 
 @pytest.mark.parametrize(
     "profile",
-    ["missing", "", "../personal", "/tmp/account", "..", "work/personal", "work\\personal"],
+    # "/tmp/account" is adversarial input data, not a temp-file path this test creates.
+    ["missing", "", "../personal", "/tmp/account", "..", "work/personal", "work\\personal"],  # nosec B108  # test data for invalid-profile rejection, not tmp dir usage
 )
 def test_invalid_or_missing_profile_never_constructs_a_client(profile):
     with patch.object(usage, "NotebookLMClient") as client_type, pytest.raises(ServiceError):
