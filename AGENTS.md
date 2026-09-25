@@ -170,6 +170,7 @@ also requires the target tool to be detected.
 | `studio_status` | Check studio artifact generation status |
 | `studio_delete` | Delete studio artifacts (REQUIRES confirmation) |
 | `studio_revise` | Revise slides in an existing slide deck (creates new artifact, REQUIRES confirmation) |
+| `report` | Interactive report elements: `action=get`, `elements` (wait / review content), `generate` (plan; REQUIRES confirmation) |
 | `notebook_share_status` | Get sharing settings and collaborators |
 | `notebook_share_public` | Enable/disable public link access |
 | `notebook_share_invite` | Invite collaborator by email |
@@ -187,6 +188,7 @@ also requires the target tool to be detected.
 - All studio creation tools require `confirm=True` - show settings and get user approval first
 - `studio_delete` requires `confirm=True` - list artifacts first via `studio_status`, deletion is IRREVERSIBLE
 - `studio_revise` requires `confirm=True` - creates a new artifact with revisions applied
+- `report(action="generate")` requires `confirm=True` - starts Studio generation for the plan's elements (consumes AI usage)
 - `note_delete` requires `confirm=True` - deletion is IRREVERSIBLE
 
 ## Features NOT Yet Implemented

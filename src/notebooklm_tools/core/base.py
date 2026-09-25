@@ -284,6 +284,9 @@ class BaseClient:
     RPC_DELETE_STUDIO = "V5N4be"  # Delete Audio or Video Overview
     RPC_RENAME_ARTIFACT = "rc3d8d"  # Rename any studio artifact (Audio, Video, etc.)
     RPC_GET_INTERACTIVE_HTML = "v9rmvd"  # Fetch quiz/flashcard HTML content
+    RPC_GET_ARTIFACT = "v9rmvd"  # Get one artifact by id (same RPC; also reads element metadata)
+    RPC_SET_ARTIFACT_FIELDS = "rc3d8d"  # Update artifact fields via field mask (same RPC as rename)
+    RPC_START_ARTIFACT = "Rytqqe"  # Kick off generation of a (suggested) artifact
     RPC_REVISE_SLIDE_DECK = "KmcKPe"  # Revise existing slide deck with per-slide instructions
 
     # Mind map RPCs
@@ -346,6 +349,7 @@ class BaseClient:
     STUDIO_TYPE_SLIDE_DECK = constants.STUDIO_TYPE_SLIDE_DECK
     STUDIO_TYPE_DATA_TABLE = constants.STUDIO_TYPE_DATA_TABLE
     STUDIO_TYPE_DATA_TABLE_XLSX = constants.STUDIO_TYPE_DATA_TABLE_XLSX
+    STUDIO_TYPE_INTERACTIVE_REPORT = constants.STUDIO_TYPE_INTERACTIVE_REPORT
 
     # Audio formats and lengths
     AUDIO_FORMAT_DEEP_DIVE = constants.AUDIO_FORMAT_DEEP_DIVE
@@ -971,6 +975,8 @@ class BaseClient:
         _retry: bool = False,
         _deep_retry: bool = False,
         _server_retry: int = 0,
+        *,
+        retry_server_errors: bool = True,
     ) -> Any:
         """Execute an RPC call and return the extracted result.
 
@@ -978,6 +984,10 @@ class BaseClient:
         1. Refresh CSRF/session tokens (fast, handles token expiry)
         2. Reload cookies from disk (handles external re-authentication)
         3. Run headless auth (auto-refresh if Chrome profile has saved login)
+
+        retry_server_errors: False disables the HTTP 5xx/429 replay. Use for
+        non-idempotent mutations whose delivery may have succeeded (e.g. the
+        Rytqqe kickoff).
         """
         if self._cdp_rpc_transport_enabled():
             return self._call_rpc_via_cdp(
@@ -1055,7 +1065,7 @@ class BaseClient:
             # Retry on transient server errors (5xx, 429) with exponential backoff.
             # Rate limits have a separate ceiling so external schedulers can own
             # retry policy without disabling safe connection or 5xx retries.
-            if is_retryable_error(e):
+            if retry_server_errors and is_retryable_error(e):
                 import time as _time
 
                 status = e.response.status_code
@@ -1076,6 +1086,7 @@ class BaseClient:
                         _retry,
                         _deep_retry,
                         _server_retry=_server_retry + 1,
+                        retry_server_errors=retry_server_errors,
                     )
                 # Exhausted retries, re-raise
                 raise
@@ -1119,6 +1130,7 @@ class BaseClient:
                     _retry,
                     _deep_retry,
                     _server_retry=_server_retry + 1,
+                    retry_server_errors=retry_server_errors,
                 )
             # Exhausted retries, re-raise
             raise
@@ -1146,6 +1158,7 @@ class BaseClient:
                     _retry,
                     _deep_retry,
                     _server_retry=_server_retry + 1,
+                    retry_server_errors=retry_server_errors,
                 )
             raise
 
@@ -1161,7 +1174,14 @@ class BaseClient:
                 self._refresh_auth_tokens()
                 with self._state_lock:
                     self._client = None
-                return self._call_rpc(rpc_id, params, path, timeout, _retry=True)
+                return self._call_rpc(
+                    rpc_id,
+                    params,
+                    path,
+                    timeout,
+                    _retry=True,
+                    retry_server_errors=retry_server_errors,
+                )
             except (ValueError, httpx.HTTPError, OSError) as exc:
                 # A transport or 5xx failure is not evidence that credentials
                 # expired. Retrying auth would produce the wrong user guidance
@@ -1195,7 +1215,15 @@ class BaseClient:
                     logger.debug("CSRF re-extraction after auth recovery failed: %s", exc)
             with self._state_lock:
                 self._client = None
-            return self._call_rpc(rpc_id, params, path, timeout, _retry=True, _deep_retry=True)
+            return self._call_rpc(
+                rpc_id,
+                params,
+                path,
+                timeout,
+                _retry=True,
+                _deep_retry=True,
+                retry_server_errors=retry_server_errors,
+            )
 
         # All recovery attempts failed
         msg = (

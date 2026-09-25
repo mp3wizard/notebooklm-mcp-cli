@@ -6,6 +6,7 @@ from typing import Any, Protocol, cast
 
 from . import constants
 from .base import BaseClient
+from .errors import KickoffOutcomeUnknownError
 from .utils import is_mind_map_json, parse_timestamp
 
 
@@ -135,14 +136,16 @@ class StudioMixin(BaseClient):
     def _coerce_source_ids(raw: Any) -> list[str]:
         """Coerce a raw source list into UUID strings.
 
-        Entries appear as bare strings (``"uuid"``) or UUIDs wrapped in one
-        or more single-element lists; anything else is ignored.
+        Entries appear as bare strings (``"uuid"``), UUIDs wrapped in one or
+        more lists, or (interactive reports) ``[["uuid"], null, 5]`` where
+        metadata follows the id; the id is always the first item. Anything
+        else is ignored.
         """
         if not isinstance(raw, list):
             return []
         ids: list[str] = []
         for entry in raw:
-            while isinstance(entry, list) and len(entry) == 1:
+            while isinstance(entry, list) and entry:
                 entry = entry[0]
             if isinstance(entry, str):
                 ids.append(entry)
@@ -190,6 +193,10 @@ class StudioMixin(BaseClient):
             return "completed"
         if status_code == 4:
             return "failed"
+        if status_code == 5:
+            # Suggested artifacts are the placeholder elements an interactive
+            # report embeds (mind map / quiz / flashcards / slide deck / ...).
+            return "suggested"
 
         type_code = artifact_data[2] if len(artifact_data) > 2 else None
         if (
@@ -198,6 +205,20 @@ class StudioMixin(BaseClient):
             and self._audio_has_media_urls(artifact_data)
         ):
             return "completed"
+
+        if status_code == 2 and type_code in (
+            self.STUDIO_TYPE_INTERACTIVE_REPORT,
+            self.STUDIO_TYPE_FLASHCARDS,
+            self.STUDIO_TYPE_SLIDE_DECK,
+            self.STUDIO_TYPE_INFOGRAPHIC,
+            self.STUDIO_TYPE_AUDIO,
+            self.STUDIO_TYPE_VIDEO,
+        ):
+            # Interactive reports and their embedded elements report code 2
+            # (queued/generating) before flipping to 3 (completed). Verified
+            # live for the report and every element kind. Audio with media
+            # URLs at code 2 is handled above as completed.
+            return "queued"
 
         return "unknown"
 
@@ -448,6 +469,21 @@ class StudioMixin(BaseClient):
                                 content_data[0] if isinstance(content_data[0], str) else None
                             )
 
+                # Interactive reports (type 11) keep the prompt/language block
+                # at index 34 and, once generated, the structured document that
+                # we render back to markdown. The embedded element ids come from
+                # the document's embed blocks.
+                report_prompt = None
+                report_language = None
+                report_elements = None
+                if type_code == self.STUDIO_TYPE_INTERACTIVE_REPORT:
+                    options = interactive_report_options(artifact_data)
+                    report_prompt = options["prompt"]
+                    report_language = options["language"]
+                    if interactive_report_document(artifact_data) is not None:
+                        report_content = render_interactive_report_markdown(artifact_data)
+                        report_elements = extract_interactive_report_elements(artifact_data)
+
                 # Flashcard/Quiz/Mind Map artifacts share type code 4 and are
                 # distinguished by options[1][0]:
                 #   - Flashcards: 1
@@ -505,6 +541,7 @@ class StudioMixin(BaseClient):
                     self.STUDIO_TYPE_INFOGRAPHIC: "infographic",
                     self.STUDIO_TYPE_SLIDE_DECK: "slide_deck",
                     self.STUDIO_TYPE_DATA_TABLE: "data_table",
+                    self.STUDIO_TYPE_INTERACTIVE_REPORT: "interactive_report",
                 }
                 if is_mind_map:
                     artifact_type = "mind_map"
@@ -584,6 +621,9 @@ class StudioMixin(BaseClient):
                         "download_filename": download_filename,
                         "mime_type": mime_type,
                         "report_content": report_content,
+                        "report_prompt": report_prompt,
+                        "report_language": report_language,
+                        "report_elements": report_elements,
                         "flashcard_count": flashcard_count,
                         "duration_seconds": duration_seconds,
                     }
@@ -994,6 +1034,238 @@ class StudioMixin(BaseClient):
 
         return None
 
+    def create_interactive_report(
+        self,
+        notebook_id: str,
+        source_ids: list[str] | None = None,
+        template: str = constants.DEFAULT_INTERACTIVE_REPORT_TEMPLATE,
+        custom_prompt: str = "",
+        language: str = "en",
+    ) -> dict[str, Any] | None:
+        """Create an Interactive Report (type 11) from notebook sources.
+
+        Interactive reports are long-form reports that weave Studio outputs
+        (a recommended mind map / infographic / flashcards / slide deck / quiz)
+        into a single browsable document. The element placeholders are created
+        automatically as *suggested* artifacts (status code 5); each one can be
+        generated later via ``start_artifact_generation``.
+
+        Payload layout discovered in the wild (``R7cb6c``, type 11):
+        - config block: ``[2, null, null, [1, null x9, [<template>]], [<element types>]]``
+        - content block: ``[null, null, 11, <sources>, null x30, [null, [prompt, language]]]``
+          (the options block sits at index 34 instead of index 7 as with type 2)
+        """
+        if source_ids is None:
+            source_ids = self._get_all_source_ids(notebook_id)
+
+        if not source_ids:
+            raise ValueError(
+                f"No sources found in notebook {notebook_id}. Add sources before creating studio content."
+            )
+
+        template_code = constants.INTERACTIVE_REPORT_TEMPLATES.get_code(template)
+
+        # Build source IDs in the nested format: [[[id1]], [[id2]], ...]
+        sources_nested = [[[sid]] for sid in source_ids]
+
+        # Config: [2, null, null, [1, null×9, [template_code]], [element types]]
+        template_block: list[Any] = [1] + [None] * 9 + [[template_code]]
+        config = [2, None, None, template_block, [list(constants.INTERACTIVE_REPORT_ELEMENT_TYPES)]]
+
+        # Content: options (prompt/language) live at index 34 for type 11.
+        content: list[Any] = [None, None, self.STUDIO_TYPE_INTERACTIVE_REPORT, sources_nested]
+        content.extend([None] * 30)
+        content.append([None, [custom_prompt, language]])
+
+        params = [config, notebook_id, content]
+
+        result = self._call_rpc(self.RPC_CREATE_STUDIO, params, f"/notebook/{notebook_id}")
+
+        if result and isinstance(result, list) and len(result) > 0:
+            artifact_data = result[0]
+            artifact_id = (
+                artifact_data[0]
+                if isinstance(artifact_data, list) and len(artifact_data) > 0
+                else None
+            )
+
+            return {
+                "artifact_id": artifact_id,
+                "notebook_id": notebook_id,
+                "type": "interactive_report",
+                "status": self._normalize_studio_status(artifact_data),
+                "template": template,
+                "language": language,
+                "prompt": custom_prompt or None,
+            }
+
+        return None
+
+    def get_artifact(self, notebook_id: str, artifact_id: str) -> list[Any] | None:
+        """Fetch a single studio artifact by id (``v9rmvd``).
+
+        Returns the raw artifact array (same layout as poll entries), which is
+        also how interactive-report element metadata is read. The web client
+        sends the same config block used at creation time plus a wider type
+        allowlist; we mirror that.
+        """
+        config = [
+            2,
+            None,
+            None,
+            [1] + [None] * 9 + [[1]],
+            [list(constants.INTERACTIVE_REPORT_GET_TYPES)],
+        ]
+        result = self._call_rpc(
+            self.RPC_GET_ARTIFACT, [artifact_id, config], f"/notebook/{notebook_id}"
+        )
+        if result and isinstance(result, list) and len(result) > 0:
+            first = result[0]
+            if isinstance(first, list) and first and isinstance(first[0], str):
+                return first
+        return None
+
+    def describe_artifact(self, notebook_id: str, artifact_id: str) -> dict[str, Any] | None:
+        """Fetch one artifact by id and return a normalized description.
+
+        Mirrors the per-artifact fields of ``poll_studio_status`` so services
+        can work with a single artifact (in particular interactive reports and
+        their suggested elements). Returns None when the artifact is missing.
+        """
+        raw = self.get_artifact(notebook_id, artifact_id)
+        if raw is None:
+            return None
+
+        type_code = raw[2] if len(raw) > 2 else None
+        info: dict[str, Any] = {
+            "artifact_id": raw[0] if raw and isinstance(raw[0], str) else None,
+            "title": raw[1] if len(raw) > 1 and isinstance(raw[1], str) else "",
+            "type": classify_artifact_kind(raw),
+            "status": self._normalize_studio_status(raw),
+            "source_ids": self._extract_artifact_source_ids(raw, type_code),
+            "steering_prompt": _artifact_steering_prompt(raw),
+            "description": _artifact_card_description(raw),
+        }
+
+        if type_code == self.STUDIO_TYPE_INTERACTIVE_REPORT:
+            options = interactive_report_options(raw)
+            info["report_prompt"] = options["prompt"]
+            info["report_language"] = options["language"]
+            info["report_content"] = render_interactive_report_markdown(raw)
+            info["report_elements"] = extract_interactive_report_elements(raw)
+            info["report_sections"] = extract_report_sections(raw)
+            info["parse_status"] = interactive_report_parse_status(raw)
+
+        return info
+
+    def start_artifact_generation(
+        self,
+        notebook_id: str,
+        artifact_id: str,
+        steering_prompt: str = "",
+        language: str = "en",
+        source_ids: list[str] | None = None,
+        settings: dict[str, int] | None = None,
+    ) -> dict[str, Any]:
+        """Generate a *suggested* artifact (e.g. an interactive-report element).
+
+        Two-step flow observed in the web UI for every element kind ("Add" ->
+        "Generate" on an element card):
+
+        1. ``rc3d8d`` updates the artifact's generation options through a field
+           mask (free-text steering prompt, language, structured options,
+           sources). The mask and option block are kind-specific - see
+           :func:`build_artifact_generation_payloads`.
+        2. ``Rytqqe`` kicks the generation off (same config for every kind,
+           ``[config, "<artifact id>"]``) and returns the refreshed artifact
+           with the standard status codes (2 queued -> 1 in progress ->
+           3 completed / 4 failed).
+        """
+        artifact = self.get_artifact(notebook_id, artifact_id)
+        if artifact is None:
+            raise ValueError(f"Artifact {artifact_id} not found in notebook {notebook_id}.")
+
+        if source_ids is None:
+            type_code = artifact[2] if len(artifact) > 2 else None
+            source_ids = self._extract_artifact_source_ids(artifact, type_code)
+        if not source_ids:
+            # Never widen to every notebook source: the element must stay
+            # scoped to its report's sources (callers pass them explicitly).
+            raise ValueError(
+                f"No sources available on artifact {artifact_id}; pass source_ids explicitly."
+            )
+
+        sources_nested = [[[sid]] for sid in source_ids]
+
+        update, field_mask = build_artifact_generation_payloads(
+            artifact,
+            sources_nested,
+            steering_prompt,
+            language,
+            settings=settings,
+        )
+
+        config = [
+            2,
+            None,
+            None,
+            [1] + [None] * 9 + [[1]],
+            [list(constants.INTERACTIVE_REPORT_GET_TYPES)],
+        ]
+
+        self._call_rpc(
+            self.RPC_SET_ARTIFACT_FIELDS,
+            [update, field_mask, None, config],
+            f"/notebook/{notebook_id}",
+        )
+
+        # The artifact id is passed as a plain string, not wrapped in a list;
+        # a wrapped id is rejected with INVALID_ARGUMENT (verified 2026-09-24).
+        kickoff_config = [
+            2,
+            None,
+            None,
+            [1] + [None] * 9 + [[1]],
+            [list(constants.INTERACTIVE_REPORT_ELEMENT_TYPES)],
+        ]
+        import httpx  # local: only this path needs transport exception types
+
+        try:
+            result = self._call_rpc(
+                self.RPC_START_ARTIFACT,
+                [kickoff_config, artifact_id],
+                f"/notebook/{notebook_id}",
+                retry_server_errors=False,
+            )
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise  # never delivered: a definite failure, safe to report as such
+        except (httpx.HTTPStatusError, httpx.TimeoutException) as e:
+            raise KickoffOutcomeUnknownError(
+                f"Kickoff response for {artifact_id} was lost: {e}"
+            ) from e
+        except httpx.TransportError as e:
+            raise KickoffOutcomeUnknownError(
+                f"Kickoff delivery for {artifact_id} is uncertain: {e}"
+            ) from e
+
+        if not (
+            isinstance(result, list)
+            and result
+            and isinstance(result[0], list)
+            and result[0]
+            and isinstance(result[0][0], str)
+        ):
+            raise KickoffOutcomeUnknownError(
+                f"Kickoff response for {artifact_id} was malformed: {str(result)[:200]}"
+            )
+        artifact_data = result[0]
+        return {
+            "artifact_id": artifact_data[0],
+            "title": artifact_data[1] if len(artifact_data) > 1 else None,
+            "type": classify_artifact_kind(artifact_data),
+            "status": self._normalize_studio_status(artifact_data),
+        }
+
     def create_flashcards(
         self,
         notebook_id: str,
@@ -1398,3 +1670,515 @@ class StudioMixin(BaseClient):
                     )
 
         return mind_maps
+
+
+# =============================================================================
+# Interactive report helpers (STUDIO_TYPE_INTERACTIVE_REPORT = 11)
+#
+# An interactive report artifact carries its options at index 34 instead of
+# index 7:  ``[<document or null>, [<prompt>, <language>, <generated?>]]``.
+# Once generated, ``document`` is a one-element wrapper around a flat list of
+# blocks: headings, paragraphs (with character-offset spans), bullet items and
+# embed blocks that reference the suggested Studio elements.
+# =============================================================================
+
+
+def interactive_report_options(artifact_data: Any) -> dict[str, Any]:
+    """Extract prompt/language/generation flag from an interactive report artifact."""
+    out: dict[str, Any] = {"prompt": None, "language": None, "generated": None}
+    if not isinstance(artifact_data, list) or len(artifact_data) <= 34:
+        return out
+    options = artifact_data[34]
+    if not isinstance(options, list) or len(options) <= 1:
+        return out
+    inner = options[1]
+    if not isinstance(inner, list):
+        return out
+    if len(inner) > 0 and isinstance(inner[0], str):
+        out["prompt"] = inner[0] or None
+    if len(inner) > 1 and isinstance(inner[1], str):
+        out["language"] = inner[1] or None
+    if len(inner) > 2 and inner[2] is not None:
+        out["generated"] = bool(inner[2])
+    return out
+
+
+def interactive_report_document(artifact_data: Any) -> list[Any] | None:
+    """Return the flat block list of a generated interactive report, or None."""
+    if not isinstance(artifact_data, list) or len(artifact_data) <= 34:
+        return None
+    options = artifact_data[34]
+    if not isinstance(options, list) or not options:
+        return None
+    wrapper = options[0]
+    # Layout: [[<blocks>]] -> options[0][0][0] is the flat block list.
+    if (
+        isinstance(wrapper, list)
+        and wrapper
+        and isinstance(wrapper[0], list)
+        and wrapper[0]
+        and isinstance(wrapper[0][0], list)
+    ):
+        blocks = wrapper[0][0]
+        if blocks and all(isinstance(b, list) for b in blocks):
+            return blocks
+    return None
+
+
+def _is_embed_block(block: Any) -> bool:
+    """Embed blocks look like ``[null x12, [<element_id>, <flag>], ...]``.
+
+    Extra trailing fields are tolerated so a new Google field does not make
+    every element silently disappear.
+    """
+    return (
+        isinstance(block, list)
+        and len(block) >= 13
+        and all(item is None for item in block[:12])
+        and isinstance(block[12], list)
+        and len(block[12]) >= 1
+        and isinstance(block[12][0], str)
+    )
+
+
+def extract_interactive_report_elements(artifact_data: Any) -> list[dict[str, Any]]:
+    """Return the embedded element references carried by an interactive report.
+
+    Each entry: ``{"element_id": str, "flag": int|None, "block_index": int}``.
+    The elements themselves are *suggested* artifacts (status 5) that can be
+    generated via ``start_artifact_generation``.
+    """
+    blocks = interactive_report_document(artifact_data)
+    if not blocks:
+        return []
+    elements: list[dict[str, Any]] = []
+    for index, block in enumerate(blocks):
+        if _is_embed_block(block):
+            elements.append(
+                {
+                    "element_id": block[12][0],
+                    "flag": block[12][1] if len(block[12]) > 1 else None,
+                    "block_index": index,
+                }
+            )
+    return elements
+
+
+def _is_heading_block(block: list[Any]) -> bool:
+    return block[0] is None and (len(block) < 2 or block[1] is None) and not _is_embed_block(block)
+
+
+def extract_report_sections(artifact_data: Any) -> dict[str, dict[str, str] | None]:
+    """Map each embedded element id to the section it sits in.
+
+    A section is the nearest preceding heading plus the paragraph and bullet
+    text between that heading and the element. Elements before any heading
+    map to ``None`` so callers never anchor a prompt to guessed text.
+    """
+    blocks = interactive_report_document(artifact_data)
+    if not blocks:
+        return {}
+    sections: dict[str, dict[str, str] | None] = {}
+    heading: str | None = None
+    texts: list[str] = []
+    for block in blocks:
+        if not isinstance(block, list) or not block:
+            continue
+        if _is_embed_block(block):
+            sections[block[12][0]] = (
+                {"heading": heading, "text": "\n".join(t for t in texts if t)}
+                if heading is not None
+                else None
+            )
+            continue
+        if _is_heading_block(block):
+            heading = _first_string(block[2] if len(block) > 2 else None)
+            texts = []
+            continue
+        if isinstance(block[0], int):
+            texts.append(_report_block_text(block))
+    return sections
+
+
+def interactive_report_parse_status(artifact_data: Any) -> str:
+    """Classify how well the report document was understood.
+
+    ``pending``: no document yet. ``unrecognized``: a document is present but
+    its structure is not understood. ``empty``: understood, no embeds.
+    ``ok``: understood with at least one embedded element.
+    """
+    if not isinstance(artifact_data, list) or len(artifact_data) <= 34:
+        return "pending"
+    options = artifact_data[34]
+    if not isinstance(options, list) or not options or options[0] is None:
+        return "pending"
+    if interactive_report_document(artifact_data) is None:
+        return "unrecognized"
+    return "ok" if extract_interactive_report_elements(artifact_data) else "empty"
+
+
+def _report_span_text(span: Any) -> str:
+    """Render one text span. A single-element ``[true]`` attribute means bold."""
+    if not (isinstance(span, list) and len(span) >= 3 and isinstance(span[2], list)):
+        return ""
+    parts = span[2]
+    if not parts or not isinstance(parts[0], str):
+        return ""
+    text = parts[0]
+    attrs = parts[1] if len(parts) > 1 else None
+    if attrs == [True]:
+        return f"**{text}**"
+    return text
+
+
+def _report_block_text(block: list[Any]) -> str:
+    """Concatenate the text spans of a paragraph or bullet block."""
+    groups = block[2] if len(block) > 2 else None
+    if not isinstance(groups, list):
+        return ""
+    pieces: list[str] = []
+    for group in groups:
+        spans = group if isinstance(group, list) else [group]
+        for span in spans:
+            pieces.append(_report_span_text(span))
+    return "".join(pieces)
+
+
+def _report_bullet_meta(block: list[Any]) -> dict[str, Any] | None:
+    """Return the bullet metadata dict of a list-item block, if present.
+
+    Bullet blocks carry their marker at ``block[2][3]``:
+    ``[null, null, 0, {"101": "•", "102": 1, "103": <index>, "104": <level>}]``.
+    """
+    if len(block) <= 2 or not isinstance(block[2], list) or len(block[2]) <= 3:
+        return None
+    candidate = block[2][3]
+    if (
+        isinstance(candidate, list)
+        and len(candidate) > 3
+        and isinstance(candidate[3], dict)
+        and "101" in candidate[3]
+    ):
+        return candidate[3]
+    return None
+
+
+def _first_string(node: Any) -> str | None:
+    """Return the first string inside a nested list structure (heading titles)."""
+    if isinstance(node, str):
+        return node
+    if isinstance(node, list):
+        for item in node:
+            found = _first_string(item)
+            if found is not None:
+                return found
+    return None
+
+
+def render_interactive_report_markdown(artifact_data: Any) -> str | None:
+    """Render an interactive report document to Markdown.
+
+    Faithful-but-simple: section headings become ``##``, bullet levels map to
+    indentation, bold spans keep their weight, and embedded Studio elements are
+    rendered as ``[Embedded element: <id>]`` placeholders (enrich them with
+    ``get_artifact`` for titles/types).
+    """
+    blocks = interactive_report_document(artifact_data)
+    if not blocks:
+        return None
+
+    lines: list[str] = []
+    for block in blocks:
+        if not isinstance(block, list) or not block:
+            continue
+
+        if _is_embed_block(block):
+            lines.append("")
+            lines.append(f"[Embedded element: {block[12][0]}]")
+            lines.append("")
+            continue
+
+        # Heading blocks start with [null, null, ...]
+        if _is_heading_block(block):
+            title = _first_string(block[2] if len(block) > 2 else None)
+            if title:
+                lines.append("")
+                lines.append(f"## {title}")
+                lines.append("")
+            continue
+
+        if isinstance(block[0], int):
+            text = _report_block_text(block)
+            if not text:
+                continue
+            bullet_meta = _report_bullet_meta(block)
+            if bullet_meta is not None:
+                # {"101": bullet char, "102": ?, "103": item index, "104": running
+                # counter}. The web UI renders all observed lists flat, so keep
+                # a flat "- " marker (nested-list rendering is unverified).
+                lines.append(f"- {text}")
+            else:
+                lines.append(text)
+                lines.append("")
+
+    markdown = "\n".join(lines).strip()
+    return markdown + "\n" if markdown else ""
+
+
+def classify_artifact_kind(artifact_data: Any) -> str:
+    """Best-effort human type label for a raw artifact array."""
+    if not isinstance(artifact_data, list) or len(artifact_data) < 3:
+        return "unknown"
+
+    type_code = artifact_data[2]
+    subtype = None
+    if len(artifact_data) > 9:
+        options = artifact_data[9]
+        if (
+            isinstance(options, list)
+            and len(options) > 1
+            and isinstance(options[1], list)
+            and options[1]
+        ):
+            subtype = options[1][0]
+
+    if type_code == constants.STUDIO_TYPE_FLASHCARDS:
+        if subtype == 2:
+            return "quiz"
+        if subtype == 4:
+            return "mind_map"
+        if subtype in (None, 1):
+            return "flashcards"
+        return "unsupported"
+
+    return {
+        constants.STUDIO_TYPE_AUDIO: "audio",
+        constants.STUDIO_TYPE_REPORT: "report",
+        constants.STUDIO_TYPE_VIDEO: "video",
+        constants.STUDIO_TYPE_INFOGRAPHIC: "infographic",
+        constants.STUDIO_TYPE_SLIDE_DECK: "slide_deck",
+        constants.STUDIO_TYPE_DATA_TABLE: "data_table",
+        constants.STUDIO_TYPE_INTERACTIVE_REPORT: "interactive_report",
+    }.get(type_code, "unknown")
+
+
+# Field masks for element generation, captured live from the report UI for
+# each recommended element kind. The sparse update arrays only set the fields
+# named by the mask; everything else stays null.
+_APP_OPTIONS_MASK = [
+    "app.generation_options.free_text_steering_prompt",
+    "app.generation_options.language_code",
+    "sources",
+]
+_QUIZ_OPTIONS_MASK = [
+    "app.generation_options.free_text_steering_prompt",
+    "app.generation_options.language_code",
+    "app.generation_options.quiz_generation_options.question_quantity",
+    "app.generation_options.quiz_generation_options.quiz_difficulty",
+    "sources",
+]
+_FLASHCARD_OPTIONS_MASK = [
+    "app.generation_options.free_text_steering_prompt",
+    "app.generation_options.language_code",
+    "app.generation_options.flashcards_generation_options.card_quantity",
+    "app.generation_options.flashcards_generation_options.flashcards_difficulty",
+    "sources",
+]
+_INFOGRAPHIC_OPTIONS_MASK = [
+    "infographic.generation_options.user_steering_prompt",
+    "infographic.generation_options.language_code",
+    "infographic.generation_options.aspect_ratio",
+    "infographic.generation_options.information_density",
+    "infographic.generation_options.style",
+    "sources",
+]
+_SLIDES_OPTIONS_MASK = [
+    "slides.generation_options.user_steering_prompt",
+    "slides.generation_options.language_code",
+    "slides.generation_options.deck_type",
+    "slides.generation_options.length",
+    "sources",
+]
+_AUDIO_OPTIONS_MASK = [
+    "audio_overview.generation_options.episode_focus",
+    "audio_overview.generation_options.episode_length",
+    "audio_overview.generation_options.language_code",
+    "audio_overview.generation_options.show_format",
+    "sources",
+]
+_VIDEO_SHORT_OPTIONS_MASK = [
+    "explainer_video.generation_options.language_code",
+    "explainer_video.generation_options.video_focus",
+    "explainer_video.generation_options.template_format",
+    "sources",
+]
+_VIDEO_OPTIONS_MASK = [
+    "explainer_video.generation_options.language_code",
+    "explainer_video.generation_options.video_focus",
+    "explainer_video.generation_options.template_format",
+    "explainer_video.generation_options.video_overview_style",
+    "sources",
+]
+
+
+def build_artifact_generation_payloads(
+    artifact: list[Any],
+    sources_nested: list[Any],
+    steering_prompt: str,
+    language: str,
+    settings: dict[str, int] | None = None,
+) -> tuple[list[Any], list[list[str]]]:
+    """Build the (sparse update, field mask) pair for one suggested artifact.
+
+    ``settings`` holds resolved codes (see services.interactive_reports);
+    missing keys fall back to the web UI's plain-Generate defaults.
+    Audio and video use the Customize mask with the fixed values the page
+    sends (episode length 2, video style 1); neither is user-settable. Short
+    videos are the exception: the page sends them without the style field.
+    """
+    s = settings or {}
+    type_code = artifact[2] if isinstance(artifact, list) and len(artifact) > 2 else None
+    subtype = None
+    if (
+        isinstance(artifact, list)
+        and len(artifact) > 9
+        and isinstance(artifact[9], list)
+        and len(artifact[9]) > 1
+        and isinstance(artifact[9][1], list)
+        and artifact[9][1]
+    ):
+        subtype = artifact[9][1][0]
+
+    artifact_id = artifact[0]
+    prompt = steering_prompt or None
+
+    if type_code == constants.STUDIO_TYPE_AUDIO:
+        update: list[Any] = [artifact_id, None, None, sources_nested] + [None] * 2
+        update.append([None, [prompt, 2, None, None, language, None, s.get("audio_format", 2)]])
+        return update, [_AUDIO_OPTIONS_MASK]
+
+    if type_code == constants.STUDIO_TYPE_VIDEO:
+        update = [artifact_id, None, None, sources_nested] + [None] * 4
+        video_format = s.get("video_format", 3)
+        if video_format == constants.VIDEO_FORMAT_SHORT:
+            # The page sends Short without the style field and its mask.
+            update.append([None, None, [None, language, prompt, None, video_format]])
+            return update, [_VIDEO_SHORT_OPTIONS_MASK]
+        update.append([None, None, [None, language, prompt, None, video_format, 1]])
+        return update, [_VIDEO_OPTIONS_MASK]
+
+    if type_code == constants.STUDIO_TYPE_INFOGRAPHIC:
+        update = [artifact_id, None, None, sources_nested] + [None] * 10
+        update.append(
+            [
+                [
+                    prompt,
+                    language,
+                    None,
+                    s.get("orientation", 1),
+                    s.get("detail_level", 2),
+                    s.get("infographic_style", 1),
+                ]
+            ]
+        )
+        return update, [_INFOGRAPHIC_OPTIONS_MASK]
+
+    if type_code == constants.STUDIO_TYPE_SLIDE_DECK:
+        update = [artifact_id, None, None, sources_nested] + [None] * 12
+        update.append([[prompt, language, s.get("slide_format", 1), s.get("slide_length", 3)]])
+        return update, [_SLIDES_OPTIONS_MASK]
+
+    if subtype == 4:
+        update = [artifact_id, None, None, sources_nested] + [None] * 5
+        update.append([None, [4, None, prompt, language]])
+        return update, [_APP_OPTIONS_MASK]
+
+    if subtype == 2:
+        update = [artifact_id, None, None, sources_nested] + [None] * 5
+        update.append(
+            [
+                None,
+                [
+                    2,
+                    None,
+                    prompt,
+                    language,
+                    None,
+                    None,
+                    None,
+                    [s.get("amount", 2), s.get("difficulty", 2)],
+                ],
+            ]
+        )
+        return update, [_QUIZ_OPTIONS_MASK]
+
+    if subtype == 1:
+        update = [artifact_id, None, None, sources_nested] + [None] * 5
+        update.append(
+            [
+                None,
+                [
+                    1,
+                    None,
+                    prompt,
+                    language,
+                    None,
+                    None,
+                    [s.get("amount", 1), s.get("difficulty", 2)],
+                ],
+            ]
+        )
+        return update, [_FLASHCARD_OPTIONS_MASK]
+
+    update = [artifact_id, None, None, sources_nested] + [None] * 5
+    update.append([None, [subtype, None, prompt, language]])
+    return update, [_APP_OPTIONS_MASK]
+
+
+def _artifact_card_description(artifact_data: Any) -> str | None:
+    """Return the recommendation text of a suggested element card.
+
+    Suggested artifacts carry ``[title, description]`` at index 35; the web UI
+    shows the description on the card and sends it as the steering prompt
+    when the user clicks Generate without customizing.
+    """
+    if not isinstance(artifact_data, list) or len(artifact_data) <= 35:
+        return None
+    card = artifact_data[35]
+    if isinstance(card, list) and len(card) > 1 and isinstance(card[1], str):
+        return card[1].strip() or None
+    return None
+
+
+def _artifact_steering_prompt(artifact_data: Any) -> str | None:
+    """Best-effort extraction of an artifact's steering/focus prompt.
+
+    Positions mirror the per-type reads in ``poll_studio_status``:
+    - options[1][2] for the type-4 family (flashcards / quiz / mind map)
+    - options[0][0] for slide decks
+    - options[1][0] for audio, options[2][2] for video
+    """
+    if not isinstance(artifact_data, list) or len(artifact_data) < 3:
+        return None
+    type_code = artifact_data[2]
+
+    def _inner(options_index: int, path: tuple[int, ...]) -> str | None:
+        if len(artifact_data) <= options_index:
+            return None
+        node: Any = artifact_data[options_index]
+        for step in path:
+            if isinstance(node, list) and len(node) > step:
+                node = node[step]
+            else:
+                return None
+        return node.strip() if isinstance(node, str) and node.strip() else None
+
+    if type_code == constants.STUDIO_TYPE_FLASHCARDS:
+        return _inner(9, (1, 2))
+    if type_code == constants.STUDIO_TYPE_SLIDE_DECK:
+        return _inner(16, (0, 0))
+    if type_code == constants.STUDIO_TYPE_AUDIO:
+        return _inner(6, (1, 0))
+    if type_code == constants.STUDIO_TYPE_VIDEO:
+        return _inner(8, (2, 2))
+    return None

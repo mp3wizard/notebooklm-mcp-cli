@@ -21,6 +21,7 @@ VALID_ARTIFACT_TYPES = (
     "audio",
     "video",
     "report",
+    "interactive_report",
     "mind_map",
     "slide_deck",
     "infographic",
@@ -44,6 +45,7 @@ DEFAULT_EXTENSIONS = {
     "audio": "m4a",
     "video": "mp4",
     "report": "md",
+    "interactive_report": "md",
     "mind_map": "json",
     "slide_deck": "pdf",
     "infographic": "png",
@@ -898,7 +900,7 @@ def _dispatch_sync(
     output_format: str,
 ) -> str:
     """Route to the correct synchronous client method."""
-    if artifact_type == "report":
+    if artifact_type in ("report", "interactive_report"):
         return client.download_report(notebook_id, output_path, artifact_id)
     elif artifact_type == "mind_map":
         return client.download_mind_map(notebook_id, output_path, artifact_id)
@@ -943,7 +945,7 @@ async def _dispatch_async(
 ) -> str:
     """Route to the correct async client method."""
     # Non-streaming types (sync client methods callable from async context)
-    if artifact_type == "report":
+    if artifact_type in ("report", "interactive_report"):
         return await _resolve_download_result(
             client.download_report(notebook_id, output_path, artifact_id)
         )

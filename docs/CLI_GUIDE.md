@@ -104,7 +104,13 @@ nlm video create <notebook> --style custom --style-prompt "A children's storyboo
 
 # Reports
 nlm report create <notebook> --format "Briefing Doc" --confirm
-# Formats: "Briefing Doc", "Study Guide", "Blog Post", "Create Your Own"
+# Formats: "Briefing Doc", "Study Guide", "Blog Post", "Create Your Own", "Interactive"
+
+# Interactive lesson report (embeds elements; see the nlm-skill Workflow 17)
+nlm report create <notebook> --format Interactive --prompt "Lesson goal..." --confirm
+nlm report get <notebook> <report-id>            # markdown (add --json / -o file.md)
+nlm report elements <notebook> <report-id>       # embedded elements + status
+nlm report element create <notebook> <report-id> --type infographic --confirm
 
 # Quiz & Flashcards
 nlm quiz create <notebook> --count 10 --difficulty medium --focus "Focus on key concepts" --confirm

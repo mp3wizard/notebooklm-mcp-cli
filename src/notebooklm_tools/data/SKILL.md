@@ -1,7 +1,7 @@
 ---
 name: nlm-skill
-version: "0.11.7"
-description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
+version: "0.12.0"
+description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, interactive reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "interactive report", "lesson report", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
 # Gemini Notebook CLI & MCP Expert
@@ -69,7 +69,7 @@ nlm usage --json        # Return usage data as machine-readable JSON
 13. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
 14. **Check plan usage before quota-limited work**: Run `nlm usage` (MCP: `usage_get`) before expensive chat or Studio work when budget availability matters. It reports measured compute usage, remaining percentage, and UTC reset times for the rolling and weekly windows. If the check returns an authentication error, refresh the session instead of treating the allowance as exhausted.
 
-**Current MCP surface:** 49 tools. Consolidated action tools include `note`,
+**Current MCP surface:** 50 tools. Consolidated action tools include `note`,
 `label`, `studio_status`, `batch`, `pipeline`, and `tag`. Consolidated type
 tools include `source_add`, `studio_create`, and `download_artifact`. The
 read-only `usage_get` tool reports rolling and weekly plan usage windows.
@@ -108,6 +108,10 @@ User wants to...
 │
 ├─► Ground a notebook in bounded public X research
 │   └─► See Workflow 16 in references/workflows.md
+│
+├─► Build a lesson-style interactive report with embedded elements
+│   └─► See Workflow 17 in references/workflows.md
+│       (create -> read markdown -> generate elements via the report view)
 │
 ├─► Ask questions about sources
 │   └─► nlm notebook query <nb-id> "question"
@@ -368,7 +372,7 @@ Use `studio_create` with `artifact_type` and type-specific options. All require 
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `audio`       | `audio_format`: deep_dive/brief/critique/debate, `audio_length`: short/default/long                                                                                                                                   |
 | `video`       | `video_format`: explainer/brief/cinematic/short, `visual_style`: auto_select/classic/whiteboard/kawaii/anime/watercolor/retro_print/heritage/paper_craft (not for cinematic/short), `video_style_prompt`              |
-| `report`      | `report_format`: Briefing Doc/Study Guide/Blog Post/Create Your Own, `custom_prompt`                                                                                                                                  |
+| `report`      | `report_format`: Briefing Doc/Study Guide/Blog Post/Create Your Own/**Interactive**, `report_template` (Interactive only; `learning_overview`), `custom_prompt`                                                        |
 | `quiz`        | `question_count`, `difficulty`: easy/medium/hard                                                                                                                                                                      |
 | `flashcards`  | `difficulty`: easy/medium/hard                                                                                                                                                                                        |
 | `mind_map`    | `title`                                                                                                                                                                                                               |
@@ -378,6 +382,14 @@ Use `studio_create` with `artifact_type` and type-specific options. All require 
 
 **Common options**: `source_ids`, `language` (BCP-47 code, including regional
 locales such as `es-419`), `focus_prompt`
+
+**Interactive reports:** `studio_create(artifact_type="report",
+report_format="Interactive")` builds a lesson-style document that embeds
+recommended elements (audio / video / mind map / infographic / flashcards /
+slide deck / quiz) as *suggested* placeholders. Read it and work with its elements through one tool: `report(action="get")` (markdown for agents), `report(action="elements")` (section, card description and allowed settings per element; optional `wait_for` / `include_content`), and `report(action="generate", plan=[...])` to validate a plan and, with `confirm=True`, generate it.
+Wait on generation with bounded waiting (`wait_for` / `--wait`) and review inline
+content against the plan and section. Full sequence: Workflow 17 in
+references/workflows.md.
 
 **Audio accent:** NotebookLM has been observed using the `language` region
 subtag, not the prompt, to choose the Audio Overview accent. For example,
@@ -415,7 +427,13 @@ nlm audio create <id> --format brief --focus "key topic" --confirm
 nlm report create <id> --confirm
 nlm report create <id> --format "Study Guide" --confirm
 nlm report create <id> --format "Create Your Own" --prompt "Custom..." --confirm
-# Formats: "Briefing Doc", "Study Guide", "Blog Post", "Create Your Own"
+# Formats: "Briefing Doc", "Study Guide", "Blog Post", "Create Your Own", "Interactive"
+
+# Interactive lesson report (embeds elements — see Workflow 17)
+nlm report create <id> --format Interactive --prompt "Lesson goal..." --confirm
+nlm report get <id> <report-id>              # markdown (add --json / -o file.md)
+nlm report elements <id> <report-id>         # embedded elements + status
+nlm report element create <id> <report-id> --type infographic --confirm
 
 # Quiz
 nlm quiz create <id> --confirm

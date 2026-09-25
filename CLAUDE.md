@@ -178,6 +178,8 @@ New in v0.9.0: `download_all_artifacts` — downloads every completed artifact o
 
 New in v0.9.1: `chat_list`/`chat_get`/`chat_export` MCP tools and `nlm chats list/get/export/to-note` — chat session transcripts fetched from Gemini Notebook's server RPC.
 
+New in v0.12.0: `report` (consolidated tool with `action=get|elements|generate`) for interactive report elements; `generate` requires `confirm=True`. CLI: `nlm report get/elements/element create[-batch]`.
+
 ## Troubleshooting
 
 | Error | Cause | Fix |

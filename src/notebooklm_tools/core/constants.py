@@ -274,6 +274,7 @@ STUDIO_TYPE_INFOGRAPHIC = 7
 STUDIO_TYPE_SLIDE_DECK = 8
 STUDIO_TYPE_DATA_TABLE = 9
 STUDIO_TYPE_DATA_TABLE_XLSX = 10
+STUDIO_TYPE_INTERACTIVE_REPORT = 11  # Interactive report (embeds studio elements)
 
 STUDIO_TYPES = CodeMapper(
     {
@@ -441,6 +442,24 @@ SLIDE_DECK_LENGTHS = CodeMapper(
     }
 )
 
+# Interactive report element settings (captured live 2026-09-24).
+# Quiz question and flashcard card "amount" buckets share one scale.
+ELEMENT_AMOUNTS = CodeMapper({"fewer": 1, "standard": 2, "more": 3})
+
+# Video formats offered for report elements (no "brief"). "short" captured
+# 2026-09-24: it is sent without the video style field (see core.studio).
+REPORT_VIDEO_FORMATS = CodeMapper(
+    {
+        "explainer": VIDEO_FORMAT_EXPLAINER,
+        "cinematic": VIDEO_FORMAT_CINEMATIC,
+        "short": VIDEO_FORMAT_SHORT,
+    }
+)
+
+# Slide lengths for report elements. Captured 2026-09-24: "short" is 2 here,
+# unlike SLIDE_DECK_LENGTH_SHORT (1) used by regular Studio slide decks.
+REPORT_SLIDE_LENGTHS = CodeMapper({"short": 2, "default": 3})
+
 # =============================================================================
 # Flashcards / Quiz
 # =============================================================================
@@ -465,6 +484,33 @@ REPORT_FORMAT_BRIEFING_DOC = "Briefing Doc"
 REPORT_FORMAT_STUDY_GUIDE = "Study Guide"
 REPORT_FORMAT_BLOG_POST = "Blog Post"
 REPORT_FORMAT_CUSTOM = "Create Your Own"
+
+# Interactive reports (STUDIO_TYPE_INTERACTIVE_REPORT = 11) weave Studio
+# outputs (mind maps, quizzes, flashcards, slide decks, infographics) into a
+# single browsable document. Created through the R7cb6c studio RPC with the
+# report options block moved to index 34 instead of index 7.
+REPORT_FORMAT_INTERACTIVE = "Interactive"
+
+# Interactive report templates ("Template" picker in the Create report
+# dialog). Only "Learning Overview" has been observed in the wild; the code is
+# threaded through the config block as a one-element list, e.g. [1].
+INTERACTIVE_REPORT_TEMPLATES = CodeMapper(
+    {
+        "learning_overview": 1,
+    }
+)
+DEFAULT_INTERACTIVE_REPORT_TEMPLATE = "learning_overview"
+
+# Element-type allowlist the web client sends in the create config block for
+# interactive reports: [[1, 4, 8, 10, 14, 2, 3, 6]].  Values not present in
+# STUDIO_TYPES (6, 14) are accepted as-is; they are presumably future
+# element kinds the client can render.
+INTERACTIVE_REPORT_ELEMENT_TYPES = [1, 4, 8, 10, 14, 2, 3, 6]
+
+# Wider allowlist the web client sends when fetching a single artifact by id
+# (adds 7, observed on the v9rmvd element/artifact reads).
+INTERACTIVE_REPORT_GET_TYPES = [1, 4, 8, 10, 14, 2, 3, 6, 7]
+
 
 # =============================================================================
 # Sharing / Access Control

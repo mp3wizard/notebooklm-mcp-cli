@@ -189,7 +189,13 @@ def create_report_verb(
         None,
         "--format",
         "-f",
-        help="Format: 'Briefing Doc', 'Study Guide', 'Blog Post', 'Create Your Own'",
+        help="Format: 'Briefing Doc', 'Study Guide', 'Blog Post', 'Create Your Own', 'Interactive'",
+    ),
+    template: str | None = typer.Option(
+        None,
+        "--template",
+        "-t",
+        help="Interactive report template (only used with --format Interactive)",
     ),
     prompt: str | None = typer.Option(
         None, "--prompt", help="Custom prompt (required for 'Create Your Own')"
@@ -206,6 +212,7 @@ def create_report_verb(
     create_report(
         notebook_id=notebook,
         format=format_opt or "Briefing Doc",
+        template=template or "learning_overview",
         prompt=prompt or "",
         language=language or "",
         source_ids=source_ids,

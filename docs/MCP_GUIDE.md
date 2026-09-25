@@ -114,7 +114,7 @@ transport failure.
 | `chat_get` | Get full transcript of a chat session (defaults to latest) |
 | `chat_export` | Export a chat transcript to Markdown or JSON |
 
-### Studio Content (4 tools)
+### Studio Content (8 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -122,17 +122,57 @@ transport failure.
 | `studio_status` | Check generation progress |
 | `studio_delete` | Delete artifact (requires `confirm=True`) |
 | `studio_revise` | Revise slides in existing deck (requires `confirm=True`) |
+| `report` | **Unified** - Interactive report elements: `action=get` (markdown + elements), `elements` (list; optional `wait_for`, `include_content`), `generate` (validate a plan; runs with `confirm=True`) |
 
 **`studio_create` artifact types:**
 - `audio` - Podcast (formats: deep_dive, brief, critique, debate)
 - `video` - Video overview (formats: explainer, brief, cinematic, short)
-- `report` - Text report (Briefing Doc, Study Guide, Blog Post)
+- `report` - Report (Briefing Doc, Study Guide, Blog Post, or **Interactive**)
 - `quiz` - Multiple choice quiz
 - `flashcards` - Study flashcards
 - `mind_map` - Visual mind map
 - `slide_deck` - Presentation slides
 - `infographic` - Visual infographic
 - `data_table` - Structured data table
+
+**Interactive reports (type 11):** create with
+`studio_create(artifact_type="report", report_format="Interactive", report_template="learning_overview", custom_prompt="...", confirm=True)`.
+The report weaves Studio elements (audio, video, mind map, infographic,
+flashcards, slide deck, quiz) into a single browsable document as recommended
+placeholders:
+
+```python
+# 1. Create interactive report
+studio_create(notebook_id, artifact_type="report", report_format="Interactive",
+              custom_prompt="Summarize the key ideas with a quiz", confirm=True)
+# ... poll studio_status until the artifact status is "completed" ...
+
+# 2. Read report and list suggested elements
+report(notebook_id, artifact_id, action="get")                 # markdown + element list
+listing = report(notebook_id, artifact_id, action="elements")  # ids, types, sections, settings
+
+# 3. Generation: validate the plan first (no confirm), then run it
+plan = [
+    {"element_id": "el-1", "settings": {"difficulty": "hard", "question_amount": "more"}},
+    {"element_id": "el-2", "steering_prompt": "Custom anchored prompt"},
+]
+preview = report(notebook_id, artifact_id, action="generate", plan=plan)
+# Show preview to user; after approval:
+batch_result = report(notebook_id, artifact_id, action="generate", plan=plan, confirm=True)
+
+# 4. Bounded wait and inline review content
+results = report(
+    notebook_id,
+    artifact_id,
+    action="elements",
+    wait_for=["el-1", "el-2"],
+    timeout=600,
+    include_content=True,
+)
+```
+
+Omit `steering_prompt` to use the element card's description (same as a plain
+"Generate" in the UI), or pass your own to steer the element.
 
 ### Downloads (2 tools)
 

@@ -52,6 +52,10 @@ Consolidated tools:
 - source_add(source_type=url|text|drive|file, url=..., document_id=..., text=..., file_path=...): Add any source type
 - studio_create(artifact_type=audio|video|...): Create any artifact type
 - studio_revise: Revise individual slides in an existing slide deck
+- Interactive reports: studio_create(artifact_type="report", report_format="Interactive") to create;
+  report(action=get|elements|generate) to read it and generate its embedded audio / video /
+  slide deck / infographic / flashcards / quiz / mind map elements (generate validates a plan
+  first; confirm=True only after user approval or explicit delegation)
 - download_artifact(artifact_type=audio|video|...): Download any artifact type
 - download_all_artifacts: Download every completed artifact of a notebook into a per-notebook folder
 - note(action=create|list|update|delete): Manage notes in notebooks

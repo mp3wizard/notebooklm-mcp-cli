@@ -509,6 +509,21 @@ class TestDownloadAll:
         assert (tmp_path / "My Notebook").is_dir()
 
     @pytest.mark.asyncio
+    async def test_downloads_interactive_report_as_markdown(
+        self, bulk_client, monkeypatch, tmp_path
+    ):
+        _patch_lookups(
+            monkeypatch,
+            [_artifact(artifact_id="ir1", type="interactive_report", title="Lesson")],
+        )
+        result = await download_all(bulk_client, "nb-1", str(tmp_path))
+
+        assert result["downloaded"] == 1
+        assert result["skipped"] == []
+        assert result["items"][0]["path"].endswith("Lesson.md")
+        assert bulk_client.download_report.call_args.args[2] == "ir1"
+
+    @pytest.mark.asyncio
     async def test_downloads_xlsx_data_table_with_xlsx_extension(
         self, bulk_client, monkeypatch, tmp_path
     ):

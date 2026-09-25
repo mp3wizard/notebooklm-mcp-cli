@@ -100,7 +100,7 @@ nlm status artifacts <notebook>
 | `nlm alias` | Manage ID shortcuts (set, get, list, delete) |
 | `nlm download` | Download artifacts (audio, video, report, mind-map, slides, infographic, data-table) |
 | `nlm audio` | Create audio overviews/podcasts (create) |
-| `nlm report` | Create reports (create) |
+| `nlm report` | Reports (create, get, elements, element create) |
 | `nlm quiz` | Create quizzes (create) |
 | `nlm flashcards` | Create flashcards (create) |
 | `nlm mindmap` | Create mind maps (create) |
@@ -391,7 +391,20 @@ nlm create audio <notebook-id> --format deep_dive --length short --confirm
 nlm report create <notebook-id> --confirm
 nlm report create <notebook-id> --format "Study Guide" --confirm
 nlm report create <notebook-id> --format "Create Your Own" --prompt "Summary..." --confirm
-# Formats: "Briefing Doc", "Study Guide", "Blog Post", "Create Your Own"
+# Formats: "Briefing Doc", "Study Guide", "Blog Post", "Create Your Own", "Interactive"
+
+# Interactive lesson report (embeds elements - see Workflow 17 in the skill)
+nlm report create <notebook-id> --format Interactive --prompt "Lesson goal..." --confirm
+nlm report get <notebook-id> <report-id>             # markdown to stdout
+nlm report get <notebook-id> <report-id> --json      # + prompt, language, elements
+nlm report get <notebook-id> <report-id> -o lesson.md
+nlm report elements <notebook-id> <report-id>        # element ids/types/status
+nlm report elements <notebook-id> <report-id> --wait <id> --content
+nlm report element create <notebook-id> <report-id> --type infographic --confirm
+nlm report element create <notebook-id> <report-id> --type quiz --setting difficulty=hard --confirm
+nlm report element create-batch <notebook-id> <report-id> --plan plan.json --confirm
+# MCP: report(action=get|elements|generate)
+# Omit --prompt to use the card's recommended description (same as "Generate" in the UI).
 ```
 
 **Verb-First:**

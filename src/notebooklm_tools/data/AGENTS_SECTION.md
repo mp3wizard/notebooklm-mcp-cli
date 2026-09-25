@@ -1,10 +1,10 @@
 <!-- nlm-skill-start -->
-<!-- nlm-version: 0.11.7 -->
+<!-- nlm-version: 0.12.0 -->
 ## NLM - Gemini Notebook (formerly Google NotebookLM) CLI Expert
 
 **Triggers:** "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast", "audio overview", "research"
 
-Expert assistant for Gemini Notebook automation via CLI. Use when users want to create/manage notebooks, check plan usage and quota windows, add sources (URLs, YouTube, text, Google Drive), generate AI content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conduct research, or chat with sources.
+Expert assistant for Gemini Notebook automation via CLI. Use when users want to create/manage notebooks, check plan usage and quota windows, add sources (URLs, YouTube, text, Google Drive), generate AI content (podcasts, reports, interactive reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conduct research, or chat with sources.
 
 ### Quick Reference
 
@@ -66,6 +66,9 @@ nlm source add <id> --drive <doc-id>
 **Study Materials:**
 ```bash
 nlm report create <id> --format "Study Guide" --confirm
+nlm report create <id> --format Interactive --prompt "Lesson goal" --confirm  # lesson report; embeds elements
+nlm report get <id> <report-id>          # read the lesson markdown
+nlm report elements <id> <report-id>     # embedded elements + status
 nlm quiz create <id> --count 10 --focus "Key Concepts" --confirm
 nlm flashcards create <id> --focus "Vocabulary" --confirm
 ```

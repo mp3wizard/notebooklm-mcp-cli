@@ -104,6 +104,7 @@ TOOL_GROUPS: dict[str, set[str]] = {
         "studio_status",
         "studio_delete",
         "studio_revise",
+        "report",
         "download_artifact",
         "download_all_artifacts",
         "export_artifact",

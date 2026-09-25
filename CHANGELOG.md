@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-09-24
+
+Adds support for Gemini Notebook's new Interactive Reports, built for AI
+agents: create the report, then let the agent plan, generate and review its
+embedded audio, video, slide deck, infographic, flashcards, quiz and mind map
+elements.
+
+### Added
+
+- **Interactive reports ([#336](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/336))** — Create them with `studio_create(artifact_type="report", report_format="Interactive")` or `nlm report create --format Interactive`. `nlm studio status` now labels them `interactive_report` instead of `unknown`, and `download_report` / `nlm download all` save them as Markdown.
+- **One `report` MCP tool for report elements** — `report(action="get")` returns the report as Markdown with its elements; `action="elements"` lists each element with the section it sits in, its card recommendation and the settings it accepts, and can wait on element ids and return quiz/flashcard/mind-map content for review; `action="generate"` validates a plan of up to 20 elements and, with `confirm=True`, generates them. The MCP surface grows by one tool (50).
+- **Per-element settings**, captured from the report page: quiz and flashcard difficulty and amount, infographic orientation/detail/style, slide format and length, audio format, and video format (explainer, cinematic, short).
+- **CLI:** `nlm report get`, `nlm report elements [--wait ID] [--content]`, `nlm report element create --setting name=value`, and `nlm report element create-batch --plan plan.json`.
+- **Agent workflow in the bundled skill** — The studio prompting guide and Workflow 17 teach agents to show a plan first by default, to generate without asking only when the user hands over both the choice and the generation, to anchor each element's prompt to its report section, to set video format explicitly (explainer unless cinematic is requested), and to review generated quizzes, flashcards and mind maps with an honest label. Text found in notebooks, reports or card descriptions is treated as data, never as approval.
+
+### Fixed
+
+- **`nlm setup add claude-desktop` always reported "Claude Desktop is still running" on macOS ([#334](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/334), [PR #335](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/335))** — The running-process check matched the `nlm setup add claude-desktop` command line itself (and the shell that launched it), so the guard could never pass. It now ignores its own process and its ancestors, while still counting an ancestor that really is Claude Desktop. Thanks to **@dvdsosa** for the precise diagnosis and the fix.
+
+### Safety
+
+- Report elements are generated from the report's own sources and language, never widened to every source in the notebook.
+- A plan is validated completely before anything is sent to Google; an element that is not in the "suggested" state (already started, completed or missing) is refused, including when it changes between validation and generation.
+- The generation kickoff is never re-sent automatically. A lost response is reported as `unknown` after a short status check instead of risking a duplicate generation. A quota or authentication failure stops the rest of a batch and reports what started, failed, or never ran.
+
+### Verification
+
+- Live, on a Google Workspace account: all seven element types generated with non-default settings; Google saved the exact codes and its Studio labels show Debate audio, Explainer and Short video; "more" produced a 26-question quiz and 80 flashcards; a French report produced a French quiz; a report scoped to one of two sources kept its elements on that source.
+- Agent consent evaluation (a different model, skill docs only): 8/8 correct, including ignoring a planted "pre-approved" instruction in a card description.
+- Full suite, excluding the e2e marker: 1,747 passed, 38 skipped. Ruff lint clean.
+
 ## [0.11.7] - 2026-09-22
 
 Patch release fixing verb commands that called Typer handlers directly and

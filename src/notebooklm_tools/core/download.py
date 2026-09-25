@@ -23,6 +23,7 @@ from .errors import (
 from .errors import (
     ClientAuthenticationError as AuthenticationError,
 )
+from .studio import render_interactive_report_markdown
 from .utils import is_mind_map_json
 
 
@@ -661,11 +662,14 @@ class DownloadMixin(BaseClient):
         """
         artifacts = self._list_raw(notebook_id)
 
-        # Filter for completed reports (Type 6, Status 3)
+        # Filter for completed reports (classic type 2 and interactive type 11)
         candidates = []
         for a in artifacts:
             if isinstance(a, list) and len(a) > 7:  # noqa: SIM102
-                if a[2] == self.STUDIO_TYPE_REPORT and a[4] == 3:
+                if (
+                    a[2] in (self.STUDIO_TYPE_REPORT, self.STUDIO_TYPE_INTERACTIVE_REPORT)
+                    and a[4] == 3
+                ):
                     candidates.append(a)
 
         if not candidates:
@@ -680,6 +684,24 @@ class DownloadMixin(BaseClient):
             target = candidates[0]
 
         try:
+            if target[2] == self.STUDIO_TYPE_INTERACTIVE_REPORT:
+                # Interactive reports render from their structured document
+                # (index 34). Prepend the artifact title as a Markdown H1; the
+                # document itself starts at H2 level.
+                markdown_content = render_interactive_report_markdown(target)
+                if not markdown_content:
+                    raise ArtifactParseError(
+                        "report", details="Interactive report has no document yet"
+                    )
+                title = target[1] if len(target) > 1 and isinstance(target[1], str) else ""
+                if title:
+                    markdown_content = f"# {title}\n\n{markdown_content}"
+
+                output = Path(output_path)
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(markdown_content, encoding="utf-8")
+                return str(output)
+
             # Report content is in index 7
             content_wrapper = target[7]
             markdown_content = ""
@@ -1273,6 +1295,17 @@ class DownloadMixin(BaseClient):
             raise ArtifactDownloadError(
                 "interactive", details=f"Unexpected API response structure: {e}"
             ) from e
+
+    def get_interactive_app_data(self, notebook_id: str, artifact_id: str) -> dict[str, Any] | None:
+        """Return the structured app data of a quiz, flashcard deck or mind map.
+
+        Reuses the download path's HTML fetch and ``data-app-data`` extraction
+        so review content matches what ``download_artifact`` saves.
+        """
+        html_content = self._get_artifact_content(notebook_id, artifact_id)
+        if not html_content:
+            return None
+        return self._extract_app_data(html_content)
 
     def _extract_app_data(self, html_content: str) -> dict:
         """Extract JSON app data from interactive HTML.

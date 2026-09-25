@@ -418,3 +418,74 @@ One row per feature. N/A if not in sources.
 Glossary from sources. Columns: Term, Definition, Example, Source Section, Related Terms.
 Alphabetical by term. N/A if not in sources.
 ```
+
+---
+
+## Interactive Report Element Plans
+
+### Plan 1: Child lesson (Photosynthesis, age 10)
+**Learner profile:** 10-year-old elementary student; goal: understand how plants make food; language: English; budget: 15 minutes.
+- `quiz` — Section: "Recipe of Photosynthesis" — 5 simple MC questions on ingredients and outputs — `difficulty=easy`, `question_amount=fewer`
+- `infographic` — Section: "Inside the Leaf" — Colorful visual diagram of sunlight/water/CO2 in and sugar/O2 out — `orientation=portrait`, `detail_level=concise`, `infographic_style=kawaii`
+- `audio` — Section: "Sunlight Power" — Cheerful short audio conversation explaining chlorophyll — `audio_format=brief`
+- skip: `slide_deck` (redundant with the visual infographic for a 10-year-old)
+- skip: `flashcards` (quiz already checks understanding without overwhelming)
+This starts 3 generations.
+
+#### Prompt pairs
+**Quiz:**
+- **Weak:** "A quiz about photosynthesis."
+- **Sharp:** "5 easy multiple-choice questions for a 10-year-old on the 'recipe' of photosynthesis: sunlight, water and CO₂ in; sugar and oxygen out. Simple words, one clearly correct answer, no trick questions. Use only uploaded sources."
+
+**Infographic:**
+- **Weak:** "Diagram of photosynthesis."
+- **Sharp:** "A vertical visual diagram for a 10-year-old showing a leaf taking in sunlight, water, and carbon dioxide, and producing glucose and oxygen. Bright colors, clear labels, minimal text, friendly cartoon botanical style. Grounded solely in uploaded sources."
+
+**Audio:**
+- **Weak:** "Audio about sunlight."
+- **Sharp:** "A 2-3 minute lively conversation for kids explaining how leaves catch sunlight like tiny solar panels. Friendly hosts, simple analogies, everyday words, no technical jargon. Use only uploaded sources."
+
+### Plan 2: Exam prep (Cellular Respiration, Undergraduate Biology)
+**Learner profile:** Undergraduate biology student; goal: pass midterm exam; language: English; budget: 45 minutes.
+- `quiz` — Section: "Krebs Cycle & Electron Transport" — 10 rigorous MC questions testing ATP yields and enzyme bottlenecks — `difficulty=hard`, `question_amount=more`
+- `flashcards` — Section: "Key Enzymes and Substrates" — 20 active recall cards testing intermediates, coenzymes, and regulatory steps — `difficulty=hard`, `card_amount=more`
+- `mind_map` — Section: "Metabolic Pathways" — Hierarchical branching map from glycolysis through oxidative phosphorylation — (no settings)
+- skip: `video` (too passive for active exam drill)
+- skip: `audio` (learner needs rapid active recall, not narrative review)
+This starts 3 generations.
+
+#### Prompt pairs
+**Quiz:**
+- **Weak:** "Hard quiz on Krebs cycle."
+- **Sharp:** "10 challenging multiple-choice questions for an undergraduate biology student focusing on the regulatory enzymes of the citric acid cycle and stoichiometry of ATP, NADH, and FADH2 production. Include scenario-based inhibition questions. Grounded strictly in uploaded lecture notes."
+
+**Flashcards:**
+- **Weak:** "Cellular respiration flashcards."
+- **Sharp:** "High-yield flashcards covering key metabolic substrates, rate-limiting enzymes (e.g., PFK-1, isocitrate dehydrogenase), and specific electron transport chain inhibitors. Front: reaction or regulator; Back: enzyme, pathway location, and net ATP impact. Grounded solely in uploaded sources."
+
+**Mind Map:**
+- **Weak:** "Mind map of pathways."
+- **Sharp:** "Detailed structural map connecting glycolysis in cytoplasm to pyruvate oxidation, Krebs cycle in mitochondrial matrix, and the electron transport chain on the inner mitochondrial membrane. Highlight net chemical inputs and outputs at each stage. Use only uploaded sources."
+
+### Plan 3: Executive briefing (Enterprise AI Security Strategy)
+**Learner profile:** C-suite executive / VP of Security; goal: strategic risk assessment and investment decision; language: English; budget: 20 minutes.
+- `infographic` — Section: "Threat Landscape & Attack Vectors" — Clean corporate landscape of prompt injection, data exfiltration, and model inversion — `infographic_style=professional`, `detail_level=concise`, `orientation=landscape`
+- `slide_deck` — Section: "Zero Trust Governance Framework" — 5 executive summary slides with decision milestones and ROI — `slide_format=presenter_slides`
+- `audio` — Section: "Strategic Tradeoffs" — Executive briefing on defense-in-depth vs engineering velocity — `audio_format=brief`
+- skip: `quiz` (not appropriate format for executive briefing)
+- skip: `flashcards` (not aligned with strategic decision making)
+This starts 3 generations.
+
+#### Prompt pairs
+**Infographic:**
+- **Weak:** "Infographic on AI threats."
+- **Sharp:** "A clean landscape executive infographic for CISOs mapping top three LLM enterprise risk areas: prompt injection, indirect data exfiltration, and model drift. Professional corporate palette, clean metric callouts, high visual hierarchy, no decorative clutter. Grounded strictly in provided audit sources."
+
+**Slide Deck:**
+- **Weak:** "Slides on AI security."
+- **Sharp:** "A concise 5-slide deck for an executive board on enterprise AI governance: Executive Summary, Emerging Vulnerabilities, Defensive Architecture, Compliance Requirements, and 90-Day Implementation Roadmap. High signal-to-noise ratio, bulleted takeaways, presenter layout. Use only uploaded sources."
+
+**Audio:**
+- **Weak:** "Podcast about security tradeoffs."
+- **Sharp:** "A focused 3-minute executive briefing between two senior analysts debating the speed vs security tradeoff in deploying enterprise LLMs. Professional, analytical tone, clear executive recommendations, zero banter. Based entirely on the uploaded whitepaper."
+

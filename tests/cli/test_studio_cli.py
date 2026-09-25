@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from notebooklm_tools.cli.commands.studio import app, slides_app, video_app
+from notebooklm_tools.cli.commands.studio import app, report_app, slides_app, video_app
 from notebooklm_tools.services.errors import ServiceError
 
 
@@ -149,3 +149,149 @@ def test_video_list_only_emits_video_artifacts(runner):
             "visual_style_prompt": None,
         }
     ]
+
+
+def _cli_client():
+    mock_client = MagicMock()
+    mock_client.__enter__ = lambda s: s
+    mock_client.__exit__ = MagicMock(return_value=False)
+    alias_mgr = MagicMock()
+    alias_mgr.resolve.side_effect = lambda x: x
+    return mock_client, alias_mgr
+
+
+def test_element_create_parses_settings(runner):
+    client, aliases = _cli_client()
+    with (
+        patch("notebooklm_tools.cli.commands.studio.get_alias_manager", return_value=aliases),
+        patch("notebooklm_tools.cli.commands.studio.get_client", return_value=client),
+        patch(
+            "notebooklm_tools.cli.commands.studio.studio_service.generate_report_element",
+            return_value={
+                "report_id": "r",
+                "element_id": "e",
+                "title": "T",
+                "outcome": "started",
+                "element_status": "queued",
+                "message": "ok",
+            },
+        ) as gen,
+    ):
+        result = runner.invoke(
+            report_app,
+            [
+                "element",
+                "create",
+                "nb",
+                "r",
+                "--type",
+                "quiz",
+                "--setting",
+                "difficulty=hard",
+                "--setting",
+                "question_amount=more",
+                "--confirm",
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    assert gen.call_args.kwargs["settings"] == {"difficulty": "hard", "question_amount": "more"}
+
+
+def test_element_create_rejects_malformed_setting(runner):
+    result = runner.invoke(
+        report_app,
+        ["element", "create", "nb", "r", "--type", "quiz", "--setting", "hard", "--confirm"],
+    )
+    assert result.exit_code != 0
+    assert "name=value" in result.output
+
+
+def test_create_batch_rejects_bad_plan_file_before_network(runner, tmp_path):
+    bad = tmp_path / "plan.json"
+    bad.write_text("not json")
+    client, aliases = _cli_client()
+    with (
+        patch("notebooklm_tools.cli.commands.studio.get_alias_manager", return_value=aliases),
+        patch("notebooklm_tools.cli.commands.studio.get_client", return_value=client) as gc,
+    ):
+        result = runner.invoke(
+            report_app, ["element", "create-batch", "nb", "r", "--plan", str(bad), "--confirm"]
+        )
+    assert result.exit_code != 0
+    gc.assert_not_called()
+
+
+def test_create_batch_runs_plan(runner, tmp_path):
+    plan = tmp_path / "plan.json"
+    plan.write_text(
+        json.dumps([{"element_id": "e1"}, {"element_id": "e2", "settings": {"difficulty": "easy"}}])
+    )
+    client, aliases = _cli_client()
+    batch = {
+        "report_id": "r",
+        "results": [
+            {
+                "element_id": "e1",
+                "title": "A",
+                "outcome": "started",
+                "element_status": "queued",
+                "error": None,
+                "error_category": None,
+            },
+            {
+                "element_id": "e2",
+                "title": "B",
+                "outcome": "unknown",
+                "element_status": None,
+                "error": "lost",
+                "error_category": "unknown_outcome",
+            },
+        ],
+        "counts": {"started": 1, "failed": 0, "unknown": 1, "not_started": 0},
+        "stopped_reason": None,
+    }
+    with (
+        patch("notebooklm_tools.cli.commands.studio.get_alias_manager", return_value=aliases),
+        patch("notebooklm_tools.cli.commands.studio.get_client", return_value=client),
+        patch(
+            "notebooklm_tools.cli.commands.studio.studio_service.generate_report_elements",
+            return_value=batch,
+        ) as gen,
+    ):
+        result = runner.invoke(
+            report_app,
+            ["element", "create-batch", "nb", "r", "--plan", str(plan), "--confirm", "--json"],
+        )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["counts"]["unknown"] == 1
+    assert gen.call_args.args[3][1]["settings"] == {"difficulty": "easy"}
+
+
+def test_elements_wait_passes_ids(runner):
+    client, aliases = _cli_client()
+    with (
+        patch("notebooklm_tools.cli.commands.studio.get_alias_manager", return_value=aliases),
+        patch("notebooklm_tools.cli.commands.studio.get_client", return_value=client),
+        patch(
+            "notebooklm_tools.cli.commands.studio.studio_service.list_report_elements",
+            return_value={"elements": [], "timed_out": False, "review_label": None},
+        ) as lst,
+    ):
+        result = runner.invoke(
+            report_app,
+            [
+                "elements",
+                "nb",
+                "r",
+                "--wait",
+                "e1",
+                "--wait",
+                "e2",
+                "--timeout",
+                "60",
+                "--json",
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    assert lst.call_args.kwargs["wait_for"] == ["e1", "e2"]
+    assert lst.call_args.kwargs["timeout"] == 60.0
