@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.12.0 — September 2026)
+- **Interactive reports (#336)** — `studio_create(artifact_type="report", report_format="Interactive")` / `nlm report create --format Interactive`, plus a new `report` MCP tool (`get` / `elements` / `generate`) and `nlm report get|elements|element create[-batch]` CLI to plan, generate and review embedded audio, video, slides, infographic, flashcards, quiz and mind-map elements. `generate` requires `confirm=True`.
+- **`nlm setup add claude-desktop` false "still running" fix (#334/#335)** — the running-process check no longer matches its own process. Thanks to **@dvdsosa**.
+- Security scan post-merge: 0 findings at Medium or above (Gitleaks, TruffleHog, Bandit, Semgrep, Trivy, OSV-Scanner, mcp-exfil-scan) — [`docs/security-scan-report-2026-09-25.md`](docs/security-scan-report-2026-09-25.md)
+
 ### Upstream sync (v0.11.6 / v0.11.7 — September 2026)
 - **`coerce_list` null-list compatibility (#331)** — MCP clients that serialize optional list parameters as `"null"` or `["null"]` (instead of omitting them or sending JSON `null`) now correctly resolve to `None`. Fixes `source_add(url=...)` / `source_delete(source_id=...)` taking the bulk-operation path and ignoring the valid scalar argument. Thanks to **@ggnoobpvp**.
 - **Verb commands stopped leaking Typer option defaults (#333)** — `nlm list artifacts` and `nlm status artifacts` raised `TypeError` because `limit` arrived as an unresolved Typer `OptionInfo` sentinel instead of a number; `nlm create notebook` always printed JSON; `nlm set alias` skipped type detection. All verb wrappers now pass their unused defaults explicitly. Thanks to **@hkrathore**.
