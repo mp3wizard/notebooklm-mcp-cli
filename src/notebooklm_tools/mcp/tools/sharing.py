@@ -2,7 +2,7 @@
 
 from ...services import ServiceError
 from ...services import sharing as sharing_service
-from ._utils import ResultDict, error_result, get_client, logged_tool
+from ._utils import ResultDict, error_result, get_client, logged_tool, service_error_result
 
 
 @logged_tool()
@@ -67,7 +67,7 @@ def notebook_share_invite(
         result = sharing_service.invite_collaborator(client, notebook_id, email, role)
         return {"status": "success", **result}
     except ServiceError as e:
-        return error_result(e.user_message, hint=e.hint)
+        return service_error_result(e)
     except Exception as e:
         return error_result(str(e))
 
@@ -99,6 +99,6 @@ def notebook_share_batch(
         result = sharing_service.invite_collaborators_bulk(client, notebook_id, recipients)
         return {"status": "success", **result}
     except ServiceError as e:
-        return error_result(e.user_message, hint=e.hint)
+        return service_error_result(e)
     except Exception as e:
         return error_result(str(e))

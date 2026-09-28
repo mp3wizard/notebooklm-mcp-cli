@@ -285,3 +285,44 @@ def test_get_headers_flattens_list_cookies(tmp_path, monkeypatch):
     assert "SID=google" in headers["Cookie"]
     assert "youtube" not in headers["Cookie"]
     assert headers["X-Goog-Csrf-Token"] == "csrf1"
+
+
+def test_get_headers_uses_saved_base_host(tmp_path, monkeypatch):
+    """Origin/Referer follow the host the account was signed in on (issue #332)."""
+    from notebooklm_tools.core.auth import AuthManager
+
+    monkeypatch.setenv("NOTEBOOKLM_MCP_CLI_PATH", str(tmp_path))
+    monkeypatch.delenv("NOTEBOOKLM_BASE_URL", raising=False)
+
+    auth = AuthManager("default")
+    auth.save_profile(
+        cookies=[{"name": "SID", "value": "google", "domain": ".google.com"}],
+        csrf_token="csrf1",
+        email="u@example.com",
+        base_host="notebook.google.com",
+    )
+
+    headers = auth.get_headers()
+
+    assert headers["Origin"] == "https://notebook.google.com"
+    assert headers["Referer"] == "https://notebook.google.com/"
+
+
+def test_get_headers_defaults_host_when_unset(tmp_path, monkeypatch):
+    """No saved host falls back to the default (issue #332)."""
+    from notebooklm_tools.core.auth import AuthManager
+
+    monkeypatch.setenv("NOTEBOOKLM_MCP_CLI_PATH", str(tmp_path))
+    monkeypatch.delenv("NOTEBOOKLM_BASE_URL", raising=False)
+
+    auth = AuthManager("default")
+    auth.save_profile(
+        cookies=[{"name": "SID", "value": "google", "domain": ".google.com"}],
+        csrf_token="csrf1",
+        email="u@example.com",
+    )
+
+    headers = auth.get_headers()
+
+    assert headers["Origin"] == "https://notebooklm.google.com"
+    assert headers["Referer"] == "https://notebooklm.google.com/"

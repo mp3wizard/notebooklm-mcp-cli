@@ -106,6 +106,8 @@ def source_list_drive(notebook_id: str, skip_freshness: bool = False) -> ResultD
     """List sources with types and Drive freshness status.
 
     Use before source_sync_drive to identify stale sources.
+    Returned Drive sources include ``can_sync`` to identify files eligible
+    for a manual Drive sync attempt. An individual sync attempt may still fail.
 
     Args:
         notebook_id: Notebook UUID

@@ -137,7 +137,11 @@ src/notebooklm_tools/
 `notebooklm-mcp` for compatibility). Claude Desktop setup detects regular and
 Relay AI/3P profiles, never creates missing profiles, and refuses to write
 while the selected Claude instance is running. User-level skill installation
-also requires the target tool to be detected.
+also requires the target tool to be detected. The `nlm setup` wizard flags
+entries still named `notebooklm-mcp`/`notebooklm` as "old name" and renames
+them on request. `nlm skill package` (`cli/skill_package.py`) builds the
+`nlm-skill.zip` upload file for Claude Desktop Chat/Cowork and claude.ai, which
+don't read local skill folders.
 
 ## MCP Tools Provided
 

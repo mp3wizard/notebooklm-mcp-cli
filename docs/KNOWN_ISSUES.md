@@ -159,6 +159,31 @@ MCP servers unchanged.
 
 ---
 
+## 7. Claude Desktop Chat or Cowork doesn't use the skill
+
+### Symptoms
+
+- `/nlm-skill` works in Claude Desktop's **Code** tab but the skill is missing
+  from **Customize → Skills**, and Chat or Cowork don't use it.
+
+### Cause
+
+The **Code** tab is Claude Code: it reads skills from `~/.claude/skills/`, where
+`nlm setup` installs them. **Chat**, **Cowork**, and claude.ai only load skills
+uploaded to your Claude account. (The MCP itself reaches Chat and Cowork through
+the normal Claude Desktop connection.)
+
+### Fix
+
+1. Run `nlm skill package` (or `nlm setup` → **Add the skill to my tools/agents**
+   → tick **Claude Desktop / claude.ai**). It saves `~/Downloads/nlm-skill.zip`.
+2. In Claude Desktop or claude.ai open **Customize → Skills → Add**, pick the
+   file, and turn the skill on.
+3. After updating `nlm`, repeat both steps — `nlm setup` can't see skills
+   uploaded to your account, so it can't flag an outdated copy.
+
+---
+
 ## Reporting Issues
 
 When reporting issues, include:

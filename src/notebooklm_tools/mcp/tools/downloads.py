@@ -49,7 +49,8 @@ def download_artifact(
         output_format: For quiz/flashcards only: json|markdown|html (default: json)
         slide_deck_format: For slide_deck only: pdf (default) or pptx
         wait: Poll while the artifact download is still propagating
-        wait_timeout: Maximum seconds to wait when ``wait`` is enabled
+        wait_timeout: Service polling budget when ``wait`` is enabled; internal
+            CDN retries and the file transfer can extend total wall time
         poll_interval: Seconds between readiness checks
 
     Returns:

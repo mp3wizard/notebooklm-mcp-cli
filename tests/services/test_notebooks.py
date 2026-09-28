@@ -70,6 +70,15 @@ class TestListNotebooks:
         assert len(result["notebooks"]) == 3
         assert result["count"] == 10  # count reflects total, not truncated
 
+    def test_urls_follow_active_profile_host(self, mock_client, monkeypatch):
+        monkeypatch.delenv("NOTEBOOKLM_BASE_URL", raising=False)
+        mock_client._base_host = "notebook.google.com"
+        mock_client.list_notebooks.return_value = [_make_notebook()]
+
+        result = list_notebooks(mock_client)
+
+        assert result["notebooks"][0]["url"] == "https://notebook.google.com/notebook/nb-1"
+
     def test_empty_list(self, mock_client):
         mock_client.list_notebooks.return_value = []
 
@@ -119,6 +128,15 @@ class TestGetNotebook:
         assert result["title"] == "Fallback"
         assert result["emoji"] == "📚"
 
+    def test_dataclass_url_follows_active_profile_host(self, mock_client, monkeypatch):
+        monkeypatch.delenv("NOTEBOOKLM_BASE_URL", raising=False)
+        mock_client._base_host = "notebook.google.com"
+        mock_client.get_notebook.return_value = _make_notebook()
+
+        result = get_notebook(mock_client, "nb-1")
+
+        assert result["url"] == "https://notebook.google.com/notebook/nb-1"
+
     def test_none_raises_not_found(self, mock_client):
         mock_client.get_notebook.return_value = None
         with pytest.raises(NotFoundError, match="not found"):
@@ -166,6 +184,15 @@ class TestCreateNotebook:
         assert result["notebook_id"] == "nb-new"
         assert result["title"] == "New NB"
         assert "Created" in result["message"]
+
+    def test_created_url_follows_active_profile_host(self, mock_client, monkeypatch):
+        monkeypatch.delenv("NOTEBOOKLM_BASE_URL", raising=False)
+        mock_client._base_host = "notebook.google.com"
+        mock_client.create_notebook.return_value = _make_notebook(id="nb-new")
+
+        result = create_notebook(mock_client, "New NB")
+
+        assert result["url"] == "https://notebook.google.com/notebook/nb-new"
 
     def test_falsy_result_raises_creation_error(self, mock_client):
         mock_client.create_notebook.return_value = None

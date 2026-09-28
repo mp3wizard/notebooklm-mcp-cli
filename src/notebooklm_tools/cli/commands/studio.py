@@ -12,8 +12,9 @@ from notebooklm_tools.cli.utils import get_client, handle_error, make_console
 from notebooklm_tools.core.alias import get_alias_manager
 from notebooklm_tools.core.exceptions import NLMError
 from notebooklm_tools.services import ServiceError, ValidationError
+from notebooklm_tools.services import notebooks as notebooks_service
 from notebooklm_tools.services import studio as studio_service
-from notebooklm_tools.utils.config import get_default_language, get_notebook_url
+from notebooklm_tools.utils.config import get_default_language
 
 console = make_console()
 
@@ -186,6 +187,7 @@ def studio_status(
                         "total": result["total"],
                         "completed": result["completed"],
                         "in_progress": result["in_progress"],
+                        "queued": result["queued"],
                     },
                     "artifacts": result["artifacts"],
                     "pagination": {
@@ -194,7 +196,7 @@ def studio_status(
                         "limit": result["limit"],
                         "has_more": result["has_more"],
                     },
-                    "notebook_url": get_notebook_url(notebook_id),
+                    "notebook_url": notebooks_service.notebook_url(client, notebook_id),
                 }
             )
             return

@@ -25,6 +25,12 @@ class TestGetBaseUrlPrecedence:
         monkeypatch.delenv("NOTEBOOKLM_BASE_URL", raising=False)
         assert get_base_url("notebook.google.com") == "https://notebook.google.com"
 
+    def test_notebook_url_uses_profile_host(self, monkeypatch):
+        monkeypatch.delenv("NOTEBOOKLM_BASE_URL", raising=False)
+        assert get_notebook_url("nb-1", profile_host="notebook.google.com") == (
+            "https://notebook.google.com/notebook/nb-1"
+        )
+
     def test_env_override_wins_over_profile_host(self, monkeypatch):
         monkeypatch.setenv("NOTEBOOKLM_BASE_URL", "https://notebooklm.cloud.google.com")
         assert get_base_url("notebook.google.com") == "https://notebooklm.cloud.google.com"

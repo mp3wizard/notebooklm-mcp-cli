@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "notebooklm-mcp-cli"
-version = "0.12.0"
+version = "0.13.0"
 description = "Unified CLI and MCP server for Google NotebookLM"
 readme = "README.md"
 license = "MIT"
@@ -38,8 +38,10 @@ dependencies = [
     "python-multipart>=0.0.22",
     "cryptography>=46.0.5",
     "typing_extensions>=4.4.0; python_version < '3.12'",
+    "tomlkit>=0.13,<1",
+    "packaging>=24,<27",
+    "questionary>=2.1,<3",
 ]
-
 
 
 
@@ -75,9 +77,13 @@ warn_unused_ignores = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Wizard end-to-end tests are slow (~2 min) and only matter when the setup
+# wizard changes, so they are opt-in: `uv run pytest -m wizard_e2e`.
+addopts = "-m 'not wizard_e2e'"
 markers = [
     "e2e: End-to-end tests requiring live authentication",
     "integration: Integration tests for CLI functionality",
+    "wizard_e2e: Drives the real `nlm setup` wizard in a pseudo-terminal (opt-in)",
 ]
 
 [dependency-groups]
@@ -86,6 +92,8 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
+    "pexpect>=4.9.0",
+    "pyte>=0.8.2",
 ]
 
 [tool.bandit]

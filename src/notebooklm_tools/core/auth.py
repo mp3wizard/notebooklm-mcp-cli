@@ -585,11 +585,15 @@ class AuthManager:
         from notebooklm_tools.utils.browser import cookies_to_header
 
         profile = self.load_profile()
+        # Match the live client (base.py): honor the host the account was last
+        # signed in on (issue #269) so Origin/Referer point at the saved host
+        # (e.g. notebook.google.com) instead of the default. See issue #332.
+        base_url = get_base_url(profile.base_host or None)
         headers = {
             "Cookie": cookies_to_header(_flatten_cookie_input(profile.cookies)),
             "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": get_base_url(),
-            "Referer": f"{get_base_url()}/",
+            "Origin": base_url,
+            "Referer": f"{base_url}/",
         }
         if profile.csrf_token:
             headers["X-Goog-Csrf-Token"] = profile.csrf_token

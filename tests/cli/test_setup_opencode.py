@@ -13,6 +13,7 @@ from notebooklm_tools.cli.commands.setup import (
     MCP_SERVER_CMD,
     MCP_SERVER_NAME,
     OPENCODE_MCP_TIMEOUT_MS,
+    _default_server_command,
     _detect_tool,
     _is_already_configured,
     _opencode_config_path,
@@ -60,7 +61,7 @@ class TestSetupOpenCode:
         assert "notebooklm" not in config["mcp"]
         entry = config["mcp"][MCP_SERVER_NAME]
         assert entry["type"] == "local"
-        assert entry["command"] == [MCP_SERVER_CMD]
+        assert entry["command"] == [_default_server_command()]
         assert entry["enabled"] is True
         assert entry["timeout"] == OPENCODE_MCP_TIMEOUT_MS
 
@@ -122,7 +123,7 @@ class TestSetupOpenCode:
         config = json.loads(config_path.read_text())
         command = config["mcp"][MCP_SERVER_NAME]["command"]
         assert isinstance(command, list)
-        assert command == [MCP_SERVER_CMD]
+        assert command == [_default_server_command()]
 
 
 class TestIsAlreadyConfigured:

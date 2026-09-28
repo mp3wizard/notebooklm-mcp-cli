@@ -113,7 +113,7 @@ nlm status artifacts <notebook>
 | `nlm cross` | Cross-notebook aggregated query (query) |
 | `nlm pipeline` | Multi-step notebook workflows (list, run) |
 | `nlm tag` | Tag notebooks and find relevant ones (add, remove, list, select) |
-| `nlm skill` | Install AI assistant skills (install, uninstall, list, show) |
+| `nlm skill` | Install AI assistant skills (install, uninstall, list, show, package) |
 | `nlm doctor` | Diagnose installation, auth, browser, and AI tool configs |
 | `nlm setup` | Configure MCP server for AI tools (add, remove, list) |
 
@@ -724,6 +724,7 @@ nlm skill list                              # Show installation status for all t
 nlm skill install <tool>                    # Install at user level (default)
 nlm skill install <tool> --level project    # Install at project level
 nlm skill update                            # Update all outdated skills
+nlm skill package                           # Create ~/Downloads/nlm-skill.zip to upload in Claude Desktop / claude.ai (Customize > Skills > Add)
 nlm skill update <tool>                     # Update a specific tool's skill
 nlm skill uninstall <tool>                  # Remove installed skill
 nlm skill show                              # Display skill content
@@ -825,9 +826,14 @@ Checks: installation, authentication, browser profile, AI tool configs. Shows su
 
 **Setup** - Configure MCP server for AI tools:
 ```bash
+nlm setup                               # Guided interactive setup wizard (recommended)
 nlm setup list                          # Show all clients and their MCP status
-nlm setup add claude-code               # Add to Claude Code (via claude mcp add)
-nlm setup add claude-desktop            # Add to Claude Desktop config
+nlm setup add claude-code               # Direct setup for Claude Code
+nlm setup add codex                     # Codex CLI and ChatGPT desktop app (shared config)
+nlm setup add chatgpt-desktop           # Alias for the shared Codex target
+nlm setup add github-copilot --scope user  # VS Code user profile
+nlm setup add github-copilot            # Current VS Code workspace
+nlm setup add claude-desktop            # Add to detected Claude Desktop profile(s)
 nlm setup add claude-desktop --profile 3p  # Select Relay AI / 3P explicitly
 nlm setup remove claude-desktop --profile regular  # Remove from regular explicitly
 nlm setup add gemini                    # Add to Gemini CLI config
@@ -844,17 +850,28 @@ nlm setup remove all                    # Remove MCP from ALL configured tools (
 
 The configured MCP server name is `gemini-notebook-mcp`; the executable remains
 `notebooklm-mcp` for compatibility with existing installations. Legacy server
-names are recognized for migration and removal.
+names are recognized for migration and removal; the wizard flags them as
+"old name" and renames them to `gemini-notebook-mcp` on request, keeping the
+entry's other settings.
 
 Claude Desktop setup only targets detected regular or Relay AI/3P profiles and
 never creates a missing profile. Fully quit the selected profile before adding
 or removing configuration; the CLI refuses to write while its executable is
-running. User-level skill installation likewise requires the target tool to be
-detected; use `--level project` for an intentional project-local install.
+running. The wizard defaults MCP setup to app/user scope and the optional skill
+to all projects (user level), with the current folder available as a project
+scope. Codex CLI and the ChatGPT desktop app share one MCP config on the same
+host. GitHub Copilot uses the VS Code user profile in the wizard; its direct
+command without `--scope user` configures the current workspace.
 
-**Supported Clients:** claude-code, claude-desktop, gemini, cursor, windsurf, cline, antigravity, codex
+**Supported Clients:** claude-code, claude-desktop, gemini, cursor, windsurf, cline, antigravity, codex, github-copilot, opencode
 
-**For other tools:** `nlm setup add json` launches an interactive wizard — choose uvx or regular mode, full path or command name, and existing or new config. The JSON is printed with syntax highlighting and can be copied to clipboard (macOS).
+**Wizard menu:** Show my tools' status · Add the MCP to my tools/agents · Add the skill to my tools/agents · Remove an MCP or skill · Copy MCP setup for a tool not listed · Exit. Only detected tools are listed; nothing is pre-selected in the connect and remove lists; Esc goes back. The wizard needs a real terminal (it exits with a hint when run non-interactively).
+
+**Claude Desktop Chat/Cowork and claude.ai:** they only load skills uploaded to the user's account. `nlm skill package` (or the wizard's **Claude Desktop / claude.ai** skill row) writes `~/Downloads/nlm-skill.zip`; upload via Customize → Skills → Add.
+
+**Guided Removal & Recovery:** Run `nlm setup` and choose **Remove an MCP or skill** to review and remove MCP configurations or skills with separate default-No confirmations. Before any modification, backups are saved to `~/.notebooklm-mcp-cli/backups/`. Files with JSONC comments are left unchanged and reported for manual removal.
+
+**For other tools:** Choose **Copy MCP setup for a tool not listed** in `nlm setup`, or run `nlm setup add json` directly. The generator offers uvx or regular mode, command name or full path, and entry-only or wrapped JSON. It prints the snippet and offers clipboard copy when available.
 
 ---
 

@@ -236,7 +236,9 @@ class TestDownloadAsync:
         with pytest.raises(ServiceError) as exc_info:
             await download_async(mock_client, "nb-1", "audio", "/tmp/out.m4a")  # nosec B108 - mock return value in test double, not a real filesystem path
 
-        assert "still propagating" in exc_info.value.user_message
+        assert "may still be propagating" in exc_info.value.user_message
+        assert "unavailable" in exc_info.value.user_message
+        assert "verify artifact access" in exc_info.value.hint
 
     @pytest.mark.asyncio
     async def test_falsy_path_raises_service_error(self, mock_client):

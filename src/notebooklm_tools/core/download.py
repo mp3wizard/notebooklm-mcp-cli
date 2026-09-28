@@ -43,6 +43,9 @@ class DownloadMixin(BaseClient):
     """
 
     _AUDIO_DOWNLOAD_RETRY_DELAYS = (5, 10, 20, 30, 45, 60, 60)
+    # Keep video retries brief; MCP's optional wait loop can keep polling after
+    # these attempts, while a one-shot CLI download stays responsive.
+    _VIDEO_DOWNLOAD_RETRY_DELAYS = (5, 10, 20)
     _GOOGLE_MEDIA_DOWNLOAD_HOSTS = {
         "drum.usercontent.google.com",
         "lh3.googleusercontent.com",
@@ -105,6 +108,20 @@ class DownloadMixin(BaseClient):
             original_host in self._GOOGLE_MEDIA_DOWNLOAD_HOSTS
             and final_url.hostname in self._GOOGLE_MEDIA_DOWNLOAD_HOSTS
             and final_url.path.startswith("/rd-notebooklm/")
+        )
+
+    def _is_transient_video_media_404(self, url: str, error: ArtifactDownloadError) -> bool:
+        cause = error.__cause__
+        if not isinstance(cause, httpx.HTTPStatusError) or cause.response.status_code != 404:
+            return False
+
+        original = urlparse(url)
+        final = urlparse(str(cause.response.url))
+        return (
+            original.hostname in self._GOOGLE_MEDIA_DOWNLOAD_HOSTS
+            and original.path.startswith("/notebooklm/")
+            and final.hostname in self._GOOGLE_MEDIA_DOWNLOAD_HOSTS
+            and final.path.startswith(("/notebooklm/", "/rd-notebooklm/"))
         )
 
     async def _download_url(
@@ -443,66 +460,83 @@ class DownloadMixin(BaseClient):
         Returns:
             The output path.
         """
-        artifacts = self._list_raw(notebook_id)
-
-        # Filter for completed video (Type 3, Status 3)
-        candidates = []
-        for a in artifacts:
-            if isinstance(a, list) and len(a) > 4:  # noqa: SIM102
-                if a[2] == self.STUDIO_TYPE_VIDEO and a[4] == 3:
-                    candidates.append(a)
-
-        if not candidates:
-            raise ArtifactNotReadyError("video")
-
-        target = None
-        if artifact_id:
-            target = next((a for a in candidates if a[0] == artifact_id), None)
-            if not target:
-                raise ArtifactNotReadyError("video", artifact_id)
-        else:
-            target = candidates[0]
-
-        # Extract URL from metadata[8]
         try:
-            metadata = target[8]
-            if not isinstance(metadata, list):
-                raise ArtifactParseError("video", details="Invalid metadata structure")
 
-            # First, find the media_list (nested list containing URLs)
-            media_list = None
-            for item in metadata:
-                if (
-                    isinstance(item, list)
-                    and len(item) > 0
-                    and isinstance(item[0], list)
-                    and len(item[0]) > 0
-                    and isinstance(item[0][0], str)
-                    and item[0][0].startswith("http")
-                ):
-                    media_list = item
-                    break
+            def select_url() -> str:
+                artifacts = self._list_raw(notebook_id)
+                candidates = [
+                    a
+                    for a in artifacts
+                    if isinstance(a, list)
+                    and len(a) > 4
+                    and a[2] == self.STUDIO_TYPE_VIDEO
+                    and a[4] == 3
+                ]
+                if not candidates:
+                    raise ArtifactNotReadyError("video")
+                target = (
+                    next((a for a in candidates if a[0] == artifact_id), None)
+                    if artifact_id
+                    else candidates[0]
+                )
+                if target is None:
+                    raise ArtifactNotReadyError("video", artifact_id)
 
-            if not media_list:
-                raise ArtifactDownloadError("video", details="No media URLs found in metadata")
+                metadata = target[8]
+                if not isinstance(metadata, list):
+                    raise ArtifactParseError("video", details="Invalid metadata structure")
 
-            # Look for video/mp4 with optimal encoding (item[1] == 4 indicates priority)
-            url = None
-            for item in media_list:
-                if isinstance(item, list) and len(item) > 2 and item[2] == "video/mp4":
-                    url = item[0]
-                    # Prefer URLs with priority flag (item[1] == 4)
-                    if len(item) > 1 and item[1] == 4:
-                        break
+                media_list = next(
+                    (
+                        item
+                        for item in metadata
+                        if isinstance(item, list)
+                        and item
+                        and isinstance(item[0], list)
+                        and item[0]
+                        and isinstance(item[0][0], str)
+                        and item[0][0].startswith("http")
+                    ),
+                    None,
+                )
+                if not media_list:
+                    raise ArtifactDownloadError("video", details="No media URLs found in metadata")
 
-            # Fallback to first URL if no video/mp4 found
-            if not url and len(media_list) > 0 and isinstance(media_list[0], list):
-                url = media_list[0][0]
+                # Prefer the video/mp4 download variant (priority 4).
+                urls = [
+                    item
+                    for item in media_list
+                    if isinstance(item, list) and len(item) > 2 and item[2] == "video/mp4"
+                ]
+                preferred = next((item for item in urls if len(item) > 1 and item[1] == 4), None)
+                fallback = media_list[0] if isinstance(media_list[0], list) else None
+                selected = preferred or (urls[0] if urls else fallback)
+                url = selected[0] if selected and isinstance(selected[0], str) else None
+                if not url:
+                    raise ArtifactDownloadError("video", details="No download URL found")
+                return url
 
-            if not url:
-                raise ArtifactDownloadError("video", details="No download URL found")
+            url = select_url()
+            for attempt in range(len(self._VIDEO_DOWNLOAD_RETRY_DELAYS) + 1):
+                try:
+                    return await self._download_url(url, output_path, progress_callback)
+                except ArtifactDownloadError as e:
+                    if not self._is_transient_video_media_404(url, e):
+                        raise
+                    if attempt == len(self._VIDEO_DOWNLOAD_RETRY_DELAYS):
+                        raise ArtifactDownloadError(
+                            "video",
+                            details="media download URL is still propagating; retry in a few minutes",
+                        ) from e
+                    delay = self._VIDEO_DOWNLOAD_RETRY_DELAYS[attempt]
+                    logger.warning(
+                        "Video media URL returned 404 while propagating; retrying in %.0fs...",
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                    url = select_url()
 
-            return await self._download_url(url, output_path, progress_callback)
+            raise ArtifactDownloadError("video", details="No download URL found")
 
         except (IndexError, TypeError, AttributeError) as e:
             raise ArtifactParseError("video", details=str(e)) from e

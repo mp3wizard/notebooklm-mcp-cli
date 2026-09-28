@@ -65,6 +65,7 @@ class DriveSourceInfo(TypedDict, total=False):
     type: str
     stale: bool | None
     drive_doc_id: str | None
+    can_sync: bool
     status: int | None
 
 
@@ -433,13 +434,19 @@ def list_drive_sources(
     drive_sources: list[DriveSourceInfo] = []
     other_sources: list[dict[str, object | None]] = []
 
-    syncable_ids = [s["id"] for s in sources if s.get("can_sync") and isinstance(s.get("id"), str)]
+    drive_source_ids = [
+        s["id"]
+        for s in sources
+        if isinstance(s.get("drive_doc_id"), str)
+        and s.get("drive_doc_id")
+        and isinstance(s.get("id"), str)
+    ]
     freshness_map: dict[str, bool | None] = {}
-    if syncable_ids and not skip_freshness:
+    if drive_source_ids and not skip_freshness:
         with ThreadPoolExecutor(max_workers=_FRESHNESS_MAX_WORKERS) as ex:
             for source_id, is_fresh in ex.map(
                 lambda sid: (sid, _safe_check_freshness(client, sid)),
-                syncable_ids,
+                drive_source_ids,
             ):
                 freshness_map[source_id] = is_fresh
 
@@ -451,7 +458,8 @@ def list_drive_sources(
             "status": source.get("status"),
         }
 
-        if source.get("can_sync"):
+        drive_doc_id = source.get("drive_doc_id")
+        if isinstance(drive_doc_id, str) and drive_doc_id:
             is_fresh = (
                 freshness_map.get(source["id"]) if isinstance(source.get("id"), str) else None
             )
@@ -463,7 +471,8 @@ def list_drive_sources(
                 "title": source_title if isinstance(source_title, str) else "",
                 "type": source_type_name if isinstance(source_type_name, str) else "unknown",
                 "stale": (not is_fresh) if is_fresh is not None else None,
-                "drive_doc_id": source.get("drive_doc_id"),
+                "drive_doc_id": drive_doc_id,
+                "can_sync": source.get("can_sync") is True,
                 "status": source.get("status"),
             }
             drive_sources.append(drive_info)

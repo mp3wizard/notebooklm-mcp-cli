@@ -333,6 +333,27 @@ class TestListDriveSources:
         assert len(result["other_sources"]) == 1
         assert result["drive_sources"][0]["id"] == "s2"
 
+    def test_drive_file_metadata_marks_type_14_source_syncable(self, mock_client):
+        mock_client.get_notebook_sources_with_types.return_value = [
+            {
+                "id": "type14-file",
+                "title": "drive.pdf",
+                "source_type_name": "pdf",
+                "drive_doc_id": "drive-file-id",
+                "can_sync": True,
+                "status": 2,
+            }
+        ]
+        mock_client.check_source_freshness.return_value = False
+
+        result = list_drive_sources(mock_client, "nb-1")
+
+        assert result["drive_count"] == 1
+        assert result["other_sources"] == []
+        assert result["drive_sources"][0]["stale"] is True
+        assert result["drive_sources"][0]["can_sync"] is True
+        mock_client.check_source_freshness.assert_called_once_with("type14-file")
+
     def test_preserves_processing_status(self, mock_client):
         mock_client.get_notebook_sources_with_types.return_value = [
             {

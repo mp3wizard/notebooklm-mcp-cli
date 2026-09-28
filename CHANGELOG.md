@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-09-27
+
+Setup is now one command. `nlm setup` finds the AI tools on your machine and
+connects them to Gemini Notebook through a guided menu — no config files to
+edit. This release also includes the fixes prepared for the unreleased 0.12.1.
+
+### Added
+
+- **Guided setup wizard (`nlm setup`)** — A menu with six options: **Show my tools' status**, **Add the MCP to my tools/agents**, **Add the skill to my tools/agents**, **Remove an MCP or skill**, **Copy MCP setup for a tool not listed**, and **Exit**. Only tools found on your machine are listed. Press Esc on any screen to go back; the menu returns after each task.
+- **Status view** — One color-coded table per detected tool: MCP connection (✓ set up, ✗ not yet, ⚠ old name) and skill version (⬆ when an upgrade is available).
+- **Connect and skill pickers** — The connect list starts with nothing selected and shows already-connected tools as locked. The skill step asks **All my projects** (default) or **Just this folder**, pre-ticks tools you just connected and available upgrades, and replaces an older skill only after you confirm. Choosing **Add the skill** from the menu goes straight to these choices.
+- **Rename old server names** — Connections still named `notebooklm-mcp` or `notebooklm` show as **⚠ old name** and appear under **Needs a fix**. Ticking one renames it to `gemini-notebook-mcp` and keeps its other settings (for example Codex's `enabled = true`). Claude Code entries are renamed through `claude mcp add-json` and checked against the saved config before the wizard reports success.
+- **Skill upload file for Claude Desktop Chat, Cowork and claude.ai** — These only load skills uploaded to your Claude account, not local skill folders. `nlm skill package` (or the **Claude Desktop / claude.ai** row in the wizard's skill picker) saves `~/Downloads/nlm-skill.zip` in Claude's skill-upload format, reveals it in Finder on macOS, and shows the upload steps (**Customize → Skills → Add**). The zip's `SKILL.md` carries its version under `metadata:` as the upload format requires.
+- **Copy MCP setup** — Copies the standard JSON snippet, using the full path to `notebooklm-mcp`, straight to the clipboard. **Advanced options** switch to uvx, the bare command, or entry-only JSON.
+- **Codex desktop and global Copilot setup** — The wizard configures the shared Codex CLI / ChatGPT desktop MCP config and the VS Code user profile for GitHub Copilot. Skill setup deduplicates shared locations.
+
+### Improved
+
+- **Safe changes** — Every MCP config and skill folder is backed up to `~/.notebooklm-mcp-cli/backups/` before it changes. Malformed configs fail closed, unrelated servers are preserved, and JSONC files are left untouched when they can't be edited safely. Removal is grouped (MCP connections / skills), opt-in, and asks for a separate default-No confirmation per group.
+- **Honest results** — A connection that fails, or that you skip with Esc (such as at the Claude Desktop profile question), is reported as failed or skipped instead of connected, and the skill offer no longer says "Connection added" after a failure.
+- **New MCP entries use the full path** to `notebooklm-mcp` by default, since desktop apps often don't inherit your shell `PATH`.
+- **Version-aware skill updates** — Current or newer skill versions are kept; older or unversioned installs are replaced only after confirmation.
+
+### Fixed
+
+- **Direct `AuthManager.get_headers()` calls use the saved sign-in host ([#332](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/332))** — `Origin` and `Referer` now follow the profile's saved `base_host` instead of defaulting to `notebooklm.google.com`, matching the live client.
+- Retry transient Google media 404s when downloading newly completed videos; report an uncertain media availability error after retries.
+- Explain permission-denied collaborator invites without guessing which account or domain restriction applied.
+- Build notebook links from the authenticated profile's host across notebook, Studio, and sharing outputs.
+- **Drive-imported files in Drive status ([#337](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/337))** — Read type-14 Drive IDs so Drive-picker files appear in `source_list_drive` and are eligible for manual sync. Direct uploads without Drive metadata remain excluded; an eligible source can still fail a sync attempt.
+
+### Other improvements
+
+- Count queued artifacts separately in Studio status summaries. Queue position and ETA remain unavailable from the upstream response.
+- Guide MCP and CLI agents on profile selection, download readiness, path boundaries, report timeouts, and sharing errors.
+- Setup backups follow `NOTEBOOKLM_MCP_CLI_PATH` like the rest of the app's storage, so the test suite no longer writes into the real backup folder.
+
+### Verification
+
+- New opt-in end-to-end suite (`uv run pytest -m wizard_e2e`, 38 tests): drives the real `nlm setup` in a pseudo-terminal against a sandboxed home folder and checks the files written for every menu option, Esc on every screen, the old-name rename, and the upload zip.
+- Live on macOS: connected Claude Desktop (regular and Relay AI / 3P profiles) and used the MCP from Cowork; renamed a real Claude Code entry; uploaded `nlm-skill.zip` in Claude Desktop.
+- Full suite, excluding the e2e markers: 1,898 passed, 39 skipped. Ruff lint clean.
+
 ## [0.12.0] - 2026-09-24
 
 Adds support for Gemini Notebook's new Interactive Reports, built for AI

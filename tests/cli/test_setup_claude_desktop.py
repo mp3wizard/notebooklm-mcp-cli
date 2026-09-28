@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -366,8 +367,8 @@ class TestSetupClaudeDesktop:
                 return_value="/usr/local/bin/notebooklm-mcp",
             ),
             patch(
-                "notebooklm_tools.cli.commands.setup.Prompt.ask",
-                return_value="3",
+                "notebooklm_tools.cli.commands.setup.questionary.select",
+                return_value=SimpleNamespace(ask=lambda: "both"),
             ) as prompt,
         ):
             result = _setup_claude_desktop()

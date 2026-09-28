@@ -397,6 +397,18 @@ class TestGetStudioStatus:
         assert result["completed"] == 2  # 1 studio + 1 mind map
         assert result["in_progress"] == 1
 
+    def test_counts_queued_artifacts_separately(self, mock_client):
+        mock_client.poll_studio_status.return_value = [
+            {"artifact_id": "a1", "type": "video", "status": "queued"},
+            {"artifact_id": "a2", "type": "audio", "status": "queued"},
+        ]
+        mock_client.list_mind_maps.return_value = []
+
+        result = get_studio_status(mock_client, "nb-1")
+
+        assert result["queued"] == 2
+        assert result["in_progress"] == 0
+
     def test_preserves_xlsx_download_filename(self, mock_client):
         mock_client.poll_studio_status.return_value = [
             {

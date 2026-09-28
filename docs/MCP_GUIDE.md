@@ -1,6 +1,6 @@
 # MCP Guide
 
-Complete reference for the Gemini Notebook (formerly Google NotebookLM) MCP server — **43 tools** for AI assistants.
+Complete reference for the Gemini Notebook (formerly Google NotebookLM) MCP server — **50 tools** for AI assistants.
 
 ## Installation
 
@@ -411,7 +411,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 ## Context Window Tips
 
-This MCP has **43 tools** which consume context. Best practices:
+This MCP has **50 tools** which consume context. Best practices:
 
 - **Disable when not using**: In Claude Code, use `@gemini-notebook-mcp` to toggle
 - **Hide tools you don't need**: See [Selective tool exposure](#selective-tool-exposure) below to expose only a subset
@@ -446,16 +446,25 @@ Unknown group names are ignored. Changes take effect on server restart.
 
 ## IDE Configuration
 
-The easiest way to configure any tool is with `nlm setup`:
+The easiest way to configure supported tools is with the guided wizard:
 
 ```bash
-nlm setup add claude-code       # Claude Code
-nlm setup add gemini            # Gemini CLI
-nlm setup add github-copilot    # GitHub Copilot
-nlm setup add cursor            # Cursor
-nlm setup add windsurf          # Windsurf
-nlm setup add json              # Any other tool (interactive JSON generator)
+nlm setup
 ```
+
+Choose **Show my tools' status** to see what is connected, **Add the MCP to
+my tools/agents** to connect detected clients (nothing is pre-selected; entries
+still using the old `notebooklm-mcp` name are offered under **Needs a fix** and
+renamed to `gemini-notebook-mcp`), **Add the skill to my tools/agents** for the
+optional skill (including an upload file for Claude Desktop Chat/Cowork and
+claude.ai), **Remove an MCP or skill**, or **Copy MCP setup for a tool not
+listed** to copy a config snippet. Esc goes back from any screen. MCP setup
+defaults to the app/user-level configuration. The optional skill defaults to
+all projects (user level); project-level installation targets the current
+folder. Codex CLI
+and the ChatGPT desktop app share one MCP configuration on the same host.
+GitHub Copilot uses the VS Code user profile in the wizard; the direct command
+without `--scope user` targets the current workspace.
 
 <details>
 <summary>Manual configuration</summary>

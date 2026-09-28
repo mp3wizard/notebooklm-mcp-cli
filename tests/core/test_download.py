@@ -69,6 +69,13 @@ class TestDownloadMixinImport:
 class TestDownloadMixinMethods:
     """Test DownloadMixin method behavior."""
 
+    def _video_artifact(self, url: str) -> list:
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        artifact = ["video-1", None, mixin.STUDIO_TYPE_VIDEO, None, 3]
+        artifact.extend([None] * 3)
+        artifact.append([[[url, 4, "video/mp4"]]])
+        return artifact
+
     def _audio_artifact(self, url: str) -> list:
         mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
         return [
@@ -527,6 +534,72 @@ class TestDownloadMixinMethods:
 
         assert "still propagating" in exc_info.value.details
         assert mixin._list_raw.call_count == 2
+        assert mixin._download_url.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_download_video_retries_transient_google_media_404(self):
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        first_url = "https://lh3.googleusercontent.com/notebooklm/video-1"
+        second_url = "https://lh3.googleusercontent.com/notebooklm/video-2"
+        retryable_error = self._download_error(404, first_url)
+        mixin._list_raw = Mock(
+            side_effect=[
+                [self._video_artifact(first_url)],
+                [self._video_artifact(second_url)],
+            ]
+        )
+        mixin._download_url = AsyncMock(side_effect=[retryable_error, "/tmp/video.mp4"])
+        mixin._VIDEO_DOWNLOAD_RETRY_DELAYS = (0,)
+
+        result = await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")
+
+        assert result == "/tmp/video.mp4"
+        assert mixin._list_raw.call_count == 2
+        mixin._download_url.assert_any_await(first_url, "/tmp/video.mp4", None)
+        mixin._download_url.assert_any_await(second_url, "/tmp/video.mp4", None)
+
+    @pytest.mark.asyncio
+    async def test_download_video_ignores_malformed_secondary_media_entries(self):
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        url = "https://lh3.googleusercontent.com/notebooklm/video-1"
+        artifact = self._video_artifact(url)
+        artifact[8][0].append(42)
+        mixin._list_raw = Mock(return_value=[artifact])
+        mixin._download_url = AsyncMock(return_value="/tmp/video.mp4")
+
+        result = await mixin.download_video("nb-1", "/tmp/video.mp4")
+
+        assert result == "/tmp/video.mp4"
+        mixin._download_url.assert_awaited_once_with(url, "/tmp/video.mp4", None)
+
+    @pytest.mark.asyncio
+    async def test_download_video_does_not_retry_unrelated_404(self):
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        url = "https://lh3.googleusercontent.com/notebooklm/video-1"
+        unrelated_error = self._download_error(404, "https://example.com/not-found")
+        mixin._list_raw = Mock(return_value=[self._video_artifact(url)])
+        mixin._download_url = AsyncMock(side_effect=unrelated_error)
+        mixin._VIDEO_DOWNLOAD_RETRY_DELAYS = (0,)
+
+        with pytest.raises(ArtifactDownloadError) as exc_info:
+            await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")
+
+        assert exc_info.value is unrelated_error
+        mixin._download_url.assert_awaited_once_with(url, "/tmp/video.mp4", None)
+
+    @pytest.mark.asyncio
+    async def test_download_video_reports_propagation_after_retry_exhaustion(self):
+        mixin = DownloadMixin(cookies={"test": "cookie"}, csrf_token="test")
+        url = "https://lh3.googleusercontent.com/notebooklm/video-1"
+        retryable_error = self._download_error(404, url)
+        mixin._list_raw = Mock(return_value=[self._video_artifact(url)])
+        mixin._download_url = AsyncMock(side_effect=retryable_error)
+        mixin._VIDEO_DOWNLOAD_RETRY_DELAYS = (0,)
+
+        with pytest.raises(ArtifactDownloadError) as exc_info:
+            await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")
+
+        assert "still propagating" in exc_info.value.details
         assert mixin._download_url.await_count == 2
 
 

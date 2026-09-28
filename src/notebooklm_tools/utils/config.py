@@ -120,9 +120,9 @@ def get_enterprise_location() -> str:
     return loc if loc else "global"
 
 
-def get_notebook_url(notebook_id: str) -> str:
+def get_notebook_url(notebook_id: str, profile_host: str | None = None) -> str:
     """Build the browser URL for a notebook on the configured host."""
-    base_url = get_base_url()
+    base_url = get_base_url(profile_host)
     host = (urlparse(base_url).hostname or "").lower()
     if host not in {
         "notebooklm.cloud.google.com",

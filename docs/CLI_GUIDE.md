@@ -310,6 +310,8 @@ nlm skill install cursor                 # Install for Cursor AI
 nlm skill install <tool> --level project # Install at project level
 nlm skill uninstall <tool>               # Remove skill
 nlm skill show                           # View skill content
+nlm skill package                        # ~/Downloads/nlm-skill.zip for Claude Desktop / claude.ai upload
+nlm skill package --output DIR           # Save the zip somewhere else
 
 # Verb-first alternatives
 nlm install skill claude-code
@@ -332,20 +334,31 @@ nlm skill install alef-agent
 
 **Supported Tools:** `claude-code`, `cursor`, `agents`, `gemini-cli`, `codex`, `opencode`, `antigravity`, `cline`, `openclaw`, `alef-agent`, `other`
 
+**Claude Desktop Chat/Cowork and claude.ai** only load skills uploaded to your
+Claude account, not local skill folders (the desktop app's **Code** tab is
+Claude Code and uses `~/.claude/skills/`). `nlm skill package` writes
+`nlm-skill.zip` (the `nlm-skill/` folder with `SKILL.md` and `references/`) and
+prints the upload steps: **Customize → Skills → Add** → pick the file → turn it
+on. The packaged `SKILL.md` carries its version under `metadata:` as the skill
+upload format requires. Re-upload after updating `nlm`.
+
 ### Setup (MCP Server Configuration)
 
-Configure the Gemini Notebook MCP server for AI tools in one command:
+Configure the Gemini Notebook MCP server and optional skills for AI tools:
 
-The configured server name is `gemini-notebook-mcp`; the executable remains
-`notebooklm-mcp` for compatibility with existing installations.
+Running bare `nlm setup` opens an interactive wizard that detects installed tools,
+configures MCP servers with private backups, and offers optional skill installation:
 
 ```bash
-nlm setup add claude-code       # Configure via `claude mcp add`
+nlm setup                       # Guided wizard (recommended): status, add MCP/skill, remove, copy setup
+nlm setup add claude-code       # Direct command: Configure via `claude mcp add`
+nlm setup add codex             # Direct command: Configure Codex CLI / ChatGPT desktop
+nlm setup add github-copilot --scope user  # Configure VS Code user profile
+nlm setup add github-copilot    # Direct command: Configure current workspace (.vscode/mcp.json)
 nlm setup add claude-desktop    # Configure detected Claude Desktop profile(s)
 nlm setup add claude-desktop --profile 3p  # Select Relay AI / 3P explicitly
 nlm setup remove claude-desktop --profile regular  # Remove from regular explicitly
 nlm setup add gemini            # Write ~/.gemini/settings.json
-nlm setup add github-copilot    # Write .vscode/mcp.json
 nlm setup add cursor            # Write ~/.cursor/mcp.json
 nlm setup add windsurf          # Write mcp_config.json
 nlm setup add json              # Generate JSON config for any tool
@@ -360,6 +373,24 @@ regular and Relay AI/3P profiles are present, the command prompts for regular,
 3P, or both. Removal uses the same profile selection. User-level skill installs
 likewise require the target tool to be detected; project-level installs remain
 explicitly scoped to the current project.
+
+The guided wizard's main menu: **Show my tools' status**, **Add the MCP to my
+tools/agents**, **Add the skill to my tools/agents**, **Remove an MCP or skill**,
+**Copy MCP setup for a tool not listed**, and **Exit**. Press **Esc** on any
+screen to go back (it quits from the main menu). Only detected tools are listed,
+and the connect and remove lists start with nothing selected. Connections that
+still use a legacy server name (`notebooklm-mcp`, `notebooklm`) show as
+**⚠ old name** in the status view and under **Needs a fix** in the connect list;
+ticking one renames it to `gemini-notebook-mcp` and keeps its other settings.
+
+The wizard defaults MCP setup to the supported app/user-level location.
+Its skill step defaults to **All my projects (user level)** and offers
+**Just this folder (project level)**; it pre-ticks tools you just connected and
+available upgrades, and offers a **Claude Desktop / claude.ai** upload file. The Codex CLI and ChatGPT desktop app share
+their MCP configuration; selecting this target makes the server available to
+both on that host. For GitHub Copilot, the wizard targets the VS Code user
+profile, while the direct command without `--scope user` targets the current
+workspace.
 Removal only offers profiles containing `gemini-notebook-mcp` or a recognized
 legacy entry, so unrelated MCP servers are not removed.
 
@@ -369,9 +400,30 @@ regular and 3P instances and refuses to write while they are open, since Claude
 may rewrite the config and discard the change. Reopen Claude Desktop after the
 command completes.
 
+### Guided Removal & Safety
+
+Running `nlm setup` and selecting **Remove** scans all recognized MCP server
+configurations and installed skills, presenting a checklist grouped into
+**MCP connections** and **Skills** with nothing pre-selected.
+
+- **Separate Confirmations**: Removing MCP configurations requires an explicit
+  default-No confirmation (`Remove the selected MCP entries?`). Deleting skill
+  folders requires a separate default-No confirmation warning (`Delete the listed skill folders? Personal edits in the active folders will be removed.`).
+- **Claude Desktop Profiles**: Regular and Relay AI / 3P profiles appear as distinct
+  options and are removed cleanly without nested prompts.
+- **Backups & Recovery**: Before modifying any config file or deleting any skill
+  folder, a timestamped backup is saved to `~/.notebooklm-mcp-cli/backups/`. If a
+  backup cannot be created, the operation aborts safely. To restore a backup, copy
+  the backup file or directory from `~/.notebooklm-mcp-cli/backups/` back to its
+  original path.
+- **JSONC / Comment Preservation**: If a configuration file (such as VS Code's
+  user or workspace `mcp.json`) contains comments or custom formatting, `nlm setup`
+  safely refuses to modify it and prints the exact path with instructions for
+  manual removal.
+
 **Supported Clients:** `claude-code`, `claude-desktop`, `gemini`, `github-copilot`, `cursor`, `windsurf`, `cline`, `antigravity`, `codex`, `opencode`
 
-**For unsupported tools:** Use `nlm setup add json` to interactively generate a JSON config snippet. Choose between uvx or regular mode, full path or command name, and whether to include the `mcpServers` wrapper. The result is printed and can be copied to clipboard.
+**For unsupported tools:** Choose **Copy MCP setup for a tool not listed** in `nlm setup`. It copies the standard snippet (full path to `notebooklm-mcp`) to the clipboard; **Advanced options** cover the other formats. `nlm setup add json` also generates a snippet directly. Choose between uvx or regular mode, full path or command name, and whether to include the `mcpServers` wrapper. The result is printed and can be copied to clipboard.
 
 > **Note:** `nlm setup` configures the MCP server transport. Use `nlm skill install` to install skill/reference docs for AI tools that don't use MCP.
 

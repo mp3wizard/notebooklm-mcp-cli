@@ -134,7 +134,8 @@ uv run pytest tests/test_api_client.py
 - **v0.4.6 Batch, Cross-Notebook, Pipelines & Smart Select**: Multi-notebook operations, cross-notebook aggregated queries, pipeline workflows, and tag-based notebook discovery. Contributed by @fabianafurtadoff (PR #90).
 - **v0.4.6 MCP Tool Consolidation**: Consolidated 13 new tools into 4 action-based tools (`batch`, `pipeline`, `tag`, `cross_notebook_query`), keeping total MCP tools at 35.
 - **v0.3.0 Service Layer Refactor**: Introduced shared `services/` layer with 10+ domain modules, eliminating duplicated logic between CLI and MCP. 576+ unit tests.
-- **Skill Commands**: `nlm skill install/uninstall/list/show` for AI assistant integration
+- **Setup Wizard**: `nlm setup` — status view, add/remove MCP and skill, old-name rename, copy MCP setup; `nlm skill package` builds the Claude Desktop / claude.ai skill upload zip
+- **Skill Commands**: `nlm skill install/uninstall/list/show/package` for AI assistant integration
 - **Verb-First Commands**: Alternative command style (`nlm install skill`, `nlm list skills`)
 - **Interactive Artifact Downloads**: `download_quiz` and `download_flashcards` with JSON/Markdown/HTML formats
 - **Sharing API**: `notebook_share_status`, `notebook_share_public`, `notebook_share_invite` for collaboration
