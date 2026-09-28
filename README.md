@@ -10,6 +10,12 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.13.0 — September 2026)
+- **Guided setup wizard (`nlm setup`)** — a six-option menu (status, add MCP, add skill, remove, copy JSON, exit) that detects installed AI tools and connects them without manual config editing; backs up every config/skill before changing it, renames old `notebooklm-mcp`/`notebooklm` server entries to `gemini-notebook-mcp`, and saves a `~/Downloads/nlm-skill.zip` for Claude Desktop Chat/Cowork/claude.ai skill uploads.
+- **Fixed (#332)** — `AuthManager.get_headers()` now follows the profile's saved sign-in host instead of defaulting to `notebooklm.google.com`.
+- **Fixed (#337)** — Drive-picker (type-14) files now appear in `source_list_drive` and are eligible for manual sync.
+- Security scan post-merge: 0 findings at Medium or above in project-owned code (Gitleaks, TruffleHog, Bandit, Semgrep, Trivy, OSV-Scanner, mcp-exfil-scan) — [`docs/security-scan-report-2026-09-28.md`](docs/security-scan-report-2026-09-28.md)
+
 ### Upstream sync (v0.12.0 — September 2026)
 - **Interactive reports (#336)** — `studio_create(artifact_type="report", report_format="Interactive")` / `nlm report create --format Interactive`, plus a new `report` MCP tool (`get` / `elements` / `generate`) and `nlm report get|elements|element create[-batch]` CLI to plan, generate and review embedded audio, video, slides, infographic, flashcards, quiz and mind-map elements. `generate` requires `confirm=True`.
 - **`nlm setup add claude-desktop` false "still running" fix (#334/#335)** — the running-process check no longer matches its own process. Thanks to **@dvdsosa**.
