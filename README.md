@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.14.0 — September/October 2026)
+- **Protected mode credential storage (`nlm auth storage`)** — encrypt saved Google logins at rest with AES-256-GCM (`credentials.enc`), key stored in the OS keystore (macOS Keychain, Windows Credential Manager, Linux SecretService). File mode stays the default; nothing changes unless you opt in with `nlm auth storage set protected`. Subcommands: `status`, `set protected|file`, `resolve file|protected`, `relocate`. A terminal with several saved logins gets a checkbox picker (`--all` switches every one); conflict detection and compare-and-save semantics protect against concurrent writes; a one-time CLI tip, MCP notice, and `[y/N]` prompt (never nagged again) explain the feature after `nlm login`/`nlm setup`; `nlm doctor` lists each profile's mode.
+- **Security fix (pre-existing CVE)** — `pyjwt` 2.13.0 → 2.15.1, resolving 1 CRITICAL + 4 HIGH + 2 MEDIUM CVEs disclosed since the last scan.
+- Security scan post-merge: 1 Medium Bandit false positive suppressed with justification; 1 Critical/4 High/7 Medium dependency CVE fixed (pyjwt); full suite 2,210 passed — [`docs/security-scan-report-2026-10-01.md`](docs/security-scan-report-2026-10-01.md)
+
 ### Upstream sync (v0.13.0 — September 2026)
 - **Guided setup wizard (`nlm setup`)** — a six-option menu (status, add MCP, add skill, remove, copy JSON, exit) that detects installed AI tools and connects them without manual config editing; backs up every config/skill before changing it, renames old `notebooklm-mcp`/`notebooklm` server entries to `gemini-notebook-mcp`, and saves a `~/Downloads/nlm-skill.zip` for Claude Desktop Chat/Cowork/claude.ai skill uploads.
 - **Fixed (#332)** — `AuthManager.get_headers()` now follows the profile's saved sign-in host instead of defaulting to `notebooklm.google.com`.

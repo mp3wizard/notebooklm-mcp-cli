@@ -320,7 +320,7 @@ class FailClosedCredentialBackend:
 
     def delete_password(self, service: str, account: str) -> None:
         raise RealCredentialStoreAccessAttemptedError(
-            f"Attempted to delete from OS credential store (service={service}, account={account}) in test"
+            f"Attempted to delete from OS credential store (service={service}, account={account}) in test"  # nosec B608 — error message string, no SQL query involved
         )
 
 
