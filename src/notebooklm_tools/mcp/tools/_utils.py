@@ -7,6 +7,7 @@ import logging
 import os
 import threading
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any, ParamSpec, TypeAlias, TypeVar, cast
 
 from notebooklm_tools.core.client import NotebookLMClient
@@ -115,6 +116,106 @@ def service_error_result(error: ServiceError, *, status: str = "error") -> Resul
 _client: NotebookLMClient | None = None
 _client_lock = threading.Lock()
 _query_timeout: float = float(os.environ.get("NOTEBOOKLM_QUERY_TIMEOUT", "120.0"))
+_mcp_probe_event = threading.Event()
+_mcp_probe_available = False
+_mcp_probe_thread: threading.Thread | None = None
+_allow_mcp_bg_probe: bool = False
+
+
+def reset_mcp_probe_state(timeout: float = 2.0) -> None:
+    """Reset the MCP background probe state and join any running probe thread."""
+    global _mcp_probe_available, _mcp_probe_thread
+    if _mcp_probe_thread is not None and _mcp_probe_thread.is_alive():
+        _mcp_probe_thread.join(timeout=timeout)
+    _mcp_probe_thread = None
+    _mcp_probe_available = False
+    _mcp_probe_event.clear()
+
+
+def start_mcp_background_probe(
+    storage_dir: Path | None = None,
+    backend_factory: Callable[[], Any] | None = None,
+    *,
+    force: bool = False,
+) -> None:
+    """Start background probe thread once at MCP server start.
+
+    Captures target storage directory and backend factory at thread launch time
+    to prevent thread from resolving dynamically during test environment teardown.
+    """
+    global _mcp_probe_thread
+    if not force and os.environ.get("PYTEST_CURRENT_TEST") and not _allow_mcp_bg_probe:
+        return
+
+    if _mcp_probe_thread is not None and _mcp_probe_thread.is_alive():
+        _mcp_probe_thread.join(timeout=2.0)
+
+    _mcp_probe_event.clear()
+
+    from notebooklm_tools.core.credential_store import CredentialStore, get_backend_factory
+    from notebooklm_tools.utils.config import get_storage_dir
+
+    captured_storage_dir = storage_dir if storage_dir is not None else get_storage_dir()
+    captured_factory = backend_factory if backend_factory is not None else get_backend_factory()
+
+    def _worker(target_dir: Path, factory: Callable[[], Any]) -> None:
+        global _mcp_probe_available
+        try:
+            from notebooklm_tools.core.notices import is_mcp_notice_shown
+
+            if is_mcp_notice_shown(storage_dir=target_dir):
+                _mcp_probe_available = False
+                return
+
+            from notebooklm_tools.services.auth import AuthManager
+            from notebooklm_tools.utils.config import get_auth_storage_mode, get_config
+
+            profile = get_config().auth.default_profile
+            if not AuthManager(profile).profile_exists():
+                _mcp_probe_available = False
+                return
+
+            if get_auth_storage_mode(profile) != "file":
+                _mcp_probe_available = False
+                return
+
+            backend = factory() if factory is not None else None
+            store = CredentialStore(storage_dir=target_dir, backend=backend)
+            _mcp_probe_available = store.should_offer_protection(profile_name=profile)
+        except Exception:
+            _mcp_probe_available = False
+        finally:
+            _mcp_probe_event.set()
+
+    _mcp_probe_thread = threading.Thread(
+        target=_worker,
+        args=(captured_storage_dir, captured_factory),
+        name="nlm-mcp-bg-probe",
+        daemon=True,
+    )
+    _mcp_probe_thread.start()
+
+
+def maybe_attach_mcp_notice(result: Any) -> None:
+    """Attach one-time notice to tool response if background probe has completed and succeeded.
+
+    Never probes inside tool calls. If background thread hasn't finished, does not attach notice.
+    """
+    if not isinstance(result, dict):
+        return
+    if not _mcp_probe_event.is_set() or not _mcp_probe_available:
+        return
+    from notebooklm_tools.core.notices import is_mcp_notice_shown, mark_mcp_notice_shown
+
+    if is_mcp_notice_shown():
+        return
+
+    result["user_notice"] = (
+        "Tell the user once, in one short line: their saved Gemini Notebook login can "
+        "optionally be protected in the OS keystore by running "
+        "'nlm auth storage set protected'. Don't repeat this."
+    )
+    mark_mcp_notice_shown()
 
 
 def get_query_timeout() -> float:
@@ -132,75 +233,108 @@ def get_client() -> NotebookLMClient:
     """Get or create the API client (thread-safe).
 
     Tries environment variables first, falls back to cached tokens from auth CLI.
+    Keystore reads are performed outside _client_lock to avoid blocking unrelated
+    MCP operations while keeping the hot path sub-millisecond.
     """
     global _client
 
-    with _client_lock:
-        # Profile-change detection (only when env-var auth is not in use).
-        # Runs inside the lock so that _client reads and writes are always
-        # serialised — fixing the double-checked locking race condition (M-2).
-        cookie_header = os.environ.get("NOTEBOOKLM_COOKIES", "")
-        if not cookie_header and _client is not None:
-            try:
-                from notebooklm_tools.utils.config import reset_config
-
-                # Reset config so we read the latest default_profile from disk
-                # in case `nlm login switch` was run in another terminal
-                reset_config()
-                cached = load_cached_tokens()
-
-                # Force re-init if cookies changed (profile switch) OR if disk
-                # tokens are newer than the running client (same-profile re-auth
-                # via `nlm login` — fixes Issue #161).
-                if cached:
-                    cookies_changed = getattr(_client, "cookies", None) != cached.cookies
-                    disk_is_newer = cached.extracted_at > getattr(_client, "_created_at", 0)
-                    if cookies_changed or disk_is_newer:
-                        mcp_logger.info("Authentication change detected, reloading client.")
-                        _client = None  # Reset directly; lock already held
-            except Exception as e:
-                mcp_logger.debug(f"Failed to check auth status: {e}")
-
-        if _client is not None:
+    cookie_header = os.environ.get("NOTEBOOKLM_COOKIES", "")
+    if cookie_header:
+        with _client_lock:
+            if _client is not None and getattr(_client, "_is_env_auth", False):
+                return _client
+            cookies = extract_cookies_from_chrome_export(cookie_header)
+            _client = NotebookLMClient(
+                cookies=cookies,
+                csrf_token="",
+                session_id="",
+                build_label="",
+                base_host="",
+                is_env_auth=True,
+            )
             return _client
 
-        cookie_header = os.environ.get("NOTEBOOKLM_COOKIES", "")
+    # Profile-based authentication
+    from notebooklm_tools.core.credential_store import get_envelope_revision
+    from notebooklm_tools.utils.config import (
+        get_auth_storage_mode,
+        get_config,
+        get_profile_dir,
+        reset_config,
+    )
 
-        # NOTEBOOKLM_CSRF_TOKEN and NOTEBOOKLM_SESSION_ID env vars are deprecated
-        # and no longer read. Both are auto-extracted on first API call. Passing
-        # stale values from env would bypass auto-refresh and cause auth failures.
-        csrf_token = ""  # nosec B105 # deprecated placeholder, not a password
-        session_id = ""
-        build_label = ""
-        base_host = ""
+    with _client_lock:
+        reset_config()
+        default_profile = get_config().auth.default_profile
+        mode = get_auth_storage_mode(default_profile)
 
-        if cookie_header:
-            # Use environment variables
-            cookies = extract_cookies_from_chrome_export(cookie_header)
-        else:
-            # Try cached tokens from auth CLI
-            cached = load_cached_tokens()
-            if cached:
-                cookies = cached.cookies
-                csrf_token = cached.csrf_token
-                session_id = cached.session_id
-                build_label = cached.build_label or ""
-                base_host = cached.base_host or ""
+        if (
+            _client is not None
+            and not getattr(_client, "_is_env_auth", False)
+            and getattr(_client, "_profile_name", None) == default_profile
+        ):
+            if mode == "protected":
+                enc_path = get_profile_dir(default_profile, create=False) / "credentials.enc"
+                if enc_path.exists():
+                    current_rev = get_envelope_revision(enc_path)
+                    if current_rev is not None and current_rev == getattr(
+                        _client, "_auth_revision", None
+                    ):
+                        # Fast hot path: <0.05 ms, 0 spawns
+                        return _client
             else:
-                raise ValueError(
-                    "No authentication found. Either:\n"
-                    "1. Run 'nlm login' to authenticate via Chrome, or\n"
-                    "2. Set NOTEBOOKLM_COOKIES environment variable manually"
-                )
+                # File mode parity with main: keep existing _client if reload fails or returns None
+                try:
+                    cached = load_cached_tokens(default_profile)
+                    if cached:
+                        cookies_changed = getattr(_client, "cookies", None) != cached.cookies
+                        disk_is_newer = cached.extracted_at > getattr(_client, "_created_at", 0)
+                        if cookies_changed or disk_is_newer:
+                            _client = None
+                except Exception:
+                    pass
 
-        _client = NotebookLMClient(
-            cookies=cookies,
-            csrf_token=csrf_token,
-            session_id=session_id,
-            build_label=build_label,
-            base_host=base_host,
+                if _client is not None:
+                    return _client
+
+    # Keystore work OUTSIDE _client_lock
+    cached = load_cached_tokens(default_profile)
+    if not cached:
+        raise ValueError(
+            "No authentication found. Either:\n"
+            "1. Run 'nlm login' to authenticate via Chrome, or\n"
+            "2. Set NOTEBOOKLM_COOKIES environment variable manually"
         )
-    return _client
+
+    new_client = NotebookLMClient(
+        cookies=cached.cookies,
+        csrf_token=cached.csrf_token,
+        session_id=cached.session_id,
+        build_label=cached.build_label or "",
+        base_host=cached.base_host or "",
+        profile_name=default_profile,
+        auth_revision=cached.revision,
+        is_env_auth=False,
+    )
+
+    with _client_lock:
+        # Compare-and-install
+        if (
+            _client is not None
+            and not getattr(_client, "_is_env_auth", False)
+            and getattr(_client, "_profile_name", None) == default_profile
+        ):
+            if mode == "protected":
+                if getattr(_client, "_auth_revision", None) == cached.revision:
+                    return _client
+            else:
+                if not (
+                    getattr(_client, "cookies", None) != cached.cookies
+                    or cached.extracted_at > getattr(_client, "_created_at", 0)
+                ):
+                    return _client
+        _client = new_client
+        return _client
 
 
 def reset_client() -> None:
@@ -244,6 +378,7 @@ def logged_tool() -> Callable[[Callable[P, Any]], Callable[P, Any]]:
                     mcp_logger.debug(f"MCP Request: {tool_name}({json.dumps(params, default=str)})")
 
                 result: Any = await async_func(*args, **kwargs)
+                maybe_attach_mcp_notice(result)
 
                 if mcp_logger.isEnabledFor(logging.DEBUG):
                     result_str = json.dumps(_redact(result), default=str)
@@ -265,6 +400,7 @@ def logged_tool() -> Callable[[Callable[P, Any]], Callable[P, Any]]:
                     mcp_logger.debug(f"MCP Request: {tool_name}({json.dumps(params, default=str)})")
 
                 result: R = sync_func(*args, **kwargs)
+                maybe_attach_mcp_notice(result)
 
                 if mcp_logger.isEnabledFor(logging.DEBUG):
                     result_str = json.dumps(_redact(result), default=str)

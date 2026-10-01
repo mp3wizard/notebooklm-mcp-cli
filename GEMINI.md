@@ -115,6 +115,9 @@ uv run pytest tests/test_api_client.py
     - `core/client.py`: Low-level internal API calls (no business logic).
     - `core/constants.py`: Single source of truth for all API code-name mappings.
     - `core/auth.py`: Handles token validation, storage, and loading.
+    - `core/credential_store.py`: OS keystore integration (macOS Keychain, Windows Credential Manager, Linux SecretService) with AES-256-GCM envelope encryption.
+    - `core/auth_migration.py`: Safe zero-data-loss migration and conflict reconciliation between file and protected modes.
+    - `services/auth_storage.py`: Storage mode management (status, set, resolve, relocate).
     - `utils/cdp.py`: Chrome DevTools Protocol for cookie extraction and headless auth.
     - `utils/`: Configuration and browser utilities
 - `tests/services/`: Unit tests for all service modules (576+ tests)
@@ -128,9 +131,11 @@ uv run pytest tests/test_api_client.py
 - **Layering (v0.3.0+):** `cli/` and `mcp/` must NOT import from `core/` — delegate to `services/` instead. Services return TypedDicts and raise `ServiceError`/`ValidationError`.
 - **New features:** Add low-level API in `core/client.py` → business logic in `services/*.py` → thin wrappers in `mcp/tools/*.py` and `cli/commands/*.py` → tests in `tests/services/`.
 - **Constants:** All code-name mappings should be defined in `constants.py` using the `CodeMapper` class.
+- **Credential Security:** Saved logins can be encrypted at rest in Protected mode using the OS keystore. Never log or output decrypted credentials or raw keys.
 
 ## Recent Additions
 
+- **Protected Mode Credential Storage**: Optional OS keystore encryption (macOS Keychain, Windows Credential Manager, Linux SecretService) for stored Google logins (`nlm auth storage set protected`). File mode remains default.
 - **v0.4.6 Batch, Cross-Notebook, Pipelines & Smart Select**: Multi-notebook operations, cross-notebook aggregated queries, pipeline workflows, and tag-based notebook discovery. Contributed by @fabianafurtadoff (PR #90).
 - **v0.4.6 MCP Tool Consolidation**: Consolidated 13 new tools into 4 action-based tools (`batch`, `pipeline`, `tag`, `cross_notebook_query`), keeping total MCP tools at 35.
 - **v0.3.0 Service Layer Refactor**: Introduced shared `services/` layer with 10+ domain modules, eliminating duplicated logic between CLI and MCP. 576+ unit tests.

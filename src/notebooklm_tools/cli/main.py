@@ -2,6 +2,7 @@
 
 import contextlib
 import logging
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -198,6 +199,75 @@ def _print_auth_valid(profile: Any, notebook_count: int | None) -> None:
         console.print(f"  Account: {profile.email}")
 
 
+def _offer_plain_backup_cleanup(candidates: list[Path]) -> None:
+    """List leftover plain login backups and offer to delete them (default No)."""
+    from notebooklm_tools.services.auth_storage import remove_plain_backup_files
+
+    if not candidates:
+        return
+    n = len(candidates)
+    console.print(f"\nFound {n} old plain login backup{'' if n == 1 else 's'}:")
+    for c in candidates:
+        console.print(f"  - {c}")
+    question = "Delete this old plain copy?" if n == 1 else f"Delete these {n} old plain copies?"
+    try:
+        confirmed = typer.confirm(question, default=False)
+    except typer.Abort:  # no keyboard (script / closed stdin): treat as No
+        console.print("[dim]Kept them (no answer).[/dim]")
+        return
+    if confirmed:
+        removed = len(remove_plain_backup_files(candidates))
+        console.print(f"Removed {removed} old plain {'copy' if removed == 1 else 'copies'}.")
+
+
+def _maybe_prompt_protect_mode(profile: str) -> None:
+    """Prompt the user to protect credentials after a successful login if eligible.
+
+    Shared across wizard and login via notices.json (asks once, defaults to No).
+    """
+    import sys
+
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return
+
+    from notebooklm_tools.core.credential_store import CredentialStore
+    from notebooklm_tools.core.notices import (
+        get_protect_answer,
+        record_protect_answer,
+    )
+    from notebooklm_tools.services.auth_storage import (
+        find_plain_backup_files,
+        set_storage_mode,
+    )
+
+    if get_protect_answer(profile) is not None:
+        return
+
+    store = CredentialStore()
+    if not store.should_offer_protection(profile_name=profile):
+        return
+
+    console.print()
+    protect = typer.confirm(
+        f"Protect the '{profile}' saved login in your OS keystore?",
+        default=False,
+    )
+    record_protect_answer(profile, "yes" if protect else "no")
+
+    if protect:
+        try:
+            set_storage_mode(mode="protected", profile_name=profile)
+            console.print(f"[green]✓[/green] Profile '{profile}' is now protected.")
+            if sys.platform == "darwin":
+                console.print(
+                    "[dim]Usually no popup. If one appears, enter your Mac login password and click Always Allow.[/dim]"
+                )
+
+            _offer_plain_backup_cleanup(find_plain_backup_files(profile))
+        except Exception as exc:
+            console.print(f"[yellow]Could not enable protected mode:[/yellow] {exc}")
+
+
 @login_app.callback(invoke_without_command=True)
 def login_callback(
     ctx: typer.Context,
@@ -323,6 +393,21 @@ def login_callback(
         console.print(f"[red]Error:[/red] Unsupported provider '{provider}'")
         console.print("[dim]Supported values: builtin, openclaw[/dim]")
         raise typer.Exit(1)
+
+    from notebooklm_tools.utils.config import get_auth_storage_mode
+
+    if get_auth_storage_mode(profile) == "protected":
+        from notebooklm_tools.core.credential_store import CredentialStore
+
+        store = CredentialStore()
+        if not store.is_available():
+            console.print(
+                f"[red]Error:[/red] Cannot access credentials for profile '{profile}': "
+                "OS credential store is locked or unavailable.\n"
+                "Unlock your OS keystore / run this from your desktop session and retry. "
+                f"To stop using Protected mode for this profile, run 'nlm auth storage set file --profile {profile}' from your desktop session."
+            )
+            raise typer.Exit(1)
 
     # --clear switches accounts, so it must reach the browser even when the
     # current session still validates; otherwise the early return skips the
@@ -583,6 +668,7 @@ def login_callback(
         if email:
             console.print(f"  Account: {email}")
         console.print(f"  Credentials saved to: {auth.profile_dir}")
+        _maybe_prompt_protect_mode(profile)
 
     except AccountMismatchError as e:
         if provider == "builtin" and not force:
@@ -652,6 +738,7 @@ def login_callback(
                 if email:
                     console.print(f"  Account: {email}")
                 console.print(f"  Credentials saved to: {auth.profile_dir}")
+                _maybe_prompt_protect_mode(profile)
             except NLMError as retry_err:
                 console.print(f"\n[red]Error on retry:[/red] {retry_err.message}")
                 if retry_err.hint:
@@ -728,42 +815,16 @@ def profile_rename(
 ) -> None:
     """Rename an authentication profile."""
     from notebooklm_tools.core.exceptions import NLMError
-    from notebooklm_tools.services.auth import AuthManager
-
-    # Check if old profile exists
-    old_auth = AuthManager(old_name)
-    if not old_auth.profile_exists():
-        console.print(f"[red]Error:[/red] Profile '{old_name}' not found")
-        raise typer.Exit(1)
-
-    # Check if new profile name already exists
-    new_auth = AuthManager(new_name)
-    if new_auth.profile_exists():
-        console.print(f"[red]Error:[/red] Profile '{new_name}' already exists")
-        raise typer.Exit(1)
+    from notebooklm_tools.services.auth_storage import rename_profile
+    from notebooklm_tools.services.errors import ServiceError
 
     try:
-        # Load old profile data
-        profile_data = old_auth.load_profile()
-
-        # Save with new name
-        new_auth.save_profile(
-            cookies=profile_data.cookies,
-            csrf_token=profile_data.csrf_token,
-            session_id=profile_data.session_id,
-            email=profile_data.email,
-            build_label=profile_data.build_label,
-            base_host=profile_data.base_host,
-        )
-
-        # Delete old profile
-        old_auth.delete_profile()
-
+        result = rename_profile(old_name, new_name)
         console.print(f"[green]✓[/green] Renamed profile from '{old_name}' to '{new_name}'")
-    except NLMError as e:
-        console.print(f"[red]Error:[/red] {e.message}")
-        if e.hint:
-            console.print(f"\n[dim]Hint: {e.hint}[/dim]")
+        if result["is_default"]:
+            console.print(f"[green]✓[/green] Updated default profile to '{new_name}'")
+    except (ServiceError, NLMError) as e:
+        console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
 
@@ -858,6 +919,342 @@ def auth_refresh(
         raise typer.Exit(1)
 
     console.print(f"[green]✓[/green] Session refreshed for profile '{profile_name}'.")
+
+
+storage_app = typer.Typer(
+    help="Manage credential storage mode (file or protected)",
+    no_args_is_help=True,
+)
+auth_app.add_typer(storage_app, name="storage")
+
+
+@storage_app.command("status")
+def storage_status(
+    profile: str = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Profile to check (default: configured default profile)",
+    ),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Show current credential storage mode for a profile."""
+    from notebooklm_tools.cli.formatters import print_json
+    from notebooklm_tools.services.auth_storage import get_storage_status
+    from notebooklm_tools.services.errors import ServiceError, ValidationError
+    from notebooklm_tools.utils.config import ConfigError
+
+    try:
+        status = get_storage_status(profile_name=profile)
+        if json_output:
+            print_json(status)
+        else:
+            console.print(f"\n[bold]Profile:[/bold] {status['profile']}")
+            console.print(f"[bold]Storage mode:[/bold] [cyan]{status['mode']}[/cyan]")
+            if status["has_ciphertext"]:
+                console.print("  [dim]Ciphertext envelope present (credentials.enc)[/dim]")
+            if status["has_legacy"]:
+                if status["mode"] == "file":
+                    console.print("  [dim]Plain login files (auth.json/cookies.json)[/dim]")
+                else:
+                    console.print(
+                        "  [yellow]Plain login files also present (auth.json/cookies.json)[/yellow]"
+                    )
+            if status.get("protected_residue"):
+                console.print(
+                    f"  [yellow]Protected residue present:[/yellow] {status.get('conflict_details')}"
+                )
+            if status.get("has_conflict"):
+                console.print(
+                    f"  [bold red]Conflict detected:[/bold red] {status.get('conflict_details')}"
+                )
+                console.print(
+                    f"  [yellow]→[/yellow] Run [cyan]nlm auth storage resolve [file|protected] --profile {status['profile']}[/cyan] to resolve."
+                )
+            if status.get("has_pending_op"):
+                console.print(
+                    f"  [bold yellow]Pending operation:[/bold yellow] {status.get('pending_op_details')}"
+                )
+            console.print("")
+    except (ServiceError, ValidationError) as e:
+        msg = getattr(e, "user_message", str(e))
+        if json_output:
+            print_json({"error": msg})
+        else:
+            console.print(f"[red]Error:[/red] {msg}")
+        raise typer.Exit(1) from e
+    except ConfigError as e:
+        if json_output:
+            print_json({"error": str(e)})
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+
+@storage_app.command("set")
+def storage_set(
+    mode: str = typer.Argument(..., help="Storage mode: 'file' or 'protected'"),
+    profile: str = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Profile to set (default: pick from a list in a terminal, else the default profile)",
+    ),
+    all_profiles: bool = typer.Option(
+        False, "--all", help="Apply to every saved profile not already in this mode"
+    ),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Set credential storage mode for one or more profiles.
+
+    In a terminal with several saved logins and no --profile, shows a picker.
+    """
+    import sys
+
+    from notebooklm_tools.cli.formatters import print_json
+    from notebooklm_tools.services.auth import AuthManager
+    from notebooklm_tools.services.auth_storage import find_plain_backup_files, set_storage_mode
+    from notebooklm_tools.services.errors import ServiceError, ValidationError
+    from notebooklm_tools.utils.config import ConfigError, get_auth_storage_mode, get_config
+
+    mode = mode.strip().lower()
+    label = {"protected": "protected", "file": "plain"}
+
+    def _mode_of(name: str) -> str | None:
+        try:
+            return get_auth_storage_mode(name)
+        except Exception:
+            return None
+
+    try:
+        profiles = sorted(AuthManager.list_profiles())
+        if profile:
+            targets = [profile]
+        elif all_profiles:
+            targets = [p for p in profiles if _mode_of(p) != mode]
+        elif mode in label and not json_output and len(profiles) > 1 and _is_terminal():
+            picked = _pick_profiles_for_mode(profiles, mode, {p: _mode_of(p) for p in profiles})
+            if picked is None:
+                raise typer.Exit(130)
+            targets = picked
+            if not targets and any(_mode_of(p) != mode for p in profiles):
+                console.print("[dim]Nothing selected. No changes.[/dim]")
+        else:
+            targets = [get_config().auth.default_profile]
+
+        results = []
+        errors: list[str] = []
+        for name in targets:
+            try:
+                results.append(set_storage_mode(mode=mode, profile_name=name))
+            except (ServiceError, ValidationError) as e:
+                msg = getattr(e, "user_message", str(e))
+                errors.append(msg if len(targets) == 1 else f"{name}: {msg}")
+
+        if json_output:
+            if len(targets) == 1 and not errors:
+                print_json(results[0])
+            elif len(targets) == 1:
+                print_json({"error": errors[0]})
+            else:
+                print_json({"results": results, "errors": errors})
+            if errors:
+                raise typer.Exit(1)
+            return
+
+        for res in results:
+            console.print(f"[green]✓[/green] {res['message']}")
+        for err in errors:
+            console.print(f"[red]Error:[/red] {err}")
+
+        changed = [r["profile"] for r in results if r.get("status") != "unchanged"]
+        if mode == "protected":
+            if changed and sys.platform == "darwin":
+                console.print(
+                    "[dim]Usually no popup. If one appears, enter your Mac login password and click Always Allow.[/dim]"
+                )
+            # Offer old plain backups of every protected profile, not just this run's.
+            protected_now = [p for p in profiles if _mode_of(p) == "protected"]
+            backups = sorted({f for name in protected_now for f in find_plain_backup_files(name)})
+            _offer_plain_backup_cleanup(backups)
+
+        others = [p for p in profiles if p not in targets and _mode_of(p) not in (mode, None)]
+        if others and mode in label:
+            other_label = label["file" if mode == "protected" else "protected"]
+            console.print(f"\n[yellow]Still {other_label}:[/yellow] {', '.join(others)}")
+            console.print(
+                f"  Switch them too: nlm auth storage set {mode} --all  (or --profile <name>)"
+            )
+        if errors:
+            raise typer.Exit(1)
+    except ConfigError as e:
+        if json_output:
+            print_json({"error": str(e)})
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+
+def _is_terminal() -> bool:
+    """True when both stdin and stdout are an interactive terminal."""
+    import sys
+
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _pick_profiles_for_mode(
+    profiles: list[str], mode: str, modes: dict[str, str | None]
+) -> list[str] | None:
+    """Checkbox picker of saved profiles; ones already in `mode` are shown but disabled."""
+    from typing import cast
+
+    import questionary  # type: ignore[import-not-found]
+
+    from notebooklm_tools.cli.commands.setup import WIZARD_STYLE
+
+    label = {"protected": "protected", "file": "plain", None: "unknown"}
+    target_label = "protected" if mode == "protected" else "plain"
+    if all(modes.get(p) == mode for p in profiles):
+        console.print(f"[green]✓[/green] All saved logins are already {target_label}.")
+        return []
+
+    width = max(len(p) for p in profiles)
+    choices = [
+        questionary.Choice(
+            title=f"{p.ljust(width)}   {label.get(modes.get(p), 'unknown')}",
+            value=p,
+            disabled=f"already {target_label}" if modes.get(p) == mode else None,
+        )
+        for p in profiles
+    ]
+    verb = "protected" if mode == "protected" else "switched back to plain files"
+    return cast(
+        list[str] | None,
+        questionary.checkbox(
+            f"Which saved logins should be {verb}?",
+            choices=choices,
+            instruction="(↑↓ move · Space select · Enter confirm)",
+            style=WIZARD_STYLE,
+        ).ask(),
+    )
+
+
+@storage_app.command("resolve")
+def storage_resolve(
+    choice: str | None = typer.Argument(
+        None, help="Storage mode to resolve to: 'file' or 'protected'"
+    ),
+    profile: str = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Profile to resolve (default: configured default profile)",
+    ),
+    discard_inaccessible: bool = typer.Option(
+        False,
+        "--discard-inaccessible",
+        help="Discard inaccessible ciphertext and reset to file mode without exporting",
+    ),
+    clear_marker: bool = typer.Option(
+        False,
+        "--clear-marker",
+        help="Clear a stuck or corrupt operation marker",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Confirm action without interactive prompt",
+    ),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Resolve a credential storage conflict, clear stuck markers, or discard inaccessible credentials."""
+    from notebooklm_tools.cli.formatters import print_json
+    from notebooklm_tools.services.auth_storage import resolve_storage_conflict
+    from notebooklm_tools.services.errors import ServiceError, ValidationError
+    from notebooklm_tools.utils.config import ConfigError, get_config
+
+    resolved_profile = (profile or get_config().auth.default_profile).strip()
+
+    if clear_marker:
+        if json_output and not yes:
+            print_json({"error": "Clearing operation marker requires '--yes' when using '--json'."})
+            raise typer.Exit(1)
+        if not yes and not typer.confirm(
+            f"Clear operation marker for profile '{resolved_profile}'?", default=False
+        ):
+            console.print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit(1)
+    elif discard_inaccessible:
+        if json_output and not yes:
+            print_json(
+                {
+                    "error": "Discarding inaccessible credentials requires '--yes' when using '--json'."
+                }
+            )
+            raise typer.Exit(1)
+        if not yes and not typer.confirm(
+            f"Discard inaccessible credentials for profile '{resolved_profile}' and reset to file mode? "
+            "Encrypted credentials will be permanently deleted.",
+            default=False,
+        ):
+            console.print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit(1)
+    elif not choice:
+        msg = "Missing argument 'CHOICE': must specify 'file' or 'protected', or pass '--clear-marker'."
+        if json_output:
+            print_json({"error": msg})
+        else:
+            console.print(f"[red]Error:[/red] {msg}")
+        raise typer.Exit(1)
+
+    try:
+        res = resolve_storage_conflict(
+            profile_name=resolved_profile,
+            choice=choice,
+            discard_inaccessible=discard_inaccessible,
+            clear_marker=clear_marker,
+        )
+        if json_output:
+            print_json(res)
+        else:
+            console.print(f"[green]✓[/green] {res['message']}")
+    except (ServiceError, ValidationError) as e:
+        msg = getattr(e, "user_message", str(e))
+        if json_output:
+            print_json({"error": msg})
+        else:
+            console.print(f"[red]Error:[/red] {msg}")
+        raise typer.Exit(1) from e
+    except ConfigError as e:
+        if json_output:
+            print_json({"error": str(e)})
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+
+@storage_app.command("relocate")
+def storage_relocate(
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """Relocate installation identity after moving the storage directory."""
+    from notebooklm_tools.cli.formatters import print_json
+    from notebooklm_tools.services.auth_storage import relocate_storage
+
+    try:
+        res = relocate_storage()
+        if json_output:
+            print_json(res)
+        else:
+            console.print(f"[green]✓[/green] {res['message']}")
+            console.print(f"  Installation ID: [cyan]{res['installation_id']}[/cyan]")
+    except Exception as e:
+        if json_output:
+            print_json({"error": str(e)})
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
 
 
 # Register profile commands under login
@@ -980,7 +1377,24 @@ def main(
         console.print(ctx.get_help())
 
 
-def cli_main():
+def _maybe_show_storage_tip(argv: list[str]) -> None:
+    """Show the one-time Protected mode tip after a successful command.
+
+    Skipped after commands that already deal with storage or ask the question
+    themselves (auth storage, login, setup). Never lets a failure escape.
+    """
+    import contextlib
+
+    words = [a for a in argv if not a.startswith("-")]
+    if words[:2] == ["auth", "storage"] or words[:1] in (["login"], ["setup"]):
+        return
+    with contextlib.suppress(Exception):
+        from notebooklm_tools.cli.utils import print_storage_mode_notification
+
+        print_storage_mode_notification()
+
+
+def cli_main() -> None:
     """Main CLI entry point with error handling."""
     import sys
 
@@ -989,7 +1403,13 @@ def cli_main():
     configure_stdio_utf8_on_windows()
 
     try:
-        app()
+        try:
+            app()
+        except SystemExit as exit_exc:
+            # Typer always exits via SystemExit; show the tip only after success.
+            if exit_exc.code in (0, None):
+                _maybe_show_storage_tip(sys.argv[1:])
+            raise
     except Exception as e:
         # Import here to avoid circular dependencies
         from notebooklm_tools.core.errors import ClientAuthenticationError
@@ -997,6 +1417,7 @@ def cli_main():
             AuthenticationError,
             NLMError,
         )
+        from notebooklm_tools.utils.config import ConfigError
 
         # Handle authentication errors cleanly
         if isinstance(e, (AuthenticationError, ClientAuthenticationError)):
@@ -1010,6 +1431,16 @@ def cli_main():
             console.print(f"\n[red]✗ Error:[/red] {e.message}")
             if e.hint:
                 console.print(f"[dim]{e.hint}[/dim]\n")
+            sys.exit(1)
+
+        # Handle corrupt config cleanly without traceback
+        elif isinstance(e, ConfigError):
+            if "--json" in sys.argv or "-j" in sys.argv:
+                import json
+
+                print(json.dumps({"error": str(e)}))
+            else:
+                console.print(f"\n[red]✗ Error:[/red] {str(e)}\n")
             sys.exit(1)
 
         # For unexpected errors, show the traceback

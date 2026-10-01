@@ -1862,6 +1862,8 @@ def run_headless_auth(
     port: int = 9223,
     timeout: int = 30,
     profile_name: str = "default",
+    expected_revision: str | None = None,
+    force: bool | None = None,
 ) -> "Any | None":
     """Run authentication in headless mode (no user interaction).
 
@@ -1874,12 +1876,32 @@ def run_headless_auth(
         port: Chrome DevTools port (use different port to avoid conflicts)
         timeout: Maximum time to wait for auth extraction
         profile_name: The profile name to use for Chrome
+        expected_revision: Optional expected revision for compare-and-save
+        force: If True, overwrite without revision check
 
     Returns:
         AuthTokens if successful, None if failed or no saved login
     """
     # Import here to avoid circular imports
     from notebooklm_tools.core.auth import AuthTokens, save_tokens_to_cache, validate_cookies
+    from notebooklm_tools.core.credential_store import CredentialStoreError
+    from notebooklm_tools.utils.config import get_auth_storage_mode
+
+    # Preflight store availability for protected profile before launching browser
+    if get_auth_storage_mode(profile_name) == "protected":
+        from notebooklm_tools.core.credential_store import (
+            BackendUnavailableError,
+            CredentialStore,
+        )
+
+        store = CredentialStore()
+        if not store.is_available():
+            raise BackendUnavailableError(
+                f"Cannot access credentials for profile '{profile_name}': "
+                "OS credential store is locked or unavailable.\n"
+                "Unlock your OS keystore / run this from your desktop session and retry. "
+                f"To stop using Protected mode for this profile, run 'nlm auth storage set file --profile {profile_name}' from your desktop session."
+            )
 
     # Check if profile exists with saved login
     if not has_chrome_profile(profile_name):
@@ -1966,13 +1988,21 @@ def run_headless_auth(
             base_host=base_host,
             extracted_at=time.time(),
         )
-        save_tokens_to_cache(tokens, profile_name=profile_name)
+        save_kwargs: dict[str, Any] = {"profile_name": profile_name}
+        if expected_revision is not None:
+            save_kwargs["expected_revision"] = expected_revision
+        if force is not None:
+            save_kwargs["force"] = force
+        rev = save_tokens_to_cache(tokens, **save_kwargs)
+        tokens.revision = rev
 
         # Clean up cache to minimize profile size
         cleanup_chrome_profile_cache(profile_name)
 
         return tokens
 
+    except CredentialStoreError:
+        raise
     except Exception:
         return None
 

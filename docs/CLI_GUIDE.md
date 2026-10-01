@@ -34,6 +34,33 @@ interactive login. It exits non-zero on failure, so cron/launchd jobs can react.
 
 Each profile gets its own isolated browser session (supports Chrome, Arc, Dia, Brave, Edge, Chromium, Firefox, and more), so you can stay logged into multiple Google accounts simultaneously.
 
+### Credential Storage (Protected Mode)
+
+Encrypted credential storage using your operating system's native keystore (macOS Keychain, Windows Credential Manager, Linux SecretService):
+
+```bash
+# Check storage status
+nlm auth storage status
+nlm auth storage status --profile work
+nlm auth storage status --json
+
+# Set storage mode (file or protected)
+nlm auth storage set protected            # in a terminal: pick which saved logins
+nlm auth storage set protected --all      # every saved login at once
+nlm auth storage set protected --profile work
+nlm auth storage set file
+nlm auth storage set file --profile work
+
+# Resolve storage conflicts
+nlm auth storage resolve file --profile work
+nlm auth storage resolve protected --profile work
+nlm auth storage resolve file --profile work --discard-inaccessible --yes
+nlm auth storage resolve --profile work --clear-marker --yes
+
+# Relocate storage after directory move
+nlm auth storage relocate
+```
+
 ## Command Structure
 
 The CLI supports **two styles** - use whichever feels natural:

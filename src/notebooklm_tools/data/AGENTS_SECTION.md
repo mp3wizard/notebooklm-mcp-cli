@@ -1,5 +1,5 @@
 <!-- nlm-skill-start -->
-<!-- nlm-version: 0.13.0 -->
+<!-- nlm-version: 0.14.0 -->
 ## NLM - Gemini Notebook (formerly Google NotebookLM) CLI Expert
 
 **Triggers:** "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast", "audio overview", "research"
@@ -18,6 +18,8 @@ nlm research start "query" --notebook-id <id>  # Discover sources
 nlm research start "query" --title "New Research"  # Create destination notebook
 nlm usage                    # Check rolling + weekly plan usage and reset times
 nlm usage --json             # Machine-readable usage percentages and timestamps
+nlm auth storage status      # Check credential storage mode (file or protected)
+nlm auth storage set protected # Encrypt stored credentials (OS credential store)
 ```
 
 ### Critical Rules

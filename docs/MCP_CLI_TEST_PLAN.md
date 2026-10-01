@@ -72,6 +72,21 @@ environment (that value overrides saved credentials).
 
 ---
 
+### Test 1.1c - Credential Storage Management (Protected Mode)
+**CLI:** `nlm auth storage status`, `nlm auth storage set protected`, `nlm auth storage set file`
+
+**Prompt:**
+```
+Check my NotebookLM credential storage mode and test switching between file mode and protected mode.
+```
+
+**Expected:**
+1. `nlm auth storage status`: Shows profile name, storage mode (`file` or `protected`), and presence of ciphertext or legacy files.
+2. `nlm auth storage set protected`: Encrypts credentials to `credentials.enc` using the OS keystore (macOS Keychain, Windows Credential Manager, Linux SecretService) and removes plaintext files.
+3. `nlm auth storage set file`: Decrypts credentials back to `cookies.json` with 0600 permissions.
+
+---
+
 ### Test 1.2 - Interactive Login (Primary)
 **Tool:** `save_auth_tokens` (Fallback)
 **CLI:** `nlm login` (Launches Chrome for automated extraction)

@@ -184,6 +184,23 @@ the normal Claude Desktop connection.)
 
 ---
 
+## 8. Protected Mode & Keystore Environments
+
+### Symptoms
+- `BackendUnavailableError: Cannot enable protected mode: OS credential store is unavailable or locked`
+- On macOS: authorization popup asking for Keychain access when running the desktop extension.
+- On Windows/macOS: refusal over SSH or remote non-interactive sessions.
+- On Linux: `D-Bus connection refused` or keystore locked on headless servers or Docker containers.
+- Downgrade error: older versions of `notebooklm-mcp-cli` cannot read `credentials.enc`.
+
+### Causes & Fixes
+- **macOS "Always Allow" & Desktop Extension:** Usually, no prompt appears during normal terminal operations. However, the Claude Desktop extension starts the server through `uvx` (its `python3` launcher only locates `uvx`), which runs in its own environment and may use a different Python build than the `uv tool` installation. If it does, macOS prompts for Keychain access once when the extension first reads a key created by the other Python. Enter your Mac login password and click **Always Allow**. Likewise, if Python is upgraded (e.g. via Homebrew or uv), do this once more. If the prompt goes unanswered for 60 seconds, the call fails with "approve the Keychain popup and retry" while the popup stays open: dismiss it, retry, and approve the new prompt.
+- **Remote / SSH Sessions (macOS and Windows):** Remote/SSH sessions cannot use the OS keystore (Keychain on macOS, Credential Manager on Windows). When attempting migration over SSH, `nlm auth storage set protected` safely refuses. Run from the desktop session, or keep the profile in file mode.
+- **Headless Linux / Docker:** Protected mode requires an interactive desktop session with an accessible secret service daemon (D-Bus). For headless machines, servers, or Docker containers, keep the profile in file mode (`nlm auth storage set file`).
+- **Downgrading to Older Versions:** Before installing an older version of `notebooklm-mcp-cli`, convert any protected profile back to file mode using `nlm auth storage set file --profile <name>`.
+
+---
+
 ## Reporting Issues
 
 When reporting issues, include:

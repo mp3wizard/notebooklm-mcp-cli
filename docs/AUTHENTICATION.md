@@ -273,6 +273,147 @@ SID=abc123...; HSID=xyz789...; SSID=...; APISID=...; SAPISID=...; __Secure-1PSID
 
 ---
 
+---
+
+<a id="protected-storage"></a>
+## Protected Storage (Protected Mode)
+
+> 🔒 **New: Protected login storage (recommended)**
+> Your saved Google login can now be encrypted, with its key kept in your computer's keychain instead of a plain file. We highly recommend everyone switch on a personal computer:
+>
+>     nlm auth storage set protected
+>
+> Optional: nothing changes unless you turn it on. Servers, cron, Docker and SSH setups can keep the plain file.
+> [How it works](#protected-storage)
+
+### Overview
+
+By default, `notebooklm-mcp-cli` stores login cookies in readable JSON files (`file` mode) with `0600` permissions.
+
+In **Protected mode**, your cookies and session tokens are encrypted on disk with AES-256-GCM (`credentials.enc`). The encryption key is generated uniquely for your computer and stored in your operating system's native keystore:
+- **macOS:** macOS Keychain
+- **Windows:** Windows Credential Manager
+- **Linux:** SecretService API (GNOME Keyring, KWallet)
+
+Protected mode is **optional**. File mode remains the default, and upgrading `notebooklm-mcp-cli` changes nothing until you explicitly choose to enable it.
+
+### Commands
+
+Manage credential storage using the `nlm auth storage` subcommands:
+
+```bash
+# Check current storage status for the default profile
+nlm auth storage status
+
+# Check a named profile
+nlm auth storage status --profile work
+
+# Switch to Protected mode (encrypts credentials, removes plain files)
+nlm auth storage set protected
+nlm auth storage set protected --profile work
+
+# Switch back to File mode (decrypts credentials, restores readable JSON)
+nlm auth storage set file
+nlm auth storage set file --profile work
+
+# Output status or results as JSON
+nlm auth storage status --json
+nlm auth storage set protected --json
+```
+
+### Conflict Resolution
+
+If a profile has both plain-file credentials and encrypted credentials that differ (for example, if you logged in separately in both modes), `nlm` flags a conflict and asks you to resolve it:
+
+```bash
+# Keep the plain-file login and delete the encrypted leftover (stays in file mode)
+nlm auth storage resolve file --profile work
+
+# Keep the encrypted login and delete the plain files (switches to Protected mode)
+nlm auth storage resolve protected --profile work
+
+# Discard damaged or inaccessible credentials when the key is lost
+nlm auth storage resolve file --profile work --discard-inaccessible --yes
+
+# Clear a stuck or corrupt progress marker from an interrupted operation
+nlm auth storage resolve --profile work --clear-marker --yes
+```
+
+- `resolve file`: Keeps your current plain-file login, deletes the encrypted leftover, and stays in file mode.
+- `resolve protected`: Keeps the encrypted login, deletes the plain files, and switches to Protected mode.
+- `--discard-inaccessible`: Use only when the encryption key was deleted from the OS keystore or the ciphertext file is corrupted beyond recovery. It removes the inaccessible ciphertext and resets the profile to file mode so you can log in again.
+- `--clear-marker`: Clears a stuck or corrupt operation marker left behind if a migration was interrupted by a crash or power loss, provided the quarantine directory is clean.
+
+### Relocating or Copying Storage
+
+If you move your `~/.notebooklm-mcp-cli` directory to a new location on the same machine (e.g. changing your home directory path), update the installation identity:
+
+```bash
+nlm auth storage relocate
+```
+
+**Why a copied folder refuses:** Protected mode relies on your computer's OS keystore. If you copy `~/.notebooklm-mcp-cli` to a different machine, the new computer does not have the hardware-backed encryption key in its keystore. The profile safely refuses to open rather than crashing. To use Gemini Notebook on a new computer, sign in directly with `nlm login`.
+
+### Downgrade Preparation
+
+> [!WARNING]
+> Older versions of `notebooklm-mcp-cli` do not understand `credentials.enc`. Before downgrading or installing an older version of the CLI, convert every protected profile back to file mode:
+>
+>     nlm auth storage set file
+>     nlm auth storage set file --profile <name>
+
+### Exporting Plain Credentials
+
+If you need plain-text JSON credentials back (for example, to inspect them or use them with scripts that read `auth.json` or `cookies.json`), run:
+
+```bash
+nlm auth storage set file --profile <name>
+```
+
+This decrypts the credentials and writes readable JSON files with `0600` permissions.
+
+### macOS "Always Allow" Prompt
+
+Usually, no prompt appears during normal terminal operations. However, macOS prompts for permission when a different Python binary attempts to read an item created by another binary:
+
+1. **Desktop extension users**: the Claude Desktop extension uses `python3` from `PATH` only to run a small launcher (`run_server.py`), which then starts the server with `uvx --from notebooklm-mcp-cli notebooklm-mcp`. `uvx` runs the server in its own environment, separate from `uv tool install`, and may pick a different Python build. If that Python differs from the one that created the key (for example, you enabled Protected mode from the `uv tool` install of `nlm`), macOS shows the Keychain access prompt once when the extension first reads it. Click **Always Allow** (not "Allow").
+2. **Python upgrades**: If you upgrade Python (such as when Homebrew or `uv` installs a new Python release with a different binary path or signature), macOS detects the new binary signature and displays the prompt once more. Click **Always Allow** again.
+3. Once **Always Allow** is clicked for each binary, macOS silently grants access for all future operations, MCP tool calls, and background token refreshes.
+
+The prompt asks for your **Mac login password**: type it, then click **Always Allow**. If nobody answers within 60 seconds, `nlm` stops waiting and reports "approve the Keychain popup and retry", but the popup stays on screen. Dismiss it, rerun the command, and approve the new prompt.
+
+### Where Protected Mode Cannot Work
+
+Protected mode requires an active, interactive desktop session with an unlocked OS keystore. Remote and headless sessions cannot use the OS keystore (Keychain on macOS, Credential Manager on Windows). Specifically, it cannot work in:
+- **Headless Linux servers, Docker containers, or cron jobs** without a D-Bus session bus.
+- **Windows SSH sessions, Windows services, or Scheduled Tasks** set to "Run whether user is logged on or not" (Windows error 1312: Windows Credential Manager requires an interactive logon session).
+- **macOS over SSH sessions** or prior to user login after a reboot (the macOS Keychain is locked or unavailable over remote SSH sessions).
+
+If you run `nlm auth storage set protected` in an unsupported environment, it safely refuses with a clear error message:
+> *Cannot enable protected mode: OS credential store is unavailable or locked.*
+> *Remote/SSH sessions can't use the OS keystore (Keychain on macOS, Credential Manager on Windows). Run this from the desktop, or keep this profile in file mode. Your current setup keeps working.*
+
+Your existing setup continues working in file mode. Keep automated, remote, and server profiles in file mode.
+
+### Scheduled Refresh
+
+User-configured scheduler jobs (`launchd`, `cron`, Windows Task Scheduler running `nlm auth refresh`) are the user's responsibility:
+- In Protected mode, scheduled refresh only works while the user is logged into the OS desktop session with an unlocked keystore.
+- Scheduled jobs running in headless environments, before login, or over SSH fail with a clear error unless the profile is kept in file mode.
+- In-process token refresh and rotation (within an active CLI session or running MCP server process) is completely unaffected: it runs in the same Python process and requires no OS prompts.
+
+### Threat Model
+
+- **What it protects against:** Backups, cloud sync folders (Dropbox, iCloud, Google Drive), accidental sharing of repository or storage directories, and other tools or scripts that read files from disk.
+- **What it does NOT protect against:** Other code running as your user account on the same computer (any process running under your user session can request the key from the OS keystore).
+- **Other credential surfaces:** Protected mode secures `notebooklm-mcp-cli`'s stored credentials. It does not alter browser profiles (`chrome-profiles/`, Firefox SQLite databases), manual `cookies.txt` exports left on disk, `NOTEBOOKLM_COOKIES` environment variables in shell configs, legacy `~/.notebooklm-mcp/auth.json` files, or authenticated debug artifacts (`debug_page.html`).
+
+### Environment Override (`NLM_AUTH_STORAGE`)
+
+You can temporarily force the storage mode for testing using the `NLM_AUTH_STORAGE` environment variable (`file` or `protected`). If `NLM_AUTH_STORAGE` disagrees with the on-disk profile setting, mutating commands (`set` and `resolve`) refuse with an error until the variable is unset.
+
+---
+
 ## Where Tokens Are Stored
 
 All data is stored under `~/.notebooklm-mcp-cli/`:
@@ -281,26 +422,30 @@ All data is stored under `~/.notebooklm-mcp-cli/`:
 ~/.notebooklm-mcp-cli/
 ├── config.toml                    # CLI configuration
 ├── aliases.json                   # Notebook aliases
+├── installation.json              # Installation identity
+├── locks/                         # Inter-process profile locks
+├── operations/                    # Migration state & quarantine markers
 ├── profiles/                      # Authentication profiles
 │   ├── default/
-│   │   └── auth.json              # Cookies, tokens, email
+│   │   ├── metadata.json          # Email, host, timestamps, storage mode
+│   │   ├── credentials.enc        # Encrypted cookies & tokens (Protected mode)
+│   │   └── cookies.json           # Plaintext cookies (File mode only)
 │   ├── work/
-│   │   └── auth.json
+│   │   ├── metadata.json
+│   │   └── credentials.enc
 │   └── personal/
-│       └── auth.json
+│       ├── metadata.json
+│       └── cookies.json
+├── auth.json                      # Root mirror of default profile (File mode only)
 ├── chrome-profile/                # Chrome profile (single-profile users)
 └── chrome-profiles/               # Chrome profiles (multi-profile users)
     ├── work/
     └── personal/
 ```
 
-Each profile's `auth.json` contains:
-
-- Parsed cookies
-- CSRF token (auto-extracted)
-- Session ID (auto-extracted)
-- Account email (auto-extracted)
-- Extraction timestamp
+- In **Protected mode**, credentials live in `credentials.enc`. No plaintext cookies or `auth.json` files exist on disk.
+- In **File mode**, credentials live in `cookies.json` (and the configured default profile is mirrored to root `auth.json` for backwards compatibility with external scripts), secured with `0600` permissions.
+- In both modes, `metadata.json` stores non-secret profile metadata (account email, base host, build label, and storage mode setting).
 
 ---
 

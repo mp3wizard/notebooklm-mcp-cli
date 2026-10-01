@@ -48,7 +48,9 @@ def get_client(profile: str | None = None) -> NotebookLMClient:
     # 1. Environment auth applies only when no profile was explicitly selected.
     env_cookies = os.environ.get("NOTEBOOKLM_COOKIES")
     if env_cookies and not profile:
-        return NotebookLMClient(cookies=extract_cookies_from_string(env_cookies))
+        return NotebookLMClient(
+            cookies=extract_cookies_from_string(env_cookies),
+        )
 
     # 2. Try loading specified profile, or fall back to config default
     if not profile:
@@ -69,6 +71,8 @@ def get_client(profile: str | None = None) -> NotebookLMClient:
             build_label=p.build_label or "",
             base_host=p.base_host or "",
             profile_name=profile,
+            auth_revision=getattr(p, "revision", None),
+            is_env_auth=False,
         )
     except typer.Exit:
         raise
@@ -254,3 +258,54 @@ def is_tool_on_system(
     if binary and shutil.which(binary):
         return True
     return any(d.exists() for d in (root_dirs or []))
+
+
+def print_storage_mode_notification() -> None:
+    """Print one-time notice about Protected mode if eligible.
+
+    Order of checks:
+    (a) "already shown/answered" flag: is_cli_notice_shown()
+    (b) TTY: sys.stderr.isatty() (the tip goes to stderr so piped stdout stays clean)
+    (c) cheap session hints via should_offer_protection() (skip SSH, container, headless Linux)
+    (d) file-mode check: default profile must be configured and in file mode
+    (e) real probe at most once per install (30-day cache in notices.json)
+    """
+    from notebooklm_tools.core.notices import (
+        get_protect_answer,
+        is_cli_notice_shown,
+        mark_cli_notice_shown,
+    )
+
+    # (a) already shown flag
+    if is_cli_notice_shown():
+        return
+
+    # (b) TTY check
+    if not sys.stderr.isatty():
+        return
+
+    from notebooklm_tools.core.credential_store import CredentialStore
+    from notebooklm_tools.services.auth import AuthManager
+    from notebooklm_tools.utils.config import get_auth_storage_mode, get_config
+
+    try:
+        profile = get_config().auth.default_profile
+        if not AuthManager(profile).profile_exists():
+            return
+        if get_protect_answer(profile) is not None:
+            return
+        if get_auth_storage_mode(profile) != "file":
+            return
+    except Exception:
+        return
+
+    store = CredentialStore()
+    if not store.should_offer_protection(profile_name=profile):
+        return
+
+    make_console(stderr=True).print(
+        "\n🔒 New (optional): protect your saved login in your OS keystore → nlm auth storage set protected",
+        soft_wrap=True,
+        highlight=False,
+    )
+    mark_cli_notice_shown()

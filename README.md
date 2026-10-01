@@ -597,6 +597,14 @@
 
 **Programmatic access to Gemini Notebook** — via command-line interface (CLI) or Model Context Protocol (MCP) server.
 
+> 🔒 **New: Protected login storage (recommended)**
+> Your saved Google login can now be encrypted, with its key kept in your computer's keychain instead of a plain file. We highly recommend everyone switch on a personal computer:
+>
+>     nlm auth storage set protected
+>
+> Optional: nothing changes unless you turn it on. Servers, cron, Docker and SSH setups can keep the plain file.
+> [How it works](docs/AUTHENTICATION.md#protected-storage)
+
 > **Note:** Personal/consumer accounts are tested regularly. Gemini Notebook Enterprise support is experimental. The documented `notebook.cloud.google.com` host has been live-verified with a project-qualified `global` deployment; other Enterprise host variants may require additional validation.
 
 > ☕ **If you find notebooklm-mcp-cli useful, consider [buying me a coffee](https://buymeacoffee.com/jacobbd).**
@@ -708,6 +716,7 @@ Then use natural language: _"Create a notebook about quantum computing and gener
 | Install AI Skills                             | `nlm skill install/update`      | —                                    |
 | Diagnose issues                               | `nlm doctor`                    | —                                    |
 | Check remaining plan usage                    | `nlm usage [--profile <name>]`  | `usage_get`                          |
+| Manage login encryption (Protected mode)      | `nlm auth storage status/set`   | —                                    |
 
 📚 **More Documentation:**
 
@@ -724,6 +733,7 @@ This MCP and CLI use **internal APIs** that:
 
 - Are undocumented and may change without notice
 - Require cookie extraction from your browser (I have a tool for that!)
+- May not be aligned with Google's Terms of Service
 
 Use at your own risk for personal/experimental purposes.
 

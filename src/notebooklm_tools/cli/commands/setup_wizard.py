@@ -398,6 +398,61 @@ def _flow_skill_add() -> int:
     return 0 if _flow_skill_offer([], ask_first=False) else 130
 
 
+def _check_wizard_protect_prompt() -> None:
+    """Prompt the user in the wizard to protect credentials if eligible.
+
+    Shares protect_answered with nlm login (asks once, defaults to No).
+    """
+    if not is_interactive():
+        return
+
+    from notebooklm_tools.core.credential_store import CredentialStore
+    from notebooklm_tools.core.notices import (
+        get_protect_answer,
+        record_protect_answer,
+    )
+    from notebooklm_tools.services.auth import AuthManager
+    from notebooklm_tools.services.auth_storage import set_storage_mode
+    from notebooklm_tools.utils.config import get_config
+
+    try:
+        profile = get_config().auth.default_profile
+        if not AuthManager(profile).profile_exists():
+            return
+
+        if get_protect_answer(profile) is not None:
+            return
+
+        store = CredentialStore()
+        if not store.should_offer_protection(profile_name=profile):
+            return
+
+        console.print()
+        ans = questionary.confirm(
+            f"Protect the '{profile}' saved login in your OS keystore?",
+            default=False,
+            style=WIZARD_STYLE,
+        ).ask()
+
+        if ans is None:
+            return
+
+        record_protect_answer(profile, "yes" if ans else "no")
+        if ans:
+            try:
+                set_storage_mode(mode="protected", profile_name=profile)
+            except Exception as exc:
+                console.print(f"[yellow]Could not enable protected mode:[/yellow] {exc}")
+                return
+            console.print(f"[green]✓[/green] Profile '{profile}' is now protected.")
+            if sys.platform == "darwin":
+                console.print(
+                    "[dim]Usually no popup. If one appears, enter your Mac login password and click Always Allow.[/dim]"
+                )
+    except Exception:
+        pass
+
+
 def run_setup_wizard() -> int:
     """Run the guided setup wizard. Returns process exit code."""
     if not is_interactive():
@@ -411,6 +466,8 @@ def run_setup_wizard() -> int:
 
     console.print("[bold cyan]Gemini Notebook Setup Wizard[/bold cyan]")
     console.print("Easily configure Gemini Notebook MCP server and skills for your AI tools.\n")
+
+    _check_wizard_protect_prompt()
 
     try:
         while True:

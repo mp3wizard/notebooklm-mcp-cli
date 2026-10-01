@@ -192,17 +192,52 @@ def extract_cookies_via_firefox(
             _terminate_process(process)
 
 
-def run_headless_auth(timeout: int = 30, profile_name: str = "default") -> Any | None:
+def run_headless_auth(
+    timeout: int = 30,
+    profile_name: str = "default",
+    expected_revision: str | None = None,
+    force: bool | None = None,
+) -> Any | None:
     """Refresh cached credentials from the saved Firefox profile cookie store."""
     del timeout
 
     from notebooklm_tools.core.auth import AuthTokens, save_tokens_to_cache, validate_cookies
+    from notebooklm_tools.core.credential_store import CredentialStoreError
+    from notebooklm_tools.utils.config import get_auth_storage_mode
+
+    # Preflight store availability for protected profile
+    if get_auth_storage_mode(profile_name) == "protected":
+        from notebooklm_tools.core.credential_store import (
+            BackendUnavailableError,
+            CredentialStore,
+        )
+
+        store = CredentialStore()
+        if not store.is_available():
+            raise BackendUnavailableError(
+                f"Cannot access credentials for profile '{profile_name}': "
+                "OS credential store is locked or unavailable.\n"
+                "Unlock your OS keystore / run this from your desktop session and retry. "
+                f"To stop using Protected mode for this profile, run 'nlm auth storage set file --profile {profile_name}' from your desktop session."
+            )
 
     if not has_firefox_profile(profile_name):
         return None
-    cookies = _read_google_cookies(get_firefox_profile_dir(profile_name))
-    if not validate_cookies(cookies):
+
+    try:
+        cookies = _read_google_cookies(get_firefox_profile_dir(profile_name))
+        if not validate_cookies(cookies):
+            return None
+        tokens = AuthTokens(cookies=cookies, extracted_at=time.time())
+        save_kwargs: dict[str, Any] = {"profile_name": profile_name}
+        if expected_revision is not None:
+            save_kwargs["expected_revision"] = expected_revision
+        if force is not None:
+            save_kwargs["force"] = force
+        rev = save_tokens_to_cache(tokens, **save_kwargs)
+        tokens.revision = rev
+        return tokens
+    except CredentialStoreError:
+        raise
+    except Exception:
         return None
-    tokens = AuthTokens(cookies=cookies, extracted_at=time.time())
-    save_tokens_to_cache(tokens, profile_name=profile_name)
-    return tokens

@@ -90,6 +90,7 @@ nlm status artifacts <notebook>
 |---------|-------------|
 | `nlm login` | Authenticate with NotebookLM and manage profiles (**START HERE**) |
 | `nlm auth refresh` | Non-interactive headless session refresh (for unattended/schedulers) |
+| `nlm auth storage` | Optional Protected mode: keep the saved login encrypted with its key in the OS keystore |
 | `nlm usage` | Show rolling and weekly plan usage, reset times, and subscription tier |
 | `nlm config` | View/edit configuration (show, get, set) |
 | `nlm notebook` | Manage notebooks (list, create, get, describe, rename, delete, query) |
@@ -180,6 +181,9 @@ nlm login profile list              # List all profiles with email addresses
 nlm login profile delete <name>     # Delete a profile
 nlm login profile rename <old> <new> # Rename a profile
 nlm auth refresh                    # Non-interactive headless refresh (unattended/schedulers)
+nlm auth storage status             # Show plain (file) vs protected mode for a profile
+nlm auth storage set protected      # Opt in: encrypt the saved login, key in the OS keystore
+nlm auth storage set file           # Back to plain files (also before downgrading)
 ```
 
 

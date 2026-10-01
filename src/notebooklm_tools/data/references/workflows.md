@@ -58,6 +58,9 @@ nlm alias set first <notebook-id>
 
 # Step 5: Verify
 nlm notebook get first
+
+# Step 6 (Optional): Protect credentials using OS credential store
+nlm auth storage set protected
 ```
 
 ---

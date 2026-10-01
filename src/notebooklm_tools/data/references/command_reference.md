@@ -119,6 +119,71 @@ nlm login switch work
 #         Account: jsmith@company.com
 ```
 
+### nlm auth storage status
+
+Show current credential storage mode (`file` or `protected`) for a profile, envelope status, and any detected conflicts.
+
+```bash
+nlm auth storage status [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile` | `-p` | Profile to check (default: configured default profile) |
+| `--json` | `-j` | Output as JSON |
+
+### nlm auth storage set
+
+Change credential storage mode for one or more profiles. In a terminal with several saved logins and no `--profile`, a picker lets you choose which ones (nothing pre-selected). Scripts and agents without a terminal act on the default profile and are told which profiles are still in the other mode. In `protected` mode, credentials are encrypted via the OS credential store (macOS Keychain, Windows Credential Manager, Secret Service / libsecret).
+
+```bash
+nlm auth storage set <mode> [OPTIONS]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `<mode>` | Target mode: `file` or `protected` |
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile` | `-p` | Profile to set (skips the picker) |
+| `--all` | | Apply to every saved profile not already in this mode |
+| `--json` | `-j` | Output as JSON |
+
+> **Downgrade Preparation**: If downgrading to an older version of `notebooklm-mcp-cli` that does not support Protected mode, run `nlm auth storage set file` for every protected profile first to restore plaintext files.
+
+### nlm auth storage resolve
+
+Resolve a credential storage conflict when both encrypted credentials and legacy plaintext files exist, clear stuck operation markers, or discard inaccessible credentials.
+
+```bash
+nlm auth storage resolve [choice] [OPTIONS]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `[choice]` | Resolution choice: `file` (keep plaintext, discard encrypted) or `protected` (keep encrypted, discard plaintext) |
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile` | `-p` | Profile to resolve (default: configured default profile) |
+| `--discard-inaccessible` | | Discard inaccessible ciphertext and reset to file mode without exporting |
+| `--clear-marker` | | Clear a stuck or corrupt operation marker |
+| `--yes` | `-y` | Confirm action without interactive prompt |
+| `--json` | `-j` | Output as JSON |
+
+### nlm auth storage relocate
+
+Re-bind installation identity after moving or restoring the storage directory to update the stored installation ID and path binding.
+
+```bash
+nlm auth storage relocate [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+
 ---
 
 ## Plan Usage

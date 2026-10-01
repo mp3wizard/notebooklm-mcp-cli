@@ -124,10 +124,22 @@ src/notebooklm_tools/
 ```
 ├── config.toml                    # CLI settings (default_profile, output format)
 ├── aliases.json                   # Notebook aliases
-├── profiles/<name>/auth.json      # Per-profile credentials and email
+├── installation.json              # Installation identity
+├── locks/                         # Inter-process profile locks
+├── operations/                    # Migration state & quarantine markers
+├── profiles/<name>/
+│   ├── metadata.json              # Non-secret metadata (email, host, storage mode)
+│   ├── credentials.enc            # AES-256-GCM encrypted credentials (Protected mode)
+│   └── cookies.json               # Plaintext cookies (File mode only)
+├── auth.json                      # Root mirror of default profile (File mode only)
 ├── chrome-profile/                # Chrome session (single-profile/legacy)
 └── chrome-profiles/<name>/        # Chrome sessions (multi-profile)
 ```
+
+**Credential Storage Modes:**
+- **Protected mode (recommended for personal computers):** Credentials encrypted at rest (`credentials.enc`) with keys in OS keystore (macOS Keychain, Windows Credential Manager, Linux SecretService). Managed via `nlm auth storage status`, `set protected|file`, `resolve`, and `relocate`.
+- **File mode (default / servers / cron / Docker):** Plaintext cookies stored with `0600` permissions.
+- **Safety rule for AI assistants:** Never print decrypted credentials, cookies, or raw keystore values. Output redacted diagnostics only.
 
 **Executables:**
 - `nlm` - Command-line interface

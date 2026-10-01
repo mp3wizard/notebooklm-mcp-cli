@@ -48,8 +48,8 @@ def test_config_module_reload_survives_missing_os_home(monkeypatch, tmp_path: Pa
 
         reloaded = importlib.reload(config)
 
-        assert reloaded.OLD_CHROME_PROFILES[0].is_relative_to(tmp_path)
-        assert reloaded.OLD_AUTH_LOCATIONS[0].is_relative_to(tmp_path)
+        assert reloaded.get_old_chrome_profiles()[0].is_relative_to(tmp_path)
+        assert reloaded.get_old_auth_locations()[0].is_relative_to(tmp_path)
 
     importlib.reload(config)
 

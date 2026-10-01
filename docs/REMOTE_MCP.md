@@ -110,6 +110,7 @@ machine and network.
 - Setting `NOTEBOOKLM_COOKIES` manually creates a static credential. When it
   expires, `nlm login` cannot replace it while that environment variable
   continues to override the profile on disk.
+- Remote and containerized deployments (Docker, cloud VPS, headless servers) lack an interactive desktop OS keystore. Protected mode requires an interactive GUI desktop session, so remote servers must keep profiles in standard `file` mode (`nlm auth storage set file`) or configure `NOTEBOOKLM_COOKIES`.
 
 For authentication details, see the
 [Authentication Guide](AUTHENTICATION.md).

@@ -5,6 +5,8 @@ import time
 import urllib.parse
 from http.cookies import SimpleCookie
 
+from notebooklm_tools.core.credential_store import CredentialStoreError
+
 from ._utils import (
     ESSENTIAL_COOKIES,
     ResultDict,
@@ -91,6 +93,14 @@ def refresh_auth() -> ResultDict:
             "status": "error",
             "error": "No cached tokens found. Run 'nlm login' to authenticate.",
         }
+    except CredentialStoreError as exc:
+        return error_result(
+            str(exc),
+            hint=(
+                "OS credential store is locked or unavailable. "
+                "Unlock your OS keystore / run this from your desktop session and retry."
+            ),
+        )
     except Exception as e:
         return error_result(str(e))
 
@@ -121,6 +131,11 @@ def save_auth_tokens(
             AuthTokens,
             get_cache_path,
             save_tokens_to_cache,
+        )
+        from notebooklm_tools.utils.config import (
+            get_auth_storage_mode,
+            get_config,
+            get_profile_dir,
         )
 
         # Parse cookie string to dict. Cookie headers are valid with or
@@ -178,6 +193,12 @@ def save_auth_tokens(
         # Reset client so next call uses fresh tokens
         reset_client()
 
+        target_profile = get_config().auth.default_profile
+        if get_auth_storage_mode(target_profile) == "protected":
+            saved_path = get_profile_dir(target_profile, create=False) / "credentials.enc"
+        else:
+            saved_path = get_cache_path()
+
         # Build status message
         if csrf_token and session_id:
             token_msg = "CSRF token and session ID extracted from network request - no page fetch needed! ⚡"  # nosec B105
@@ -191,9 +212,17 @@ def save_auth_tokens(
         return {
             "status": "success",
             "message": f"Saved {len(cookie_dict)} essential cookies (filtered from {len(all_cookies)}). {token_msg}",
-            "cache_path": str(get_cache_path()),
+            "cache_path": str(saved_path),
             "extracted_csrf": bool(csrf_token),
             "extracted_session_id": bool(session_id),
         }
+    except CredentialStoreError as exc:
+        return error_result(
+            str(exc),
+            hint=(
+                "OS credential store is locked or unavailable. "
+                "Unlock your OS keystore / run this from your desktop session and retry."
+            ),
+        )
     except Exception as e:
         return error_result(str(e))

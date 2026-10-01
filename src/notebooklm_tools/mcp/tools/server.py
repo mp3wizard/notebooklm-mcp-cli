@@ -109,6 +109,26 @@ def _runtime_capabilities(
     }
 
 
+def _check_storage_warning() -> str | None:
+    """Return a short one-line storage warning if a conflict or pending operation exists.
+
+    Never touches the OS keystore in file mode and never raises.
+    """
+    try:
+        from notebooklm_tools.services.auth_storage import get_storage_status
+
+        status = get_storage_status()
+        if status.get("has_conflict"):
+            return "Storage conflict detected. Run 'nlm auth storage resolve'."
+        if status.get("has_pending_op"):
+            return "Pending storage operation detected. Run 'nlm auth storage status'."
+        if status.get("protected_residue"):
+            return "Protected storage residue present. Run 'nlm auth storage resolve file'."
+        return None
+    except Exception:
+        return None
+
+
 @logged_tool()
 def server_info() -> dict[str, Any]:
     """Get version, auth status, and conservative MCP capability visibility.
@@ -143,6 +163,7 @@ def server_info() -> dict[str, Any]:
         - latest_version: Latest version on PyPI (or None if check failed)
         - update_available: True if a newer version is available
         - auth_status: configured | stale | unverified | not_configured | error
+        - storage_warning: Short warning if conflict/pending op exists (or None)
         - update_command: Command to run to update
         - mcp_capabilities: Built-in tool groups visible in this server process
         - provider_capabilities: Explicitly unprobed provider/account capabilities
@@ -153,12 +174,13 @@ def server_info() -> dict[str, Any]:
     if latest:
         update_available = _compare_versions(__version__, latest)
 
-    return {
+    info: dict[str, Any] = {
         "status": "success",
         "version": __version__,
         "latest_version": latest,
         "update_available": update_available,
         "auth_status": _check_auth_status(),
+        "storage_warning": _check_storage_warning(),
         "update_command": "uv tool upgrade notebooklm-mcp-cli",
         "pip_update_command": "pip install --upgrade notebooklm-mcp-cli",
         "mcp_capabilities": _runtime_capabilities(),
@@ -170,3 +192,5 @@ def server_info() -> dict[str, Any]:
             ),
         },
     }
+
+    return info

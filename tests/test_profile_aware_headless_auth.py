@@ -22,7 +22,14 @@ def test_mcp_refresh_auth_uses_configured_default_profile(monkeypatch):
         raising=True,
     )
 
-    def fake_headless_auth(*, profile_name, timeout=30):
+    def fake_headless_auth(
+        *,
+        profile_name,
+        timeout=30,
+        expected_revision=None,
+        force=False,
+        **kwargs,
+    ):
         calls.append(profile_name)
         return AuthTokens(cookies={"SID": "x"}, extracted_at=1.0)
 
@@ -58,7 +65,14 @@ def test_core_recovery_uses_configured_default_profile(monkeypatch):
         raising=True,
     )
 
-    def fake_headless_auth(*, profile_name, timeout=30):
+    def fake_headless_auth(
+        *,
+        profile_name,
+        timeout=30,
+        expected_revision=None,
+        force=False,
+        **kwargs,
+    ):
         calls.append(profile_name)
         return AuthTokens(
             cookies={"SID": "x"},

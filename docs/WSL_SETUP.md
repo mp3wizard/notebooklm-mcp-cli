@@ -316,6 +316,7 @@ kill $CHROME_PID
 - `nlm doctor` - Diagnose WSL2 setup
 - `nlm login --check` - Verify stored credentials
 - `nlm login --manual` - Import cookies from file
+- `nlm auth storage status` - Check credential storage mode (WSL environments without a D-Bus desktop session should remain in standard `file` mode)
 
 ## See Also
 

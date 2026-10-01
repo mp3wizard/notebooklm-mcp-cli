@@ -241,14 +241,16 @@ label(notebook_id="abc", action="delete", label_id="...", confirm=True)
 
 | Tool | Description |
 |------|-------------|
-| `refresh_auth` | Reload auth tokens |
+| `refresh_auth` | Reload auth tokens (supports both File mode and Protected mode transparently) |
 | `save_auth_tokens` | Save cookies (fallback method) |
 
 ### Server (1 tool)
 
 | Tool | Description |
 |------|-------------|
-| `server_info` | Get version and check for updates |
+| `server_info` | Get version, update check, and `storage_warning` diagnostic |
+
+`server_info` returns server metadata, update availability, and an optional `storage_warning` field. If credential storage has an unresolved conflict, an unfinished migration marker, or an inaccessible keystore, `storage_warning` provides clear instructions on which `nlm auth storage` command to run.
 
 ### Batch & Cross-Notebook (2 tools)
 

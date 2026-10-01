@@ -169,22 +169,30 @@ def get_config_dir() -> Path:
     return get_storage_dir()
 
 
+def get_legacy_storage_dir() -> Path:
+    """Get the legacy storage directory (~/.notebooklm-mcp/)."""
+    return get_home_dir() / ".notebooklm-mcp"
+
+
 def get_data_dir() -> Path:
     """Get the data directory path (alias for get_storage_dir)."""
     return get_storage_dir()
 
 
-def get_profiles_dir() -> Path:
+def get_profiles_dir(create: bool = True) -> Path:
     """Get the profiles directory path."""
     profiles_dir = get_storage_dir() / "profiles"
-    safe_mkdir(profiles_dir)
+    if create:
+        safe_mkdir(profiles_dir)
     return profiles_dir
 
 
-def get_profile_dir(profile_name: str = "default") -> Path:
+def get_profile_dir(profile_name: str = "default", create: bool = True) -> Path:
     """Get directory for a specific profile."""
-    profile_dir = get_profiles_dir() / profile_name
-    safe_mkdir(profile_dir, parents=True)
+    validate_profile_name(profile_name, strict=False)
+    profile_dir = get_profiles_dir(create=create) / profile_name
+    if create:
+        safe_mkdir(profile_dir, parents=True)
     return profile_dir
 
 
@@ -270,16 +278,23 @@ def get_auth_cache_file() -> Path:
 # Migration Support
 # =============================================================================
 
-# Old locations for Chrome profiles (checked for migration)
-OLD_CHROME_PROFILES = [
-    get_home_dir() / ".notebooklm-mcp" / "chrome-profile",  # Old MCP (pre-0.2.13)
-    get_home_dir() / ".nlm" / "chrome-profile",  # Old CLI
-]
+# Old locations are resolved per call (not at import) so they follow the current home.
 
-# Old locations for auth.json (checked for migration)
-OLD_AUTH_LOCATIONS = [
-    get_home_dir() / ".notebooklm-mcp" / "auth.json",  # Old MCP (pre-0.2.13)
-]
+
+def get_old_chrome_profiles() -> list[Path]:
+    """Old locations for Chrome profiles (checked for migration)."""
+    return [
+        get_legacy_storage_dir() / "chrome-profile",  # Old MCP (pre-0.2.13)
+        get_home_dir() / ".nlm" / "chrome-profile",  # Old CLI
+    ]
+
+
+def get_old_auth_locations() -> list[Path]:
+    """Old locations for auth.json (checked for migration)."""
+    return [
+        get_legacy_storage_dir() / "auth.json",  # Old MCP (pre-0.2.13)
+    ]
+
 
 # Old locations for aliases
 OLD_ALIAS_LOCATIONS: list[Path] = []
@@ -307,11 +322,11 @@ def check_migration_sources() -> dict[str, list[Path]]:
         "aliases": [],
     }
 
-    for profile_path in OLD_CHROME_PROFILES:
+    for profile_path in get_old_chrome_profiles():
         if profile_path.exists() and profile_path.is_dir():
             result["chrome_profiles"].append(profile_path)
 
-    for auth_path in OLD_AUTH_LOCATIONS:
+    for auth_path in get_old_auth_locations():
         if auth_path.exists() and auth_path.is_file():
             result["auth_files"].append(auth_path)
 
@@ -332,6 +347,10 @@ def migrate_auth_file(source_path: Path, dry_run: bool = True) -> str | None:
     Returns:
         Action description if migration was done, None if skipped
     """
+    configured_default = get_config().auth.default_profile
+    if get_auth_storage_mode(configured_default) == "protected":
+        return None
+
     new_auth = get_storage_dir() / "auth.json"
 
     if new_auth.exists():
@@ -447,6 +466,10 @@ def auto_migrate_if_needed() -> list[str]:
     Returns:
         List of migration actions performed (empty if nothing migrated)
     """
+    configured_default = get_config().auth.default_profile
+    if get_auth_storage_mode(configured_default) == "protected":
+        return []
+
     storage = get_storage_dir()
 
     # Check if new location already has data
@@ -464,6 +487,10 @@ def auto_migrate_if_needed() -> list[str]:
 # =============================================================================
 # Configuration Models
 # =============================================================================
+
+
+class ConfigError(Exception):
+    """Raised when configuration file is corrupt or invalid."""
 
 
 class OutputConfig(BaseModel):
@@ -497,6 +524,169 @@ class Config(BaseModel):
     auth: AuthConfig = Field(default_factory=AuthConfig)
 
 
+_RESERVED_DEVICE_NAMES = {
+    "con",
+    "prn",
+    "aux",
+    "nul",
+    "com1",
+    "com2",
+    "com3",
+    "com4",
+    "com5",
+    "com6",
+    "com7",
+    "com8",
+    "com9",
+    "lpt1",
+    "lpt2",
+    "lpt3",
+    "lpt4",
+    "lpt5",
+    "lpt6",
+    "lpt7",
+    "lpt8",
+    "lpt9",
+}
+
+
+def validate_profile_name(profile_name: str, strict: bool = True) -> None:
+    """Validate profile name for filesystem and keystore safety.
+
+    - Base safety check (strict=False, used everywhere in file mode):
+      Rejects empty names, non-string, NUL bytes, path separators ('/' and '\\'),
+      and path traversal ('..' or '.').
+    - Strict check (strict=True, used for protected mode and keystore accounts):
+      Also rejects whitespace, enforces character set ^[a-zA-Z0-9_\\-\\.]+$,
+      reserved device names, and case-insensitive collisions with existing profiles.
+    """
+    import re
+
+    if not profile_name or not isinstance(profile_name, str):
+        raise ValueError("Profile name cannot be empty")
+
+    if "\0" in profile_name:
+        raise ValueError(f"Profile name cannot contain NUL bytes: '{profile_name}'")
+
+    if "/" in profile_name or "\\" in profile_name or profile_name in (".", ".."):
+        raise ValueError(
+            f"Profile name cannot contain path traversal or separators: '{profile_name}'"
+        )
+    if (
+        "/." in profile_name
+        or "../" in profile_name
+        or "..\\" in profile_name
+        or ".\\" in profile_name
+        or "/.." in profile_name
+        or "\\.." in profile_name
+    ):
+        raise ValueError(
+            f"Profile name cannot contain path traversal or separators: '{profile_name}'"
+        )
+
+    if not strict:
+        return
+
+    stripped = profile_name.strip()
+    if stripped != profile_name:
+        raise ValueError(
+            f"Profile name cannot have leading or trailing whitespace: '{profile_name}'"
+        )
+
+    base = profile_name.split(".")[0].lower()
+    if base in _RESERVED_DEVICE_NAMES or profile_name.lower() in _RESERVED_DEVICE_NAMES:
+        raise ValueError(f"Profile name '{profile_name}' is a reserved name")
+
+    if not re.match(r"^[a-zA-Z0-9_\-\.]+$", profile_name):
+        raise ValueError(f"Profile name '{profile_name}' contains invalid characters")
+
+    # Case-insensitive collision detection against existing profiles
+    profiles_dir = get_storage_dir() / "profiles"
+    if profiles_dir.exists():
+        for existing in profiles_dir.iterdir():
+            if (
+                existing.is_dir()
+                and existing.name.lower() == profile_name.lower()
+                and existing.name != profile_name
+            ):
+                raise ValueError(
+                    f"Case-insensitive collision with existing profile '{existing.name}' for '{profile_name}'"
+                )
+
+
+def get_auth_storage_mode(profile_name: str = "default") -> str:
+    """Get effective storage mode ('protected' or 'file') for a profile.
+
+    Resolution order:
+      1. NLM_AUTH_STORAGE environment variable (process override, invalid fails closed).
+      2. Profile's storage-mode.json marker file (missing means file, corrupt fails closed).
+      3. Default 'file'.
+    """
+    validate_profile_name(profile_name, strict=False)
+
+    # 1. Environment override
+    if env_mode := os.environ.get("NLM_AUTH_STORAGE"):
+        mode = env_mode.strip().lower()
+        if mode not in ("protected", "file"):
+            raise ValueError(
+                f"Invalid NLM_AUTH_STORAGE: '{env_mode}'. Must be 'protected' or 'file'"
+            )
+        return mode
+
+    # 2. Profile marker
+    profile_dir = (get_storage_dir() / "profiles") / profile_name
+    marker_path = profile_dir / "storage-mode.json"
+    if not marker_path.exists():
+        return "file"
+
+    try:
+        data = json.loads(marker_path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("Marker is not a JSON object")
+        if data.get("version") != 1:
+            raise ValueError(f"Unsupported storage-mode version: {data.get('version')}")
+        mode_val = data.get("mode")
+        if mode_val not in ("protected", "file"):
+            raise ValueError(f"Invalid mode in marker: {mode_val}")
+        return str(mode_val)
+    except Exception as e:
+        raise ValueError(f"Corrupt storage-mode.json in profile '{profile_name}': {e}") from e
+
+
+def set_auth_storage_mode(profile_name: str, mode: str) -> None:
+    """Persist storage mode for a profile in a 0600 storage-mode.json marker."""
+    import sys
+
+    mode_clean = mode.strip().lower()
+    if mode_clean not in ("protected", "file"):
+        raise ValueError(f"Invalid mode '{mode}'. Must be 'protected' or 'file'")
+
+    if mode_clean == "protected":
+        try:
+            validate_profile_name(profile_name, strict=True)
+        except ValueError as exc:
+            raise ValueError(
+                f"Profile name '{profile_name}' contains characters unsupported by protected mode. "
+                f"Please rename it first with 'nlm login profile rename \"{profile_name}\" <new_name>'."
+            ) from exc
+    else:
+        validate_profile_name(profile_name, strict=False)
+
+    profile_dir = get_profile_dir(profile_name)
+    safe_mkdir(profile_dir, parents=True)
+    marker_path = profile_dir / "storage-mode.json"
+
+    content = json.dumps({"version": 1, "mode": mode_clean}, indent=2) + "\n"
+    temp_path = profile_dir / f"storage-mode.json.tmp.{os.getpid()}"
+    with open(temp_path, "w", encoding="utf-8") as f:
+        f.write(content)
+        f.flush()
+        os.fsync(f.fileno())
+    if sys.platform != "win32":
+        os.chmod(temp_path, 0o600)
+    os.replace(temp_path, marker_path)
+
+
 def load_config() -> Config:
     """Load configuration from file and environment."""
     config_file = get_config_file()
@@ -509,11 +699,12 @@ def load_config() -> Config:
 
             with open(config_file, "rb") as f:
                 config_data = tomllib.load(f)
-        except Exception as _e:
-            # SEC-007: log parse failure so misconfigured files are detectable
-            import logging as _logging
-
-            _logging.getLogger(__name__).debug("Could not load config.toml, using defaults: %s", _e)
+        except Exception as e:
+            raise ConfigError(
+                f"Corrupt configuration file: {config_file}\n"
+                f"Error: {e}\n"
+                "To reset: delete the file or run 'nlm config reset'"
+            ) from e
 
     # Apply environment overrides
     if output_format := os.environ.get("NLM_OUTPUT_FORMAT"):
@@ -535,13 +726,42 @@ def load_config() -> Config:
 
 
 def save_config(config: Config) -> None:
-    """Save configuration to file."""
+    """Save configuration to file using tomlkit, preserving unknown tables and omitting env overlays."""
+    import tomlkit
+
     config_file = get_config_file()
     safe_mkdir(config_file.parent, parents=True)
 
-    # Convert to TOML format
-    toml_content = _config_to_toml(config)
-    config_file.write_text(toml_content, encoding="utf-8")
+    doc: Any = tomlkit.document()
+    if config_file.exists():
+        try:
+            doc = tomlkit.parse(config_file.read_text(encoding="utf-8"))
+        except Exception:
+            doc = tomlkit.document()
+
+    # Update output table
+    if "output" not in doc:
+        doc["output"] = tomlkit.table()
+    doc["output"]["format"] = config.output.format
+    doc["output"]["color"] = config.output.color
+    doc["output"]["short_ids"] = config.output.short_ids
+
+    # Update auth table, avoiding persisting env overlays
+    if "auth" not in doc:
+        doc["auth"] = tomlkit.table()
+    if not os.environ.get("NLM_BROWSER"):
+        doc["auth"]["browser"] = config.auth.browser
+    if not os.environ.get("NLM_BROWSER_PATH"):
+        doc["auth"]["browser_path"] = config.auth.browser_path
+    if not os.environ.get("NLM_PROFILE"):
+        doc["auth"]["default_profile"] = config.auth.default_profile
+
+    temp_file = config_file.parent / f"config.toml.tmp.{os.getpid()}"
+    with open(temp_file, "w", encoding="utf-8") as f:
+        f.write(tomlkit.dumps(doc))
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temp_file, config_file)
 
 
 def _config_to_toml(config: Config) -> str:

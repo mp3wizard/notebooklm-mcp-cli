@@ -36,6 +36,7 @@ class AuthTokens:
     build_label: str = ""  # Optional - auto-extracted from page (cfb2h key)
     base_host: str = ""  # Optional - host the browser was signed in on (issue #269)
     extracted_at: float = 0.0
+    revision: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -45,6 +46,7 @@ class AuthTokens:
             "build_label": self.build_label,
             "base_host": self.base_host,
             "extracted_at": self.extracted_at,
+            "revision": self.revision,
         }
 
     @classmethod
@@ -56,6 +58,7 @@ class AuthTokens:
             build_label=data.get("build_label", ""),
             base_host=data.get("base_host", ""),
             extracted_at=data.get("extracted_at", 0),
+            revision=data.get("revision"),
         )
 
     def is_expired(self, max_age_hours: float = 168) -> bool:
@@ -84,6 +87,19 @@ def get_cache_path() -> Path:
     return get_auth_cache_file()
 
 
+def ensure_profile_ready(profile_name: str | None = None) -> None:
+    """Ensure profile is ready for authentication operations.
+
+    Validates profile name and reconciles pending operation markers.
+    """
+    from notebooklm_tools.core.auth_migration import reconcile_pending_operations
+    from notebooklm_tools.utils.config import get_config, validate_profile_name
+
+    target_profile = (profile_name or get_config().auth.default_profile).strip()
+    validate_profile_name(target_profile, strict=False)
+    reconcile_pending_operations(target_profile)
+
+
 def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
     """Load tokens from a profile, with legacy fallback for the default only.
 
@@ -91,10 +107,12 @@ def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
     (redirect to login during CSRF refresh) is the real validity test.
     Cookies often last much longer than any arbitrary time limit.
     """
+    ensure_profile_ready(profile_name)
+
     # 1. Try the requested profile first (Unified Auth)
-    try:
-        manager = get_auth_manager(profile_name)
-        if manager.profile_exists():
+    manager = get_auth_manager(profile_name)
+    if manager.profile_exists():
+        try:
             profile = manager.load_profile()
             return AuthTokens(
                 cookies=profile.cookies,
@@ -105,9 +123,15 @@ def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
                 extracted_at=(
                     profile.last_validated.timestamp() if profile.last_validated else time.time()
                 ),
+                revision=getattr(profile, "revision", None),
             )
-    except Exception as e:
-        logger.debug(f"Failed to load auth profile: {e}")
+        except Exception as e:
+            from notebooklm_tools.utils.config import get_auth_storage_mode
+
+            if get_auth_storage_mode(manager.profile_name) == "protected":
+                # Protected mode must NEVER silently swallow store errors into stale root auth.json!
+                raise
+            logger.debug(f"Failed to load auth profile: {e}")
 
     # A named non-default profile must never inherit credentials from the
     # single-account legacy cache.
@@ -117,7 +141,7 @@ def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
         if profile_name != get_config().auth.default_profile:
             return None
 
-    # 2. Fallback to legacy auth cache (with auto-migration)
+    # 2. Fallback to legacy auth cache (with auto-migration) for default profile only
     cache_path = get_cache_path()
 
     # Auto-migrate from old location if needed
@@ -145,61 +169,102 @@ def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
         return None
 
 
+def _atomic_write_json(target_path: Path, data: Any) -> None:
+    """Write JSON data to a target path atomically with 0600 permissions."""
+    import secrets
+    import stat
+
+    parent = target_path.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    # SEC-002: Restrict the parent directory to owner-only access
+    parent.chmod(stat.S_IRWXU)  # 0o700
+    tmp_path = parent / f"{target_path.name}.tmp.{os.getpid()}.{secrets.token_hex(4)}"
+    try:
+        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+        except BaseException:
+            with contextlib.suppress(OSError):
+                os.close(fd)
+            raise
+        os.replace(tmp_path, target_path)
+    finally:
+        if tmp_path.exists():
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+
+
 def save_tokens_to_cache(
     tokens: AuthTokens,
     silent: bool = False,
     profile_name: str | None = None,
-) -> None:
-    """Save tokens to a profile and mirror the configured default to auth.json.
+    expected_revision: str | None = None,
+    force: bool = True,
+) -> str | None:
+    """Save tokens to a profile and mirror the configured default to auth.json in file mode.
 
-    Mirroring the configured default to both locations ensures the MCP server
-    and CLI read the same default credentials. Named non-default profiles stay
-    isolated in their own profile directories.
-    See: https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/169
-
-    Args:
-        tokens: AuthTokens to save
-        silent: If True, don't print confirmation message (for auto-updates)
-        profile_name: Profile to update. Uses the configured default when omitted.
+    Takes the profile lock first to serialize with concurrent migrations or saves.
+    Writes root mirror only for file-mode configured default profile.
+    Propagates all errors without swallowing.
     """
-    import stat
-
-    from notebooklm_tools.utils.config import get_config
+    from notebooklm_tools.core.auth_migration import get_raw_on_disk_storage_mode
+    from notebooklm_tools.core.credential_store import get_profile_lock
+    from notebooklm_tools.utils.config import get_config, get_profile_dir
 
     default_profile = get_config().auth.default_profile
     target_profile = profile_name or default_profile
-    cache_path = get_cache_path()
 
-    if target_profile == default_profile:
-        # SEC-002: Restrict the parent directory to owner-only access
-        cache_path.parent.chmod(stat.S_IRWXU)  # 0o700
-        # TOCTOU-safe: create the file with 0o600 from the start (PR #205)
-        fd = os.open(str(cache_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        try:
-            f = os.fdopen(fd, "w", encoding="utf-8")
-        except BaseException:
-            os.close(fd)
-            raise
-        with f:
-            json.dump(tokens.to_dict(), f, indent=2)
-
-    # Update only the profile that owns these credentials.
-    try:
-        manager = get_auth_manager(target_profile)
-        if manager.profile_exists():
-            manager.save_profile(
-                cookies=tokens.cookies,
-                csrf_token=tokens.csrf_token or None,
-                session_id=tokens.session_id or None,
-                build_label=tokens.build_label or None,
-                base_host=tokens.base_host or None,
-                force=True,
+    with get_profile_lock(target_profile):
+        disk_mode = get_raw_on_disk_storage_mode(target_profile)
+        if expected_revision is not None:
+            from notebooklm_tools.core.credential_store import (
+                StaleRevisionError,
+                get_envelope_revision,
             )
-    except Exception as e:
-        logger.debug(f"Failed to sync tokens to profile: {e}")
+
+            if disk_mode == "protected":
+                enc_path = get_profile_dir(target_profile, create=False) / "credentials.enc"
+                current_rev = get_envelope_revision(enc_path) if enc_path.exists() else None
+                if current_rev != expected_revision:
+                    raise StaleRevisionError(target_profile, expected_revision, current_rev)
+            else:
+                raise StaleRevisionError(target_profile, expected_revision, None)
+
+        if disk_mode == "file" and target_profile == default_profile:
+            root_cache = get_cache_path()
+            root_data = {
+                "cookies": tokens.cookies,
+                "csrf_token": tokens.csrf_token or "",
+                "session_id": tokens.session_id or "",
+                "build_label": tokens.build_label or "",
+                "base_host": tokens.base_host or "",
+                "email": "",
+            }
+            meta_path = get_profile_dir(target_profile, create=False) / "metadata.json"
+            if meta_path.exists():
+                with contextlib.suppress(Exception):
+                    m = json.loads(meta_path.read_text(encoding="utf-8"))
+                    if isinstance(m, dict) and m.get("email"):
+                        root_data["email"] = m["email"]
+            _atomic_write_json(root_cache, root_data)
+
+        manager = get_auth_manager(target_profile)
+        saved_profile = manager.save_profile(
+            cookies=tokens.cookies,
+            csrf_token=tokens.csrf_token or None,
+            session_id=tokens.session_id or None,
+            build_label=tokens.build_label or None,
+            base_host=tokens.base_host or None,
+            force=force,
+            expected_revision=expected_revision,
+        )
 
     if not silent:
         logger.info(f"Auth tokens cached for profile '{target_profile}'")
+    return getattr(saved_profile, "revision", None)
 
 
 def extract_tokens_via_chrome_devtools() -> AuthTokens | None:
@@ -334,6 +399,8 @@ class Profile:
         last_validated: Any = None,
         build_label: str | None = None,
         base_host: str | None = None,
+        browser_backend: str | None = None,
+        revision: str | None = None,
     ) -> None:
         self.name = name
         self.cookies = cookies
@@ -343,6 +410,8 @@ class Profile:
         self.last_validated = last_validated
         self.build_label = build_label
         self.base_host = base_host
+        self.browser_backend = browser_backend
+        self.revision = revision
 
     def to_dict(self) -> dict:
         """Convert profile to dictionary for serialization."""
@@ -354,7 +423,9 @@ class Profile:
             "email": self.email,
             "build_label": self.build_label,
             "base_host": self.base_host,
+            "browser_backend": self.browser_backend,
             "last_validated": (self.last_validated.isoformat() if self.last_validated else None),
+            "revision": self.revision,
         }
 
     @classmethod
@@ -380,6 +451,8 @@ class Profile:
             last_validated=last_validated,
             build_label=data.get("build_label"),
             base_host=data.get("base_host"),
+            browser_backend=data.get("browser_backend"),
+            revision=data.get("revision"),
         )
 
 
@@ -408,17 +481,36 @@ class AuthManager:
         return self.profile_dir / "metadata.json"
 
     def profile_exists(self) -> bool:
-        """Check if the profile exists."""
-        return self.cookies_file.exists()
+        """Check if the profile exists with saved credentials.
+
+        Avoids creating profile directories merely to check credential existence.
+        A mode-only marker (storage-mode.json) alone does not make profile_exists True.
+        """
+        from notebooklm_tools.utils.config import get_profile_dir
+
+        try:
+            profile_path = get_profile_dir(self.profile_name, create=False)
+        except TypeError:
+            profile_path = get_profile_dir(self.profile_name)
+
+        if not profile_path.exists():
+            return False
+        return (
+            (profile_path / "cookies.json").exists()
+            or (profile_path / "auth.json").exists()
+            or (profile_path / "credentials.enc").exists()
+        )
 
     def load_profile(self, force_reload: bool = False) -> Profile:
         """Load the current profile from disk."""
         from datetime import datetime
 
+        from notebooklm_tools.core.credential_store import CredentialStore
         from notebooklm_tools.core.exceptions import (
             AuthenticationError,
             ProfileNotFoundError,
         )
+        from notebooklm_tools.utils.config import get_auth_storage_mode
 
         if self._profile is not None and not force_reload:
             return self._profile
@@ -426,6 +518,59 @@ class AuthManager:
         if not self.profile_exists():
             raise ProfileNotFoundError(self.profile_name)
 
+        mode = get_auth_storage_mode(self.profile_name)
+
+        if mode == "protected":
+            # If plain cookies.json also exists in protected mode, check for conflict
+            if self.cookies_file.exists():
+                from notebooklm_tools.core.auth_migration import (
+                    StorageConflictError,
+                    canonical_secrets_equal,
+                    capture_file_mode_snapshot,
+                    capture_protected_snapshot,
+                )
+
+                snap_file = capture_file_mode_snapshot(self.profile_name)
+                snap_prot = capture_protected_snapshot(self.profile_name)
+                if snap_file and snap_prot and not canonical_secrets_equal(snap_file, snap_prot):
+                    raise StorageConflictError(self.profile_name)
+
+            metadata: dict[str, Any] = {}
+            if self.metadata_file.exists():
+                with contextlib.suppress(Exception):
+                    metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
+
+            store = CredentialStore()
+            # If read_credentials raises a store error (e.g. BackendUnavailableError, MissingKeyError),
+            # let it propagate so callers distinguish missing key, locked backend, corrupt ciphertext.
+            payload = store.read_credentials(self.profile_name)
+            if payload is None:
+                raise ProfileNotFoundError(self.profile_name)
+
+            from notebooklm_tools.core.credential_store import get_envelope_revision
+
+            enc_path = self.profile_dir / "credentials.enc"
+            rev = get_envelope_revision(enc_path) if enc_path.exists() else None
+
+            self._profile = Profile(
+                name=self.profile_name,
+                cookies=payload["cookies"],
+                csrf_token=payload.get("csrf_token"),
+                session_id=payload.get("session_id"),
+                email=metadata.get("email"),
+                last_validated=(
+                    datetime.fromisoformat(metadata["last_validated"])
+                    if metadata.get("last_validated")
+                    else None
+                ),
+                build_label=metadata.get("build_label"),
+                base_host=metadata.get("base_host"),
+                browser_backend=metadata.get("browser_backend"),
+                revision=rev,
+            )
+            return self._profile
+
+        # File mode: load legacy plaintext files
         try:
             cookies = json.loads(self.cookies_file.read_text(encoding="utf-8"))
             metadata = {}
@@ -445,6 +590,7 @@ class AuthManager:
                 ),
                 build_label=metadata.get("build_label"),
                 base_host=metadata.get("base_host"),
+                browser_backend=metadata.get("browser_backend"),
             )
             return self._profile
         except Exception as e:
@@ -463,6 +609,7 @@ class AuthManager:
         build_label: str | None = None,
         base_host: str | None = None,
         browser_backend: str | None = None,
+        expected_revision: str | None = None,
     ) -> Profile:
         """Save credentials to the current profile.
 
@@ -472,73 +619,140 @@ class AuthManager:
         """
         from datetime import datetime
 
+        from notebooklm_tools.core.auth_migration import get_raw_on_disk_storage_mode
+        from notebooklm_tools.core.credential_store import (
+            CredentialStore,
+            StaleRevisionError,
+            get_envelope_revision,
+            get_profile_lock,
+        )
         from notebooklm_tools.core.exceptions import AccountMismatchError, AuthenticationError
-
-        # Guard: check for account mismatch before overwriting
-        if not force and email and self.metadata_file.exists():
-            try:
-                existing_metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
-                stored_email = existing_metadata.get("email")
-                if stored_email and stored_email != email:
-                    raise AccountMismatchError(
-                        stored_email=stored_email,
-                        new_email=email,
-                        profile_name=self.profile_name,
-                    )
-            except (json.JSONDecodeError, KeyError):
-                pass  # Corrupted metadata, allow overwrite
-
-        if not force and browser_backend == "firefox_profile" and self.profile_exists():
-            raise AuthenticationError(
-                message="Firefox login cannot verify the Google account for an existing profile",
-                hint="Confirm the account, then run 'nlm login --force' to replace the saved credentials.",
-            )
-
         from notebooklm_tools.utils.config import safe_mkdir
 
-        safe_mkdir(self.profile_dir, parents=True)
+        with get_profile_lock(self.profile_name):
+            # Guard: check for account mismatch before overwriting
+            if not force and email and self.metadata_file.exists():
+                try:
+                    existing_metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
+                    stored_email = existing_metadata.get("email")
+                    if stored_email and stored_email != email:
+                        raise AccountMismatchError(
+                            stored_email=stored_email,
+                            new_email=email,
+                            profile_name=self.profile_name,
+                        )
+                except (json.JSONDecodeError, KeyError):
+                    pass  # Corrupted metadata, allow overwrite
 
-        # Set restrictive permissions on the directory
-        self.profile_dir.chmod(0o700)
+            if not force and browser_backend == "firefox_profile" and self.profile_exists():
+                raise AuthenticationError(
+                    message="Firefox login cannot verify the Google account for an existing profile",
+                    hint="Confirm the account, then run 'nlm login --force' to replace the saved credentials.",
+                )
 
-        # Save cookies with restrictive permissions from creation
-        fd = os.open(str(self.cookies_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        try:
-            f = os.fdopen(fd, "w", encoding="utf-8")
-        except BaseException:
-            os.close(fd)
-            raise
-        with f:
-            json.dump(cookies, f, indent=2, ensure_ascii=False)
+            safe_mkdir(self.profile_dir, parents=True)
+            if os.name == "posix":
+                self.profile_dir.chmod(0o700)
 
-        preserved_metadata: dict[str, Any] = {}
-        if self.metadata_file.exists():
-            with contextlib.suppress(Exception):
-                preserved_metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
+            preserved_metadata: dict[str, Any] = {}
+            if self.metadata_file.exists():
+                with contextlib.suppress(Exception):
+                    preserved_metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
 
-        if email is None:
-            email = preserved_metadata.get("email")
-        if browser_backend is None:
-            browser_backend = preserved_metadata.get("browser_backend")
+            if email is None:
+                email = preserved_metadata.get("email")
+            if browser_backend is None:
+                browser_backend = preserved_metadata.get("browser_backend")
 
-        # Save metadata with restrictive permissions from creation
-        metadata = {
-            "csrf_token": csrf_token,
-            "session_id": session_id,
-            "email": email,
-            "build_label": build_label,
-            "base_host": base_host,
-            "browser_backend": browser_backend,
-            "last_validated": datetime.now().isoformat(),
-        }
-        fd = os.open(str(self.metadata_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        try:
-            f = os.fdopen(fd, "w", encoding="utf-8")
-        except BaseException:
-            os.close(fd)
-            raise
-        with f:
-            json.dump(metadata, f, indent=2, ensure_ascii=False)
+            # Check raw mode strictly UNDER THE LOCK
+            mode = get_raw_on_disk_storage_mode(self.profile_name)
+
+            if mode == "protected":
+                # Strip secrets from preserved metadata
+                preserved_metadata.pop("csrf_token", None)
+                preserved_metadata.pop("session_id", None)
+
+                enc_path = self.profile_dir / "credentials.enc"
+                current_revision = get_envelope_revision(enc_path) if enc_path.exists() else None
+                if expected_revision is not None and current_revision != expected_revision:
+                    raise StaleRevisionError(self.profile_name, expected_revision, current_revision)
+
+                store = CredentialStore()
+
+                # Metadata-only check: if credentials.enc already exists and secrets match exactly,
+                # do not rewrite credentials.enc or bump its revision
+                should_write_ciphertext = True
+                if enc_path.exists():
+                    try:
+                        existing_payload = store.read_credentials(self.profile_name)
+                        if (
+                            existing_payload is not None
+                            and existing_payload.get("cookies") == cookies
+                            and (existing_payload.get("csrf_token") or "") == (csrf_token or "")
+                            and (existing_payload.get("session_id") or "") == (session_id or "")
+                        ):
+                            should_write_ciphertext = False
+                    except Exception:
+                        should_write_ciphertext = True
+
+                if should_write_ciphertext:
+                    secret_payload = {
+                        "cookies": cookies,
+                        "csrf_token": csrf_token or "",
+                        "session_id": session_id or "",
+                    }
+                    store.write_credentials(self.profile_name, secret_payload)
+
+                # In protected mode, metadata.json contains ONLY nonsecret fields
+                metadata = {
+                    "email": email,
+                    "build_label": build_label,
+                    "base_host": base_host,
+                    "browser_backend": browser_backend,
+                    "last_validated": datetime.now().isoformat(),
+                }
+                _atomic_write_json(self.metadata_file, metadata)
+
+                # Ensure no plain cookie files exist in protected profile
+                if self.cookies_file.exists():
+                    with contextlib.suppress(OSError):
+                        self.cookies_file.unlink()
+                legacy_auth = self.profile_dir / "auth.json"
+                if legacy_auth.exists():
+                    with contextlib.suppress(OSError):
+                        legacy_auth.unlink()
+
+                final_revision = get_envelope_revision(enc_path) if enc_path.exists() else None
+            else:
+                if expected_revision is not None:
+                    # Mode switched from protected to file; expected revision does not exist
+                    raise StaleRevisionError(self.profile_name, expected_revision, None)
+
+                _atomic_write_json(self.cookies_file, cookies)
+
+                metadata = {
+                    "csrf_token": csrf_token,
+                    "session_id": session_id,
+                    "email": email,
+                    "build_label": build_label,
+                    "base_host": base_host,
+                    "browser_backend": browser_backend,
+                    "last_validated": datetime.now().isoformat(),
+                }
+                _atomic_write_json(self.metadata_file, metadata)
+
+                # Tighten pre-existing files to 0600 on POSIX
+                if os.name == "posix":
+                    for p in (
+                        self.cookies_file,
+                        self.metadata_file,
+                        self.profile_dir / "auth.json",
+                    ):
+                        if p.exists():
+                            with contextlib.suppress(OSError):
+                                p.chmod(0o600)
+
+                final_revision = None
 
         self._profile = Profile(
             name=self.profile_name,
@@ -549,18 +763,72 @@ class AuthManager:
             last_validated=datetime.now(),
             build_label=build_label,
             base_host=base_host,
+            browser_backend=browser_backend,
+            revision=final_revision,
         )
         return self._profile
+
+    def update_metadata(
+        self,
+        email: str | None = None,
+        build_label: str | None = None,
+        base_host: str | None = None,
+        browser_backend: str | None = None,
+        last_validated: Any = None,
+    ) -> None:
+        """Update nonsecret metadata on disk without modifying credentials.enc or bumping revision."""
+        from datetime import datetime
+
+        from notebooklm_tools.utils.config import get_auth_storage_mode
+
+        if not self.metadata_file.exists():
+            return
+
+        try:
+            metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
+        except Exception:
+            metadata = {}
+
+        if get_auth_storage_mode(self.profile_name) == "protected":
+            metadata.pop("csrf_token", None)
+            metadata.pop("session_id", None)
+
+        if email is not None:
+            metadata["email"] = email
+        if build_label is not None:
+            metadata["build_label"] = build_label
+        if base_host is not None:
+            metadata["base_host"] = base_host
+        if browser_backend is not None:
+            metadata["browser_backend"] = browser_backend
+        if last_validated is not None:
+            if isinstance(last_validated, datetime):
+                metadata["last_validated"] = last_validated.isoformat()
+            else:
+                metadata["last_validated"] = str(last_validated)
+
+        _atomic_write_json(self.metadata_file, metadata)
 
     def delete_profile(self) -> None:
         """Delete the current profile."""
         import shutil
 
-        from notebooklm_tools.utils.config import get_profiles_dir
+        from notebooklm_tools.core.credential_store import CredentialStore
+        from notebooklm_tools.utils.config import get_auth_storage_mode, get_profiles_dir
 
         # Get path directly without auto-creating (profile_dir property auto-creates)
         profile_path = get_profiles_dir() / self.profile_name
         if profile_path.exists():
+            mode = get_auth_storage_mode(self.profile_name)
+            if mode == "protected" or (profile_path / "credentials.enc").exists():
+                try:
+                    CredentialStore().delete_credentials(self.profile_name)
+                except Exception as exc:
+                    logger.debug(
+                        f"Error deleting protected credentials for '{self.profile_name}': {exc}"
+                    )
+                    raise
+
             shutil.rmtree(profile_path)
         self._profile = None
 

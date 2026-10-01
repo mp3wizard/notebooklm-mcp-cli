@@ -47,7 +47,9 @@ Google can require interactive sign-in again at any time. Persistent local
 browser profiles give the best recovery behavior. VPS and container
 deployments may require manual authentication maintenance, especially when
 storage is ephemeral or cookies are supplied only through environment
-variables.
+variables. Remote and containerized servers without a desktop session or
+keyring daemon should keep profiles in `file` mode (`nlm auth storage set file`)
+or provide credentials via environment variables (`NOTEBOOKLM_COOKIES`).
 
 ## Remote File Limitation
 

@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.13.0"
+version: "0.14.0"
 description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, interactive reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "interactive report", "lesson report", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
@@ -169,7 +169,15 @@ nlm login profile list              # List all profiles with email addresses
 nlm login profile delete <name>     # Delete a profile
 nlm login profile rename <old> <new> # Rename a profile
 nlm auth refresh                    # Non-interactive headless refresh (schedulers/unattended)
+nlm auth storage status             # Check credential storage mode (file or protected)
+nlm auth storage set protected      # Encrypt credentials using OS credential store (--profile X or --all)
+nlm auth storage set file           # Decrypt credentials back to plain files (downgrade prep)
+nlm auth storage resolve file       # Resolve conflict: keep plain files, discard encrypted
+nlm auth storage resolve protected  # Resolve conflict: keep encrypted, discard plain files
+nlm auth storage relocate           # Re-bind credentials after moving storage directory
 ````
+
+> **Agent Note**: Document and support `nlm auth storage` when diagnosing auth issues or when requested by the user, but do not proactively nag or prompt users to switch storage modes.
 
 **Multi-Profile Support**: Each profile gets its own isolated browser session (supports Chrome, Arc, Dia, Comet, Brave, Edge, Chromium, Firefox, and more), so you can be logged into multiple Google accounts simultaneously.
 

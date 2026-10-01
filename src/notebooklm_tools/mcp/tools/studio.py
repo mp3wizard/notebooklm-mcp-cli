@@ -24,21 +24,21 @@ from ._utils import ResultDict, coerce_list, error_result, get_client, logged_to
 # to invalid during the cached window and the guard would otherwise skip
 # the re-check.
 _auth_guard_expires: float = 0.0
-_auth_guard_mtime: float = 0.0
+_auth_guard_mtime: Any = 0.0
 _AUTH_GUARD_TTL: float = 60.0
 
 
-def _get_auth_file_mtime() -> float:
-    """Thin wrapper around `services.auth.get_active_auth_mtime`.
+def _get_auth_file_mtime() -> Any:
+    """Return the auth guard invalidation token (revision in protected mode, mtime in file mode).
 
     Kept as a module-level function so the existing tests in
     `tests/test_mcp_auth_studio_failures.py` that monkeypatch
     `studio_tools._get_auth_file_mtime` continue to work without
     having to also patch the shim.
     """
-    from ...services.auth import get_active_auth_mtime
+    from ...services.auth import get_active_auth_state
 
-    return get_active_auth_mtime()
+    return get_active_auth_state()
 
 
 def _studio_auth_is_valid() -> tuple[bool, str | None, str | None]:

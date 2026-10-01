@@ -135,10 +135,19 @@ def _probe_rotated_httpx_replay(manager: Any, profile: Any, *, timeout: float) -
     cookies = parser._get_httpx_cookies()
     parser.close()
 
+    prof_name = getattr(profile, "name", None) or getattr(manager, "profile_name", "default")
+    from notebooklm_tools.utils.config import get_auth_storage_mode
+
+    if get_auth_storage_mode(prof_name) == "protected":
+        p_dir = getattr(manager, "profile_dir", None)
+        storage_path = (p_dir / "credentials.enc") if p_dir else None
+    else:
+        storage_path = getattr(manager, "cookies_file", None)
+
     with _httpx.Client(cookies=cookies, timeout=timeout) as client:
         rotation = rotate_google_cookies(
             client,
-            storage_path=getattr(manager, "cookies_file", None),
+            storage_path=storage_path,
             timeout=timeout,
             force=True,
         )

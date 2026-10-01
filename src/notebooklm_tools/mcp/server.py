@@ -27,6 +27,8 @@ from starlette.responses import JSONResponse
 
 from notebooklm_tools import __version__
 
+from .tools._utils import start_mcp_background_probe
+
 _FALSY = frozenset({"false", "0", "no", "off"})
 
 
@@ -47,6 +49,7 @@ mcp = FastMCP(
 **Account Switching:** To switch Google Accounts for the MCP server, run `nlm login switch <profile>` in Bash. The MCP server instantly uses the active default profile.
 **Confirmation:** Tools with confirm param require user approval before setting confirm=True.
 **Studio:** After creating audio/video/infographic/slides, poll studio_status for completion.
+**User notices:** If a tool result contains `user_notice`, relay it to the user once in one short line.
 
 Consolidated tools:
 - source_add(source_type=url|text|drive|file, url=..., document_id=..., text=..., file_path=...): Add any source type
@@ -231,6 +234,10 @@ Examples:
     from .tools._utils import set_query_timeout
 
     set_query_timeout(args.query_timeout)
+
+    # Start the storage-notice probe only when the server actually runs, never on
+    # import: importing this module (tests, tool listing) must not touch the keystore.
+    start_mcp_background_probe()
 
     # Run server with appropriate transport
     # show_banner=False prevents Rich box-drawing output that can corrupt

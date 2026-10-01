@@ -66,6 +66,12 @@ class CreationError(ServiceError):
     pass
 
 
+class ConflictError(ServiceError):
+    """Raised when a resource already exists or an operation conflicts with current state."""
+
+    pass
+
+
 class ExportError(ServiceError):
     """Raised when an export operation fails."""
 

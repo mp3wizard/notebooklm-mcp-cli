@@ -457,6 +457,8 @@ class BaseClient:
         profile_name: str | None = None,
         location: str | None = None,
         project_id: str | None = None,
+        auth_revision: str | None = None,
+        is_env_auth: bool | None = None,
     ):
         """
         Initialize the base client.
@@ -484,6 +486,11 @@ class BaseClient:
         self._bl = build_label
         self._base_host = base_host
         self._profile_name = profile_name
+        self._auth_revision = auth_revision
+        if is_env_auth is None:
+            self._is_env_auth = bool(os.environ.get("NOTEBOOKLM_COOKIES") and profile_name is None)
+        else:
+            self._is_env_auth = is_env_auth
         self._location = location or get_enterprise_location()
         self._enterprise_project_id = project_id or get_enterprise_project_id()
         if self._is_enterprise() and not self._enterprise_project_id:
@@ -1267,9 +1274,25 @@ class BaseClient:
         with httpx.Client(
             cookies=cookies, headers=headers, follow_redirects=True, timeout=15.0
         ) as client:
+            from notebooklm_tools.utils.config import get_auth_storage_mode, get_profile_dir
+
             from .cookie_rotation import rotate_google_cookies
 
-            rotate_google_cookies(client)
+            prof = getattr(self, "_profile_name", None)
+            cred_path = None
+            if prof:
+                try:
+                    if get_auth_storage_mode(prof) == "protected":
+                        cred_path = get_profile_dir(prof, create=False) / "credentials.enc"
+                    else:
+                        cred_path = get_profile_dir(prof, create=False) / "cookies.json"
+                except Exception:
+                    cred_path = None
+
+            if cred_path is not None:
+                rotate_google_cookies(client, storage_path=cred_path)
+            else:
+                rotate_google_cookies(client)
             home_path = f"{self._get_enterprise_prefix()}/" if self._is_enterprise() else "/"
             response = client.get(f"{self._get_base_url()}{home_path}")
 
@@ -1338,31 +1361,83 @@ class BaseClient:
         This avoids re-fetching the NotebookLM page on every client initialization,
         significantly improving performance for subsequent API calls.
         """
+        if self._is_env_auth:
+            return
+
+        from .credential_store import CredentialStoreError, StaleRevisionError
+
         try:
+            import json
             import time
 
-            from .auth import AuthTokens, load_cached_tokens, save_tokens_to_cache
+            from notebooklm_tools.utils.config import get_config, get_profile_dir
 
-            # Load existing cache or create new
-            cached = load_cached_tokens(profile_name=self._profile_name)
-            if cached:
-                # Update existing cache with new tokens
-                cached.cookies = self.cookies
-                cached.csrf_token = self.csrf_token
-                cached.session_id = self._session_id
-                if self._bl:
-                    cached.build_label = self._bl
+            from .auth import AuthTokens, save_tokens_to_cache
+
+            # Merge stored build_label and base_host from metadata.json (non-secret in both modes,
+            # no keystore reads) so an empty client _bl or _base_host never overwrites disk values.
+            prof = self._profile_name or get_config().auth.default_profile
+            stored_bl = ""
+            stored_host = ""
+            meta_path = get_profile_dir(prof, create=False) / "metadata.json"
+            if meta_path.exists():
+                with contextlib.suppress(Exception):
+                    meta_data = json.loads(meta_path.read_text(encoding="utf-8"))
+                    if isinstance(meta_data, dict):
+                        stored_bl = meta_data.get("build_label") or ""
+                        stored_host = meta_data.get("base_host") or ""
+
+            final_bl = self._bl or stored_bl
+            final_host = self._base_host or stored_host
+            if not self._bl and stored_bl:
+                self._bl = stored_bl
+            if not self._base_host and stored_host:
+                self._base_host = stored_host
+
+            cached = AuthTokens(
+                cookies=self.cookies,
+                csrf_token=self.csrf_token,
+                session_id=self._session_id,
+                build_label=final_bl,
+                base_host=final_host,
+                extracted_at=time.time(),
+            )
+
+            new_rev = save_tokens_to_cache(
+                cached,
+                silent=True,
+                profile_name=self._profile_name,
+                expected_revision=self._auth_revision,
+                force=False,
+            )
+            if new_rev:
+                self._auth_revision = new_rev
+        except StaleRevisionError:
+            # Another process updated credentials on disk.
+            # Reload newer credentials from disk outside _client_lock and profile lock.
+            logger.info(
+                f"Disk credentials changed for profile '{self._profile_name}'; reloading newer tokens."
+            )
+            from .auth import load_cached_tokens
+
+            reloaded = load_cached_tokens(profile_name=self._profile_name)
+            if reloaded:
+                with self._state_lock:
+                    self.cookies = reloaded.cookies
+                    self.csrf_token = reloaded.csrf_token
+                    self._session_id = reloaded.session_id
+                    if reloaded.build_label:
+                        self._bl = reloaded.build_label
+                    if reloaded.base_host:
+                        self._base_host = reloaded.base_host
+                    self._auth_revision = reloaded.revision
             else:
-                # Create new cache entry
-                cached = AuthTokens(
-                    cookies=self.cookies,
-                    csrf_token=self.csrf_token,
-                    session_id=self._session_id,
-                    build_label=self._bl,
-                    extracted_at=time.time(),
+                logger.warning(
+                    f"Profile '{self._profile_name}' credentials changed on disk but could not be reloaded "
+                    "(profile may have been deleted or renamed)."
                 )
-
-            save_tokens_to_cache(cached, silent=True, profile_name=self._profile_name)
+        except CredentialStoreError:
+            raise
         except Exception as e:
             # Non-critical: caching is an optimization, but log at debug level
             logger.debug(f"Failed to update auth token cache: {e}")
@@ -1372,29 +1447,28 @@ class BaseClient:
 
         Returns True if new valid tokens were obtained, False otherwise.
         """
-        from .auth import load_cached_tokens
+        if self._is_env_auth:
+            return False
 
-        # Layer 2: Reload cookies from the same profile on disk — but only when
-        # those cookies actually differ from the known-bad ones already in
-        # memory (e.g. the user ran `nlm login` in another terminal). Reloading
-        # identical cookies cannot fix the auth failure, and returning True here
-        # regardless is what kept Layer 3 (headless refresh) from ever running
-        # (issue #316). The configured default may also fall back to legacy
-        # auth.json for compatibility.
+        from .auth import load_cached_tokens
+        from .credential_store import StaleRevisionError
+
+        # Capture revision when recovery starts
+        starting_rev = self._auth_revision
+
+        # Layer 2: Reload cookies from the same profile on disk first
         cached = load_cached_tokens(profile_name=self._profile_name)
-        if cached and cached.cookies and cached.cookies != self.cookies:
-            with self._state_lock:
-                self.cookies = cached.cookies
-                self.csrf_token = ""  # nosec B105 — empty string signals auto-extraction on next request, not a hardcoded secret
-                self._session_id = ""  # Force re-extraction of session ID
-            return True
+        if cached:
+            starting_rev = cached.revision
+            if cached.cookies and cached.cookies != self.cookies:
+                with self._state_lock:
+                    self.cookies = cached.cookies
+                    self.csrf_token = ""  # nosec B105 — empty string signals auto-extraction on next request, not a hardcoded secret
+                    self._session_id = ""  # Force re-extraction of session ID
+                    self._auth_revision = cached.revision
+                return True
 
         # Layer 3: Headless auth for the same profile that owns this client.
-        # Relaunching Chrome with the saved profile makes Google reissue the
-        # short-lived *PSIDTS freshness cookies, which is what revives an
-        # otherwise-valid session that aged out (issue #316). Some Workspace
-        # accounts instead have the relaunch revoke the session server-side, so
-        # this can be disabled (issue #330).
         if os.environ.get("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH") == "1":
             logger.debug("Headless refresh disabled via NOTEBOOKLM_DISABLE_HEADLESS_REFRESH")
             return False
@@ -1403,12 +1477,32 @@ class BaseClient:
             from notebooklm_tools.utils.config import get_config
 
             profile_name = self._profile_name or get_config().auth.default_profile
-            tokens = run_headless_auth(profile_name=profile_name)
+            tokens = run_headless_auth(
+                profile_name=profile_name,
+                expected_revision=starting_rev,
+                force=False,
+            )
             if tokens:
                 with self._state_lock:
                     self.cookies = tokens.cookies
                     self.csrf_token = tokens.csrf_token
                     self._session_id = tokens.session_id
+                    self._auth_revision = getattr(tokens, "revision", None)
+                return True
+        except StaleRevisionError:
+            # Disk changed while browser ran; keep disk login and drop browser result
+            logger.info("Disk credentials changed during headless auth; keeping disk credentials.")
+            reloaded = load_cached_tokens(profile_name=self._profile_name)
+            if reloaded:
+                with self._state_lock:
+                    self.cookies = reloaded.cookies
+                    self.csrf_token = reloaded.csrf_token
+                    self._session_id = reloaded.session_id
+                    if reloaded.build_label:
+                        self._bl = reloaded.build_label
+                    if reloaded.base_host:
+                        self._base_host = reloaded.base_host
+                    self._auth_revision = reloaded.revision
                 return True
         except Exception as e:
             logger.debug(f"Headless auth failed: {e}")
