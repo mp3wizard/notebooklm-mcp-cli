@@ -77,6 +77,7 @@ mcp_logger = logging.getLogger("notebooklm_tools.mcp")
 
 # Health check endpoint
 @mcp.custom_route("/health", methods=["GET"])
+@mcp.custom_route("/healthz", methods=["GET"])
 async def health_check(request: Request) -> JSONResponse:
     """Health check endpoint for load balancers and monitoring."""
     return JSONResponse(

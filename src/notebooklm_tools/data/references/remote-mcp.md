@@ -29,7 +29,8 @@ notebooklm-mcp \
 ```
 
 This exposes `http://127.0.0.1:8000/mcp` and a local health endpoint at
-`http://127.0.0.1:8000/health`.
+`http://127.0.0.1:8000/health`. Monitors that probe the conventional `/healthz`
+path get the same response.
 
 ## Authentication and Account Isolation
 

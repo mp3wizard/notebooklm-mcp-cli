@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from notebooklm_tools.core.errors import RPCDriftError, RPCError
+from notebooklm_tools.services import research as research_service
 from notebooklm_tools.services.errors import ServiceError, ValidationError
 from notebooklm_tools.services.research import (
     annotate_cited_sources,
@@ -17,6 +18,28 @@ from notebooklm_tools.services.research import (
 @pytest.fixture
 def mock_client():
     return MagicMock()
+
+
+class _FakeClock:
+    """Deterministic stand-in for the `time` module: sleeping advances the clock."""
+
+    def __init__(self):
+        self.now = 0.0
+        self.sleeps: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+@pytest.fixture
+def fake_clock():
+    clock = _FakeClock()
+    with patch("notebooklm_tools.services.research.time", clock):
+        yield clock
 
 
 class TestStartResearch:
@@ -289,6 +312,108 @@ class TestPollResearch:
         assert result["status"] == "no_research"
         assert mock_client.poll_research.call_count == 1
         mock_time.sleep.assert_not_called()
+
+    # --- Issue #346: first poll right after `research start` can be empty -------------
+
+    _NO_RESEARCH = {"status": "no_research", "message": "No active research found"}
+    _IN_PROGRESS = {"status": "in_progress", "task_id": "t-1", "sources": [], "report": ""}
+    _COMPLETED = {
+        "status": "completed",
+        "task_id": "t-1",
+        "sources": [{"title": "A", "url": "https://a.com", "result_type": 1}],
+        "report": "Done",
+    }
+
+    def test_empty_first_poll_with_task_id_keeps_waiting(self, mock_client, fake_clock):
+        """A just-started task may not be visible yet; keep polling instead of giving up."""
+        mock_client.poll_research.side_effect = [
+            self._NO_RESEARCH,
+            self._IN_PROGRESS,
+            self._COMPLETED,
+        ]
+
+        result = poll_research(mock_client, "nb-1", task_id="t-1", poll_interval=10, max_wait=300)
+
+        assert result["status"] == "completed"
+        assert mock_client.poll_research.call_count == 3
+        # Short retry while the task is not visible, then the normal poll_interval.
+        assert fake_clock.sleeps == [research_service.NO_RESEARCH_RETRY_INTERVAL, 10]
+
+    def test_auto_import_runs_after_empty_first_poll(self, mock_client, fake_clock):
+        """Regression for #346: auto_import must still import when the first poll is empty."""
+        mock_client.poll_research.side_effect = [
+            self._NO_RESEARCH,
+            self._COMPLETED,  # poll loop sees it complete
+            self._COMPLETED,  # import_research re-fetches the task
+        ]
+        mock_client.import_research_sources.return_value = [{"title": "A"}]
+
+        result = poll_research(
+            mock_client, "nb-1", task_id="t-1", poll_interval=10, max_wait=300, auto_import=True
+        )
+
+        assert result["status"] == "completed"
+        assert result["imported"] is True
+        mock_client.import_research_sources.assert_called_once()
+
+    def test_task_that_never_appears_stops_after_grace_not_max_wait(self, mock_client, fake_clock):
+        """A task that never shows up must not make the caller wait out the full max_wait."""
+        mock_client.poll_research.return_value = self._NO_RESEARCH
+
+        result = poll_research(mock_client, "nb-1", task_id="t-1", max_wait=900)
+
+        assert result["status"] == "no_research"
+        assert sum(fake_clock.sleeps) == research_service.NO_RESEARCH_GRACE_SECONDS
+        assert fake_clock.now < 900
+
+    def test_grace_is_capped_by_max_wait(self, mock_client, fake_clock):
+        """The grace window never extends past the caller's own max_wait."""
+        mock_client.poll_research.return_value = self._NO_RESEARCH
+
+        result = poll_research(mock_client, "nb-1", task_id="t-1", max_wait=20)
+
+        assert result["status"] == "no_research"
+        assert sum(fake_clock.sleeps) == 20
+
+    def test_empty_poll_returns_immediately_when_not_blocking(self, mock_client, fake_clock):
+        """max_wait=0 is a single check: no grace period, no sleeping."""
+        mock_client.poll_research.return_value = self._NO_RESEARCH
+
+        result = poll_research(mock_client, "nb-1", task_id="t-1", max_wait=0)
+
+        assert result["status"] == "no_research"
+        assert mock_client.poll_research.call_count == 1
+        assert fake_clock.sleeps == []
+
+    def test_grace_can_be_disabled(self, mock_client, fake_clock):
+        mock_client.poll_research.return_value = self._NO_RESEARCH
+
+        result = poll_research(
+            mock_client, "nb-1", task_id="t-1", max_wait=300, no_research_grace=0
+        )
+
+        assert result["status"] == "no_research"
+        assert mock_client.poll_research.call_count == 1
+        assert fake_clock.sleeps == []
+
+    def test_empty_poll_without_task_id_returns_immediately(self, mock_client, fake_clock):
+        """With no task ID there is nothing we just started, so there is nothing to wait for."""
+        mock_client.poll_research.return_value = self._NO_RESEARCH
+
+        result = poll_research(mock_client, "nb-1", max_wait=300)
+
+        assert result["status"] == "no_research"
+        assert mock_client.poll_research.call_count == 1
+        assert fake_clock.sleeps == []
+
+    def test_none_result_with_task_id_also_waits(self, mock_client, fake_clock):
+        """A bare None from the client is treated the same as a no_research status."""
+        mock_client.poll_research.side_effect = [None, self._COMPLETED]
+
+        result = poll_research(mock_client, "nb-1", task_id="t-1", max_wait=300)
+
+        assert result["status"] == "completed"
+        assert mock_client.poll_research.call_count == 2
 
     def test_completed_status_includes_next_action(self, mock_client):
         """When status is completed, the response includes a next_action hint

@@ -21,6 +21,9 @@ from notebooklm_tools.utils.config import get_base_url
 # Use logging instead of print to avoid corrupting MCP stdio protocol
 logger = logging.getLogger(__name__)
 
+_WINDOWS_SHARE_RETRY_ATTEMPTS = 8 if os.name == "nt" else 1
+_WINDOWS_SHARE_RETRY_BASE_DELAY = 0.01
+
 
 @dataclass
 class AuthTokens:
@@ -154,8 +157,7 @@ def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
         return None
 
     try:
-        with open(cache_path, encoding="utf-8") as f:
-            data = json.load(f)
+        data = _read_json_with_windows_retry(cache_path)
         tokens = AuthTokens.from_dict(data)
 
         # Just warn if tokens are old, but still return them
@@ -167,6 +169,36 @@ def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         logger.warning(f"Failed to load cached tokens: {e}")
         return None
+
+
+def _read_json_with_windows_retry(path: Path) -> Any:
+    """Read JSON, tolerating transient Windows file-sharing violations.
+
+    File-mode auth permits lock-free readers while writers use atomic
+    replacement. Windows can briefly deny a read while the destination is
+    being replaced, so retry only within a small bounded platform-specific
+    window. POSIX behavior remains single-attempt.
+    """
+    for attempt in range(_WINDOWS_SHARE_RETRY_ATTEMPTS):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except PermissionError:
+            if attempt + 1 >= _WINDOWS_SHARE_RETRY_ATTEMPTS:
+                raise
+            time.sleep(_WINDOWS_SHARE_RETRY_BASE_DELAY * (attempt + 1))
+    raise RuntimeError("unreachable")
+
+
+def _replace_with_windows_retry(source: Path, destination: Path) -> None:
+    """Atomically replace a file, retrying transient Windows sharing violations."""
+    for attempt in range(_WINDOWS_SHARE_RETRY_ATTEMPTS):
+        try:
+            os.replace(source, destination)
+            return
+        except PermissionError:
+            if attempt + 1 >= _WINDOWS_SHARE_RETRY_ATTEMPTS:
+                raise
+            time.sleep(_WINDOWS_SHARE_RETRY_BASE_DELAY * (attempt + 1))
 
 
 def _atomic_write_json(target_path: Path, data: Any) -> None:
@@ -190,7 +222,7 @@ def _atomic_write_json(target_path: Path, data: Any) -> None:
             with contextlib.suppress(OSError):
                 os.close(fd)
             raise
-        os.replace(tmp_path, target_path)
+        _replace_with_windows_retry(tmp_path, target_path)
     finally:
         if tmp_path.exists():
             with contextlib.suppress(OSError):
@@ -542,7 +574,7 @@ class AuthManager:
             metadata: dict[str, Any] = {}
             if self.metadata_file.exists():
                 with contextlib.suppress(Exception):
-                    metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
+                    metadata = _read_json_with_windows_retry(self.metadata_file)
 
             store = CredentialStore()
             # If read_credentials raises a store error (e.g. BackendUnavailableError, MissingKeyError),
@@ -576,10 +608,10 @@ class AuthManager:
 
         # File mode: load legacy plaintext files
         try:
-            cookies = json.loads(self.cookies_file.read_text(encoding="utf-8"))
+            cookies = _read_json_with_windows_retry(self.cookies_file)
             metadata = {}
             if self.metadata_file.exists():
-                metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
+                metadata = _read_json_with_windows_retry(self.metadata_file)
 
             self._profile = Profile(
                 name=self.profile_name,

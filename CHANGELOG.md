@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-10-04
+
+> Research auto-import that waits out a slow start, a Windows credential-lock fix, and a `/healthz` alias for monitors that expect one.
+> Community release: two of these changes come from **@insane66613**.
+
+### Added
+
+- **The HTTP server answers `/healthz`, too.** Reverse proxies, tunnel monitors, and service supervisors that probe the conventional `/healthz` path used to get a 404 from `notebooklm-mcp --transport http` even when the server was healthy. `/health` is unchanged and `/healthz` returns the same response. Thanks to **@insane66613** ([PR #347](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/347)).
+
+### Fixed
+
+- **Windows credentials survive a transient file lock.** File-mode auth lets readers work without locks while a writer replaces credential files atomically, and on Windows a reader holding the file can briefly make the read or the final replace fail with a sharing violation. Ordinary CLI and MCP access could then fail authentication or quietly skip a credential save. Reads (root token cache, profile cookies, metadata) and the atomic replace now retry a few times, only for `PermissionError` and only on Windows; macOS and Linux still make a single attempt. Verified on Windows 11 against the repo's own concurrency test: 13 of 25 runs hit the bug before the fix, 0 of 25 after. Thanks to **@insane66613** ([PR #348](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/348)).
+- **`research start --auto-import` no longer gives up when the task isn't visible yet.** Right after a research task starts, the first status poll can come back empty for a moment. That was treated as "no research", so auto-import skipped the import and printed "Research may have timed out or failed" even though the research completed and found sources. While waiting on a known task ID, an empty poll is now retried for a short window (90 seconds at most, never past the caller's max wait) before concluding the task really isn't there. Single checks (`--max-wait 0`) and polls without a task ID behave as before. Reported by **@megaboy81-boop**, whose diagnosis pointed straight at the polling loop ([Issue #346](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/346)).
+
 ## [0.15.1] - 2026-10-02
 
 > Safer, smarter login recovery, plus Microsoft Edge Beta.

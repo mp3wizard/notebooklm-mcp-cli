@@ -288,6 +288,9 @@ The health endpoint is:
 http://127.0.0.1:8000/health
 ```
 
+Monitors and proxies that probe the conventional `/healthz` path get the same
+response at `http://127.0.0.1:8000/healthz`.
+
 This confirms transport compatibility. It does not create a Claude web/mobile
 connector because Anthropic's cloud cannot reach your loopback address.
 
