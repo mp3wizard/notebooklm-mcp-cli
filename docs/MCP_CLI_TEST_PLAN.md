@@ -1,11 +1,11 @@
 # Gemini Notebook (formerly Google NotebookLM) MCP - Comprehensive Test Plan
 
-**Purpose:** Verify all **50 MCP tools** work correctly.
+**Purpose:** Verify all **53 MCP tools** work correctly.
 
 **Version:** 2.7 (Updated 2026-09-27 - synchronized current MCP surface)
 
 **Changes from v2.6:**
-- Current tool count: 50 tools — includes interactive reports, usage, and the latest MCP additions.
+- Current tool count: 53 tools — adds `profile`, `alias` and `chat_save_to_note`, plus `pipeline` create and profile info in `server_info` (v0.15.0).
 
 **Historical changes from v2.1:**
 - The test plan previously covered 39 tools, including consolidated notes, labels, async query, batch, pipeline, tags, and server_info.
@@ -84,6 +84,31 @@ Check my NotebookLM credential storage mode and test switching between file mode
 1. `nlm auth storage status`: Shows profile name, storage mode (`file` or `protected`), and presence of ciphertext or legacy files.
 2. `nlm auth storage set protected`: Encrypts credentials to `credentials.enc` using the OS keystore (macOS Keychain, Windows Credential Manager, Linux SecretService) and removes plaintext files.
 3. `nlm auth storage set file`: Decrypts credentials back to `cookies.json` with 0600 permissions.
+
+---
+
+### Test 1.1d - Profiles (`profile` tool)
+**Tool:** `profile` (action: list, status, switch)
+
+**Prompt:**
+```
+List my Gemini Notebook profiles, switch to my other profile for this session, then tell me how many notebooks I have. Do not change my default.
+```
+
+**Expected:**
+1. `profile(action="list")` returns every saved profile with email, `storage_mode`, `is_saved_default`, `is_active`.
+2. `profile(action="switch", name=...)` returns `scope: "session"`; later tools use that account and results carry `active_profile_note`.
+3. The saved default (`nlm config get auth.default_profile`) is unchanged.
+4. Quitting and reopening the app returns to the saved default.
+5. `make_default=true` changes `default_profile` in `~/.notebooklm-mcp-cli/config.toml` (switch it back afterwards).
+6. With `NOTEBOOKLM_COOKIES` set in the server's environment, switching returns an error.
+
+---
+
+### Test 1.1e - Aliases, chat-to-note, pipeline create
+**Tools:** `alias`, `chat_save_to_note`, `pipeline` (action: create)
+
+**Expected:** `alias(action="set", name="nb", value="<notebook id>")` then `notebook_get(notebook_id="nb")` resolves the alias; `chat_save_to_note` creates a note from a chat; `pipeline(action="create", ...)` saves a pipeline that `pipeline(action="list")` shows.
 
 ---
 
@@ -1271,6 +1296,25 @@ terminal (not an agent's shell — it refuses non-interactive sessions).
   default-No confirmations; only ticked items change; backups appear in
   `~/.notebooklm-mcp-cli/backups/`.
 - Copy: the clipboard holds `{"mcpServers": {"gemini-notebook-mcp": {"command": "<full path>/notebooklm-mcp"}}}`.
+
+### Test 14.5 - Credential protection
+**CLI:** `nlm setup` → **Credential protection**
+
+**Expected:**
+- With no saved logins: "No saved logins yet. Run 'nlm login' first."
+- With plain logins: lists each as `plain` and offers **Protect saved logins (recommended)**; with several logins a checkbox picker appears.
+- With protected logins: offers **Restore protected logins to plain files** (asks to confirm, default No); never offers Protect for an already-protected login.
+- Mixed: offers both.
+- Afterwards `nlm auth storage status` matches, and no protection tip appears for a protected login.
+
+### Test 14.6 - First login on a new profile (new-user flow)
+**CLI:** `nlm login` on a machine (or sandbox) with no saved logins
+
+**Expected:**
+1. Before the browser opens: "Where should your saved login live?" with Protected (recommended) and Plain file.
+2. Choosing 1 stores the login encrypted (`credentials.enc`, no `cookies.json`) and ends with "✓ Login stored in protected mode." with no further tips or questions.
+3. A profile name protected mode can't use (`my work`, `john@work.com`) offers a working name (`my-work`) or keeping the name as a plain file.
+4. Ctrl+C or closing the flow leaves no profile folder, no saved answer, and closes the Chrome window it opened.
 
 ---
 

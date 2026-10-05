@@ -134,7 +134,7 @@ This has important consequences:
 - It is not a safe organization-wide connector for unrelated users.
 - An OAuth gateway can control who reaches the MCP endpoint, but it does not
   create per-user Gemini Notebook isolation.
-- Account switching affects the whole server, not one remote session.
+- Account switching affects the whole server, not one remote session. This includes the MCP `profile` tool: on a shared HTTP server a session switch applies to every connected client. This product is built for one person, so be aware of it if you share a server.
 
 ## Remote File Limitations
 

@@ -80,3 +80,30 @@ def chat_export(
         }
     except Exception as e:
         return error_result(str(e))
+
+
+@logged_tool()
+def chat_save_to_note(
+    notebook_id: str,
+    conversation_id: str,
+    turn: int = 0,
+    title: str = "",
+) -> ResultDict:
+    """Save a chat (or one turn of it) as a Note in the notebook.
+
+    Args:
+        notebook_id: Notebook ID or title alias
+        conversation_id: Conversation ID (see chat_list)
+        turn: 1-indexed turn to save; 0 (default) saves the whole chat
+        title: Optional note title
+    """
+    try:
+        data = chats.save_chat_to_note(
+            notebook=notebook_id,
+            conversation_id=conversation_id,
+            turn_index=turn or None,
+            title=title or None,
+        )
+        return {"status": "success", **data}
+    except Exception as e:
+        return error_result(str(e))

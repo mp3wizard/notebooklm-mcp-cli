@@ -1,5 +1,6 @@
 """Interactive setup wizard for adding and removing Gemini Notebook MCP and skills."""
 
+import os
 import platform
 import shutil
 import subprocess
@@ -453,6 +454,81 @@ def _check_wizard_protect_prompt() -> None:
         pass
 
 
+def _flow_credential_protection() -> int:
+    """Wizard door: protect saved logins, or restore protected ones to plain files."""
+    from notebooklm_tools.cli import protection_flow as pf
+    from notebooklm_tools.services import auth_storage
+
+    if os.environ.get("NLM_AUTH_STORAGE"):
+        console.print(
+            "Storage mode is pinned by NLM_AUTH_STORAGE in your environment. "
+            "Unset it to change protection here."
+        )
+        return 0
+
+    modes = pf.profile_modes()
+    if not modes:
+        console.print("No saved logins yet. Run 'nlm login' first.")
+        return 0
+
+    for name, mode in modes.items():
+        console.print(f"  {name}   {pf.MODE_LABEL.get(mode, 'unknown')}")
+    console.print()
+
+    plain = [n for n, m in modes.items() if m == "file"]
+    protected = [n for n, m in modes.items() if m == "protected"]
+    protect_label = "Protect saved logins (recommended)"
+    restore_label = "Restore protected logins to plain files"
+    choices = ([protect_label] if plain else []) + ([restore_label] if protected else [])
+    choices.append("Back")
+
+    choice = ask_with_back(
+        questionary.select(
+            "Credential protection",
+            choices=choices,
+            instruction="(↑↓ move · Enter select · Esc to go back)",
+            style=WIZARD_STYLE,
+        )
+    )
+    if choice is None or choice == "Back":
+        return 0
+
+    mode = "protected" if choice == protect_label else "file"
+    candidates = plain if mode == "protected" else protected
+
+    if mode == "protected" and not auth_storage.keystore_available():
+        console.print(
+            "Your OS keystore isn't available right now (locked or not a desktop session). "
+            "Nothing changed."
+        )
+        return 0
+
+    if len(candidates) == 1:
+        name = candidates[0]
+        question = (
+            f"Protect '{name}'?"
+            if mode == "protected"
+            else f"Restore '{name}' to a plain file? Anyone who can read your files could read the login."
+        )
+        ok = questionary.confirm(question, default=(mode == "protected"), style=WIZARD_STYLE).ask()
+        targets = [name] if ok else []
+    else:
+        targets = pf.pick_profiles_for_mode(list(modes), mode, modes) or []
+
+    if not targets:
+        console.print("[dim]Nothing selected. No changes.[/dim]")
+        return 0
+
+    results, errors = pf.apply_mode(mode, targets)
+    for res in results:
+        console.print(f"[green]✓[/green] {res['message']}")
+        auth_storage.record_protect_choice(res["profile"], mode == "protected")
+    for err in errors:
+        console.print(f"[red]Error:[/red] {err}")
+    pf.after_switch(mode, results)
+    return 0
+
+
 def run_setup_wizard() -> int:
     """Run the guided setup wizard. Returns process exit code."""
     if not is_interactive():
@@ -479,6 +555,7 @@ def run_setup_wizard() -> int:
                         "Add the MCP to my tools/agents",
                         "Add the skill to my tools/agents",
                         "Remove an MCP or skill",
+                        "Credential protection",
                         "Copy MCP setup for a tool not listed",
                         "Exit",
                     ],
@@ -500,6 +577,8 @@ def run_setup_wizard() -> int:
                 _flow_skill_add()
             elif choice.startswith("Remove"):
                 _flow_remove()
+            elif choice.startswith("Credential"):
+                _flow_credential_protection()
             elif choice.startswith("Copy"):
                 _flow_json()
 

@@ -811,7 +811,7 @@ nlm set config <key> <value>    # Update setting
 ```
 
 **Available config keys:**
-- `auth.browser` — Preferred browser for login: auto (default), chrome, arc, dia, comet, brave, edge, chromium, firefox, vivaldi, opera. Falls back to auto if a preferred named browser is not found.
+- `auth.browser` — Preferred browser for login: auto (default), chrome, arc, dia, comet, brave, edge, edge-beta, chromium, firefox, vivaldi, opera. Falls back to auto if a preferred named browser is not found.
 - `auth.browser_path` — Explicit Chromium-compatible executable path (default: empty). Overrides named discovery; can also be set with `NLM_BROWSER_PATH`.
 - `auth.default_profile` — Default profile name (default: "default")
 - `output.format` — Default output format: table, json (default: "table")

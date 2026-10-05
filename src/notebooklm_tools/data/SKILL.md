@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.14.0"
+version: "0.15.1"
 description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, interactive reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "interactive report", "lesson report", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
@@ -33,7 +33,7 @@ elif has_cli:
     use_cli()
 ```
 
-Check the active account before a mutation when more than one profile is saved: `nlm login profile list` shows accounts, and `nlm config get auth.default_profile` shows the MCP default. CLI commands can use `--profile <name>`; most MCP tools use the active default profile. `usage_get(profile=...)` is an account-specific read and does not switch other MCP tools.
+Check the active account before a mutation when more than one profile is saved: `nlm login profile list` shows accounts, and `nlm config get auth.default_profile` shows the MCP default. CLI commands can use `--profile <name>`. MCP tools use the active profile: call the `profile` tool (`action=list`, then `action=switch` with `name=...`) to change it for this MCP server until it restarts (add `make_default=true` only when the user asks to change their default). While a switch is active, tool results carry `active_profile_note`; tell the user which account is in use. `usage_get(profile=...)` is an account-specific read and does not switch other MCP tools.
 
 ## Quick Reference
 
@@ -65,11 +65,11 @@ nlm usage --json        # Return usage data as machine-readable JSON
 10. **DO NOT launch REPL**: Never use `nlm chat start` - it opens an interactive REPL that AI tools cannot control. Use `nlm notebook query` for one-shot Q&A instead.
 11. **Choose output format wisely**: Default output (no flags) is compact and token-efficient—use it for status checks. Use `--quiet` to capture IDs for piping. Only use `--json` when you need to parse specific fields programmatically.
 12. **Use `--help` when unsure**: Run `nlm <command> --help` to see available options and flags for any command.
-13. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
+13. **Studio: fast track by default**: Infer format/style/prompt from context without asking—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
 14. **Check plan usage before quota-limited work**: Run `nlm usage` (MCP: `usage_get`) before expensive chat or Studio work when budget availability matters. It reports measured compute usage, remaining percentage, and UTC reset times for the rolling and weekly windows. If the check returns an authentication error, refresh the session instead of treating the allowance as exhausted.
 
-**Current MCP surface:** 50 tools. Consolidated action tools include `note`,
-`label`, `studio_status`, `batch`, `pipeline`, and `tag`. Consolidated type
+**Current MCP surface:** 53 tools. Consolidated action tools include `note`,
+`label`, `studio_status`, `batch`, `pipeline`, `tag`, `profile`, and `alias`. Consolidated type
 tools include `source_add`, `studio_create`, and `download_artifact`. The
 read-only `usage_get` tool reports rolling and weekly plan usage windows.
 
@@ -162,6 +162,7 @@ mcp__gemini-notebook-mcp__save_auth_tokens(cookies="<cookie_header>")
 ```bash
 nlm login                           # Launch browser, extract cookies (primary method)
 nlm login --check                   # Validate current session
+nlm login --storage protected       # New profile: store the login encrypted (or 'file'); skips the question
 nlm login --profile work            # Use named profile for multiple accounts
 nlm login --provider openclaw --cdp-url http://127.0.0.1:18800  # External CDP provider
 nlm login switch <profile>          # Switch the default profile
@@ -185,7 +186,7 @@ nlm auth storage relocate           # Re-bind credentials after moving storage d
 `not_configured` means first-time setup is required; `unverified` means the
 probe was inconclusive; `error` means the health check itself failed.
 
-**Switching MCP Accounts**: The MCP server always uses the active default profile. If you need to switch which Google account the MCP server is communicating with, you MUST use the CLI: run `nlm login switch <name>`. Your next MCP tool call will instantly use the new account.
+**Switching MCP Accounts**: Call the `profile` tool: `profile(action="list")` shows saved accounts, `profile(action="switch", name="<name>")` uses that account for every later MCP call until the MCP server restarts (apps that share one server across chats, like Claude Desktop, apply it to every open chat). Add `make_default=true` ONLY if the user asks to change their default account; it also changes the CLI default. From a terminal, `nlm login switch <name>` changes the saved default and the next MCP call uses it.
 
 **Note**: Both MCP and CLI share the same authentication backend, so authenticating with one works for both.
 
@@ -507,7 +508,7 @@ nlm data-table create <id> "Extract all dates and events" --confirm
 
 **Full guides:** [studio-prompting-guide.md](references/studio-prompting-guide.md) | [studio-prompt-examples.md](references/studio-prompt-examples.md)
 
-**Fast track (default):** Silently infer (user message → notebook title → `notebook_describe` if needed) → **minimal** 1–3 sentence prompt with grounding anchor → one-line notice → `studio_create(confirm=True)`. Never run multi-question intake.
+**Fast track (default):** Infer from context without asking (user message → notebook title → `notebook_describe` if needed) → **minimal** 1–3 sentence prompt with grounding anchor → one-line notice → `studio_create(confirm=True)`. Never run multi-question intake.
 
 **Guided preview (exception):** Vague request, **any cinematic video**, high-stakes deliverable, empty notebook, or user asks → show settings + **full** prompt → one optional refine → generate.
 
@@ -673,8 +674,8 @@ Use `chat_list`, `chat_get`, and `chat_export` to list/view/export a
 notebook's chat history. Transcripts are fetched from NotebookLM's server
 (not just this process's cache), so past chats are visible even from a fresh
 MCP session. `chat_get`'s `conversation_id` is optional and defaults to the
-notebook's latest session. There is no MCP tool for saving a chat to a note
-yet — use the CLI's `nlm chats to-note` for that.
+notebook's latest session. Use `chat_save_to_note` (CLI: `nlm chats to-note`)
+to save a chat or one turn as a Note. Aliases from `alias` work as `notebook_id`.
 
 #### CLI Commands
 
@@ -792,7 +793,7 @@ nlm login switch work                        # Switch default profile
 | `output.format`        | `table`   | Default output format (table, json)                                                             |
 | `output.color`         | `true`    | Enable colored output                                                                           |
 | `output.short_ids`     | `true`    | Show shortened IDs                                                                              |
-| `auth.browser`         | `auto`    | Preferred browser for login (auto, chrome, arc, dia, comet, brave, edge, chromium, firefox, vivaldi, opera) |
+| `auth.browser`         | `auto`    | Preferred browser for login (auto, chrome, arc, dia, comet, brave, edge, edge-beta, chromium, firefox, vivaldi, opera) |
 | `auth.browser_path`    | empty     | Explicit Chromium-compatible executable; overrides discovery (`NLM_BROWSER_PATH` also supported) |
 | `auth.default_profile` | `default` | Profile to use when `--profile` not specified                                                   |
 

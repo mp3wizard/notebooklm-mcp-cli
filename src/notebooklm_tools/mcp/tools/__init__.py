@@ -1,6 +1,7 @@
 """MCP tools - Modular tool definitions for the Gemini Notebook MCP server."""
 
 # Import all tools from submodules for registration
+from .aliases import alias
 from .auth import refresh_auth, save_auth_tokens
 from .batch import batch
 from .chat import (
@@ -9,7 +10,7 @@ from .chat import (
     notebook_query_start,
     notebook_query_status,
 )
-from .chats import chat_export, chat_get, chat_list
+from .chats import chat_export, chat_get, chat_list, chat_save_to_note
 from .collections import (
     collection_create,
     collection_delete,
@@ -33,6 +34,7 @@ from .notebooks import (
 )
 from .notes import note
 from .pipeline import pipeline
+from .profiles import profile
 from .research import (
     research_import,
     research_start,
@@ -71,6 +73,8 @@ __all__ = [
     # Auth (2)
     "refresh_auth",
     "save_auth_tokens",
+    "profile",
+    "alias",
     # Notebooks (6)
     "notebook_list",
     "notebook_get",
@@ -115,6 +119,7 @@ __all__ = [
     "chat_list",
     "chat_get",
     "chat_export",
+    "chat_save_to_note",
     # Exports (1)
     "export_artifact",
     # Notes (1 consolidated)

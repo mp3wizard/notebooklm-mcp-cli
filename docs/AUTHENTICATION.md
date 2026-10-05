@@ -14,7 +14,7 @@ Gemini Notebook uses browser cookies for authentication (there is no official AP
 - Chromium-family browsers use Chrome DevTools Protocol (CDP)
 - Firefox uses an isolated profile and reads its cookie store directly (no CDP or WebDriver required)
 
-**Supported browsers**: Google Chrome, Arc (macOS), Dia (macOS) Brave, Microsoft Edge, Chromium, Firefox, Vivaldi, Opera.
+**Supported browsers**: Google Chrome, Arc (macOS), Dia (macOS) Brave, Microsoft Edge, Microsoft Edge Beta, Chromium, Firefox, Vivaldi, Opera.
 
 On Windows, standalone Chromium is discovered in the standard machine-wide
 locations under `C:\Program Files` and `C:\Program Files (x86)`, plus the
@@ -36,7 +36,7 @@ This method launches your browser automatically and extracts cookies after you l
 
 ### Prerequisites
 
-- A supported browser installed (Chrome, Arc, Dia, Brave, Edge, Chromium, Firefox, Vivaldi, or Opera)
+- A supported browser installed (Chrome, Arc, Dia, Brave, Edge, Edge Beta, Chromium, Firefox, Vivaldi, or Opera)
 - Chromium-family browsers should be **completely closed** before running
 
 ### Steps
@@ -46,10 +46,13 @@ This method launches your browser automatically and extracts cookies after you l
 
 # 2. Run the auth command (CLI or standalone)
 nlm login                      # Recommended
+#    New profile? It first asks: Protected (OS keystore, recommended) or Plain file.
+#    See "Choosing at first login" under Protected Storage below.
 
 # 3. Log in to your Google account in the browser window that opens
+#    (Ctrl+C cancels cleanly: nothing is saved and the browser window is closed)
 
-# 4. Wait for "SUCCESS!" message
+# 4. Wait for "Successfully authenticated!"
 ```
 
 If your DevTools endpoint is slow to respond, you can increase the timeout:
@@ -80,7 +83,7 @@ nlm config set auth.browser brave
 # Or use an environment variable
 export NLM_BROWSER=arc
 
-# Valid values: auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera
+# Valid values: auto, chrome, arc, brave, edge, edge-beta, chromium, firefox, vivaldi, opera
 # If the preferred browser is not installed, falls back to auto-detection.
 ```
 
@@ -122,6 +125,10 @@ nlm notebook list --profile work     # Uses work account
 nlm login profile rename work company
 nlm login profile delete old-profile
 ```
+
+### Switching accounts from an MCP app (no CLI needed)
+
+AI apps that only have the MCP (for example Claude CoWork) can use the `profile` tool: list your saved accounts, switch for the current session, and optionally make a profile your saved default (`make_default=true`). A session switch lasts until the MCP server restarts. Apps like Claude Desktop share one MCP server across chats, so a switch can show up in other open chats until you quit and reopen the app. While a switch is active, every tool result names the account in use.
 
 ### How Multi-Profile Works
 
@@ -296,6 +303,18 @@ In **Protected mode**, your cookies and session tokens are encrypted on disk wit
 - **Linux:** SecretService API (GNOME Keyring, KWallet)
 
 Protected mode is **optional**. File mode remains the default, and upgrading `notebooklm-mcp-cli` changes nothing until you explicitly choose to enable it.
+
+### Choosing at first login
+
+When you log in with a **new** profile in a terminal on a desktop computer, `nlm login` asks before the browser opens:
+
+```
+Where should your saved login live?
+  1) Protected - encrypted, key kept in your OS keystore (recommended)
+  2) Plain file - simple, readable by anything on this computer
+```
+
+Protected mode only accepts names made of letters, numbers, `-`, `_` and `.`. If you type something else (for example `my work` or `john@work.com`), the question offers a working name such as `my-work` and also lets you keep your name as a plain file. Choosing protected means the login is encrypted from the start and you will not be asked or reminded again. Choosing plain is respected too. Skip the question in scripts with `nlm login --storage protected` (or `--storage file`). Existing profiles keep their current mode; change it later with `nlm setup` (the "Credential protection" menu item) or `nlm auth storage set`.
 
 ### Commands
 

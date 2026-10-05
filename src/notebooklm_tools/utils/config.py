@@ -507,7 +507,7 @@ class AuthConfig(BaseModel):
     browser: str = Field(
         default="auto",
         description=(
-            "Browser for auth: auto, chrome, arc, brave, dia, comet, edge, chromium, firefox, vivaldi, opera"
+            "Browser for auth: auto, chrome, arc, brave, dia, comet, edge, edge-beta, chromium, firefox, vivaldi, opera"
         ),
     )
     browser_path: str = Field(
@@ -687,6 +687,10 @@ def set_auth_storage_mode(profile_name: str, mode: str) -> None:
     os.replace(temp_path, marker_path)
 
 
+# In-process override for "which account to use" (set by the MCP profile tool).
+_session_profile: str | None = None
+
+
 def load_config() -> Config:
     """Load configuration from file and environment."""
     config_file = get_config_file()
@@ -722,6 +726,9 @@ def load_config() -> Config:
     if profile := os.environ.get("NLM_PROFILE"):
         config_data.setdefault("auth", {})["default_profile"] = profile
 
+    if _session_profile:
+        config_data.setdefault("auth", {})["default_profile"] = _session_profile
+
     return Config(**config_data)
 
 
@@ -753,7 +760,7 @@ def save_config(config: Config) -> None:
         doc["auth"]["browser"] = config.auth.browser
     if not os.environ.get("NLM_BROWSER_PATH"):
         doc["auth"]["browser_path"] = config.auth.browser_path
-    if not os.environ.get("NLM_PROFILE"):
+    if not os.environ.get("NLM_PROFILE") and not _session_profile:
         doc["auth"]["default_profile"] = config.auth.default_profile
 
     temp_file = config_file.parent / f"config.toml.tmp.{os.getpid()}"
@@ -799,3 +806,34 @@ def reset_config() -> None:
     """Reset the global configuration (for testing)."""
     global _config
     _config = None
+
+
+def set_session_profile(name: str | None) -> None:
+    """Make 'which account to use' lookups in this process use `name` (None clears it)."""
+    global _session_profile
+    _session_profile = name.strip() if name and name.strip() else None
+    reset_config()
+
+
+def get_session_profile() -> str | None:
+    """The in-process profile override set by set_session_profile(), if any."""
+    return _session_profile
+
+
+def get_saved_default_profile() -> str:
+    """default_profile as written in config.toml, ignoring session and env overrides."""
+    config_file = get_config_file()
+    if config_file.exists():
+        try:
+            import tomllib
+
+            with open(config_file, "rb") as f:
+                return str(tomllib.load(f).get("auth", {}).get("default_profile", "default"))
+        except Exception:
+            pass
+    return "default"
+
+
+def get_base_default_profile() -> str:
+    """The default profile ignoring this process's session override (NLM_PROFILE, else saved)."""
+    return os.environ.get("NLM_PROFILE") or get_saved_default_profile()

@@ -19,6 +19,7 @@ from notebooklm_tools.utils.config import (
     get_config,
     get_profile_dir,
     get_profiles_dir,
+    get_storage_dir,
     save_config,
     set_auth_storage_mode,
 )
@@ -67,6 +68,100 @@ def test_rename_profile_moves_file_mode_profile(fake_credential_store):
 
     # Default profile was updated
     assert get_config().auth.default_profile == "dest_prof"
+
+
+def test_rename_profile_moves_saved_browser_identity(fake_credential_store):
+    """The saved browser user-data-dir follows the auth profile name."""
+    AuthManager("browser_old").save_profile(cookies={"SID": "cookie"})
+
+    chrome_root = get_storage_dir() / "chrome-profiles"
+    old_browser = chrome_root / "browser_old"
+    new_browser = chrome_root / "browser_new"
+    old_browser.mkdir(parents=True)
+    (old_browser / "identity.txt").write_text("owned", encoding="utf-8")
+
+    rename_profile("browser_old", "browser_new")
+
+    assert not old_browser.exists()
+    assert (new_browser / "identity.txt").read_text(encoding="utf-8") == "owned"
+    assert AuthManager("browser_new").profile_exists()
+
+
+def test_rename_profile_refuses_browser_identity_collision(fake_credential_store):
+    """Never rename auth while an unrelated browser identity owns the target name."""
+    AuthManager("browser_src").save_profile(cookies={"SID": "cookie"})
+
+    chrome_root = get_storage_dir() / "chrome-profiles"
+    (chrome_root / "browser_src").mkdir(parents=True)
+    (chrome_root / "browser_dest").mkdir(parents=True)
+
+    with pytest.raises(ConflictError, match="Browser profile 'browser_dest' already exists"):
+        rename_profile("browser_src", "browser_dest")
+
+    assert AuthManager("browser_src").profile_exists()
+    assert not AuthManager("browser_dest").profile_exists()
+
+
+def test_rename_profile_rolls_back_browser_and_auth_on_config_failure(
+    fake_credential_store,
+    monkeypatch,
+):
+    """A late config failure restores both auth and browser identity."""
+    AuthManager("rollback_old").save_profile(cookies={"SID": "cookie"})
+    config = get_config()
+    config.auth.default_profile = "rollback_old"
+    save_config(config)
+
+    chrome_root = get_storage_dir() / "chrome-profiles"
+    old_browser = chrome_root / "rollback_old"
+    new_browser = chrome_root / "rollback_new"
+    old_browser.mkdir(parents=True)
+    (old_browser / "identity.txt").write_text("owned", encoding="utf-8")
+
+    def fail_save(_config):
+        raise OSError("simulated config write failure")
+
+    monkeypatch.setattr(
+        "notebooklm_tools.utils.config.save_config",
+        fail_save,
+    )
+
+    with pytest.raises(OSError, match="simulated config write failure"):
+        rename_profile("rollback_old", "rollback_new")
+
+    assert AuthManager("rollback_old").profile_exists()
+    assert not AuthManager("rollback_new").profile_exists()
+    assert (old_browser / "identity.txt").read_text(encoding="utf-8") == "owned"
+    assert not new_browser.exists()
+    assert get_config().auth.default_profile == "rollback_old"
+
+
+def test_rename_profile_refuses_leftover_browser_dir_at_destination(fake_credential_store):
+    """A stray browser dir under the new name must not be adopted by the renamed profile."""
+    AuthManager("leftover_src").save_profile(cookies={"SID": "cookie"})
+
+    stray = get_storage_dir() / "chrome-profiles" / "leftover_dest"
+    stray.mkdir(parents=True)
+
+    with pytest.raises(ConflictError, match="Browser profile 'leftover_dest' already exists"):
+        rename_profile("leftover_src", "leftover_dest")
+
+    assert AuthManager("leftover_src").profile_exists()
+    assert not AuthManager("leftover_dest").profile_exists()
+
+
+def test_rename_profile_moves_firefox_identity_too(fake_credential_store):
+    """The saved Firefox profile follows the auth profile name, like the Chrome one."""
+    AuthManager("ff_old").save_profile(cookies={"SID": "cookie"})
+
+    firefox_root = get_storage_dir() / "firefox-profiles"
+    (firefox_root / "ff_old").mkdir(parents=True)
+    (firefox_root / "ff_old" / "identity.txt").write_text("owned", encoding="utf-8")
+
+    rename_profile("ff_old", "ff_new")
+
+    assert not (firefox_root / "ff_old").exists()
+    assert (firefox_root / "ff_new" / "identity.txt").read_text(encoding="utf-8") == "owned"
 
 
 def test_rename_profile_reads_raw_marker_without_nlm_auth_storage_env_bleed(

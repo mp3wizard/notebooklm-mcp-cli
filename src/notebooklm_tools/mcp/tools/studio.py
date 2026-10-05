@@ -220,7 +220,7 @@ def studio_create(
             return error_result(
                 f"Cannot create {artifact_type}: NotebookLM auth is not valid. "
                 "Run `nlm login` in a terminal to re-authenticate, then retry. "
-                "`refresh_auth()` will NOT help if the tokens are expired — it only reloads them from disk.",
+                "`refresh_auth()` validates cached credentials and then attempts headless recovery before requiring an interactive login.",
                 hint="nlm login",
                 reason=auth_reason,
                 details=auth_error,

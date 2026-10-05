@@ -2,8 +2,9 @@
 
 import contextlib
 import logging
-from pathlib import Path
-from typing import Any
+import os
+from collections.abc import Callable
+from typing import Any, NamedTuple, TypeVar
 
 import typer
 
@@ -61,6 +62,12 @@ from notebooklm_tools.cli.commands.verbs import (
     sync_app,
     uninstall_app,
     update_app,
+)
+from notebooklm_tools.cli.protection_flow import (
+    offer_plain_backup_cleanup as _offer_plain_backup_cleanup,
+)
+from notebooklm_tools.cli.protection_flow import (
+    pick_profiles_for_mode as _pick_profiles_for_mode,
 )
 from notebooklm_tools.cli.utils import make_console
 
@@ -199,25 +206,143 @@ def _print_auth_valid(profile: Any, notebook_count: int | None) -> None:
         console.print(f"  Account: {profile.email}")
 
 
-def _offer_plain_backup_cleanup(candidates: list[Path]) -> None:
-    """List leftover plain login backups and offer to delete them (default No)."""
-    from notebooklm_tools.services.auth_storage import remove_plain_backup_files
+class StorageChoice(NamedTuple):
+    mode: str  # "file" | "protected"
+    asked: bool  # the user answered the question -> record it after a successful save
+    is_new: bool  # the profile had no saved credentials before this login
+    rename_to: str | None = None  # profile name to use instead (protected-safe suggestion)
 
-    if not candidates:
-        return
-    n = len(candidates)
-    console.print(f"\nFound {n} old plain login backup{'' if n == 1 else 's'}:")
-    for c in candidates:
-        console.print(f"  - {c}")
-    question = "Delete this old plain copy?" if n == 1 else f"Delete these {n} old plain copies?"
+
+_T = TypeVar("_T")
+
+
+def _choose_storage_mode(profile: str, storage_flag: str | None) -> StorageChoice:
+    """Decide plain vs protected BEFORE the browser opens. Writes nothing to disk."""
+    import click
+
+    from notebooklm_tools.services import auth_storage as st
+    from notebooklm_tools.services.auth import AuthManager
+    from notebooklm_tools.utils.config import get_auth_storage_mode
+
+    exists = AuthManager(profile).profile_exists()
+    env = os.environ.get("NLM_AUTH_STORAGE", "").strip().lower() or None
+    current = get_auth_storage_mode(profile) if (exists or env) else None
+    label = {"file": "plain", "protected": "protected"}
+
+    if storage_flag is not None:
+        flag = storage_flag.strip().lower()
+        if flag not in ("file", "protected"):
+            console.print(
+                f"[red]Error:[/red] --storage must be 'file' or 'protected', not '{storage_flag}'"
+            )
+            raise typer.Exit(1)
+        if env and flag != env:
+            console.print(
+                f"[red]Error:[/red] NLM_AUTH_STORAGE is '{env}' in your environment; "
+                f"--storage {flag} contradicts it."
+            )
+            raise typer.Exit(1)
+        if exists and flag != current:
+            console.print(
+                f"[red]Error:[/red] Profile '{profile}' already exists as "
+                f"{label.get(str(current), current)}. --storage only applies to new profiles. "
+                f"To change it run: nlm auth storage set {flag} --profile {profile}"
+            )
+            raise typer.Exit(1)
+        if flag == "protected" and not exists:
+            problem = st.protected_name_problem(profile)
+            if problem:
+                console.print(f"[red]Error:[/red] {problem}")
+                suggestion = st.suggest_protected_name(profile)
+                if suggestion:
+                    console.print(
+                        f"To use protected storage, run again with --profile {suggestion}"
+                    )
+                raise typer.Exit(1)
+            if not st.keystore_available():
+                console.print(
+                    "[red]Error:[/red] Cannot use protected storage: your OS keystore is locked "
+                    "or unavailable. Unlock it (or run from your desktop session) and retry, "
+                    "or use --storage file."
+                )
+                raise typer.Exit(1)
+        return StorageChoice(flag, False, not exists)
+
+    if exists or env:
+        return StorageChoice(str(current), False, not exists)
+    if not _is_terminal() or not st.is_desktop_session():
+        return StorageChoice("file", False, True)
+    if st.protected_name_problem(profile):
+        suggestion = st.suggest_protected_name(profile)
+        if suggestion is None:
+            console.print(
+                f"[dim]The name '{profile}' can't be used for protected storage "
+                "(use letters, numbers, - _ . only), so this login will be saved as a "
+                "plain file.[/dim]"
+            )
+            return StorageChoice("file", False, True)
+        console.print(
+            f"\n[bold]The name '{profile}' can't be used with protected storage[/bold] "
+            "(letters, numbers, - _ . only)."
+        )
+        console.print(
+            f"  1) Use '{suggestion}' instead and protect the login [green](recommended)[/green]"
+        )
+        console.print(f"  2) Keep '{profile}' as a plain file")
+        answer = typer.prompt("Choose 1 or 2", type=click.IntRange(1, 2), default=1)
+        if answer == 2:
+            return StorageChoice("file", True, True)
+        if not st.keystore_available():
+            console.print(
+                "Your OS keystore isn't available right now, so this login will be saved as a "
+                "plain file. You can protect it later with: nlm setup"
+            )
+            return StorageChoice("file", False, True)
+        console.print(f"Using profile name '{suggestion}'.")
+        return StorageChoice("protected", True, True, suggestion)
+
+    console.print("\n[bold]Where should your saved login live?[/bold]")
+    console.print(
+        "  1) Protected - encrypted, key kept in your OS keystore [green](recommended)[/green]"
+    )
+    console.print("  2) Plain file - simple, readable by anything on this computer")
+    answer = typer.prompt("Choose 1 or 2", type=click.IntRange(1, 2), default=1)
+    if answer == 1 and not st.keystore_available():
+        console.print(
+            "Your OS keystore isn't available right now, so this login will be saved as a "
+            "plain file. You can protect it later with: nlm setup"
+        )
+        return StorageChoice("file", False, True)
+    return StorageChoice("protected" if answer == 1 else "file", True, True)
+
+
+def _save_with_storage_choice(profile: str, choice: StorageChoice, save: Callable[[], _T]) -> _T:
+    """Apply the up-front choice around the credential save; roll back a failed first save."""
+    from notebooklm_tools.services import auth_storage as st
+
+    if choice.is_new and choice.mode == "protected":
+        st.mark_new_profile_protected(profile)
     try:
-        confirmed = typer.confirm(question, default=False)
-    except typer.Abort:  # no keyboard (script / closed stdin): treat as No
-        console.print("[dim]Kept them (no answer).[/dim]")
-        return
-    if confirmed:
-        removed = len(remove_plain_backup_files(candidates))
-        console.print(f"Removed {removed} old plain {'copy' if removed == 1 else 'copies'}.")
+        result = save()
+    except BaseException:
+        if choice.is_new:
+            st.discard_unsaved_profile(profile)
+        raise
+    if choice.asked:
+        st.record_protect_choice(profile, choice.mode == "protected")
+    return result
+
+
+def _announce_protected(choice: StorageChoice) -> None:
+    """One confirmation line after a brand-new protected login (plus the Mac popup hint)."""
+    if choice.is_new and choice.mode == "protected":
+        import sys
+
+        console.print("[green]✓[/green] Login stored in protected mode.")
+        if sys.platform == "darwin":
+            from notebooklm_tools.cli.protection_flow import MAC_HINT
+
+            console.print(MAC_HINT)
 
 
 def _maybe_prompt_protect_mode(profile: str) -> None:
@@ -266,6 +391,14 @@ def _maybe_prompt_protect_mode(profile: str) -> None:
             _offer_plain_backup_cleanup(find_plain_backup_files(profile))
         except Exception as exc:
             console.print(f"[yellow]Could not enable protected mode:[/yellow] {exc}")
+
+
+def _close_login_chrome() -> None:
+    """Close the automation Chrome this login launched (no-op if it launched none)."""
+    from notebooklm_tools.utils.cdp import terminate_chrome
+
+    with contextlib.suppress(Exception):
+        terminate_chrome()
 
 
 @login_app.callback(invoke_without_command=True)
@@ -319,6 +452,12 @@ def login_callback(
         "--wsl",
         help="Launch Windows Chrome from WSL (fixes terminal corruption on WSL2)",
     ),
+    storage: str | None = typer.Option(
+        None,
+        "--storage",
+        help="Where to keep the saved login for a NEW profile: 'protected' (OS keystore, "
+        "recommended) or 'file'. Skips the question.",
+    ),
 ) -> None:
     """
     Authenticate with NotebookLM.
@@ -329,6 +468,7 @@ def login_callback(
     Use --provider openclaw --cdp-url <url> to read auth from an existing
     OpenClaw-managed browser CDP endpoint.
     Use --wsl on WSL2 to launch Windows Chrome and avoid terminal corruption.
+    Use --storage protected|file to choose how a NEW profile's login is stored.
 
     To switch active accounts, run `nlm login switch <profile>`.
     """
@@ -369,6 +509,17 @@ def login_callback(
             raise typer.Exit(2) from e
         return
 
+    provider = (provider or "builtin").strip().lower()
+    if provider not in {"builtin", "openclaw"}:
+        console.print(f"[red]Error:[/red] Unsupported provider '{provider}'")
+        console.print("[dim]Supported values: builtin, openclaw[/dim]")
+        raise typer.Exit(1)
+
+    choice = _choose_storage_mode(profile, storage)
+    if choice.rename_to:
+        profile = choice.rename_to
+        auth = AuthManager(profile)
+
     if manual:
         # Manual mode - read from file
         if not cookie_file:
@@ -377,22 +528,17 @@ def login_callback(
                 default="~/.nlm/cookies.txt",
             )
         try:
-            auth.login_with_file(cookie_file)
+            _save_with_storage_choice(profile, choice, lambda: auth.login_with_file(cookie_file))
             console.print("[green]✓[/green] Successfully authenticated!")
             console.print(f"  Profile saved: {profile}")
             console.print(f"  Credentials saved to: {auth.profile_dir}")
+            _announce_protected(choice)
         except NLMError as e:
             console.print(f"[red]Error:[/red] {e.message}")
             if e.hint:
                 console.print(f"\n[dim]Hint: {e.hint}[/dim]")
             raise typer.Exit(1) from e
         return
-
-    provider = (provider or "builtin").strip().lower()
-    if provider not in {"builtin", "openclaw"}:
-        console.print(f"[red]Error:[/red] Unsupported provider '{provider}'")
-        console.print("[dim]Supported values: builtin, openclaw[/dim]")
-        raise typer.Exit(1)
 
     from notebooklm_tools.utils.config import get_auth_storage_mode
 
@@ -644,15 +790,19 @@ def login_callback(
         base_host = result.get("base_host", "")
 
         # Save to profile
-        auth.save_profile(
-            cookies=cookies,
-            csrf_token=csrf_token,
-            session_id=session_id,
-            email=email,
-            force=force,
-            build_label=build_label,
-            base_host=base_host,
-            browser_backend=managed_browser_backend or None,
+        _save_with_storage_choice(
+            profile,
+            choice,
+            lambda: auth.save_profile(
+                cookies=cookies,
+                csrf_token=csrf_token,
+                session_id=session_id,
+                email=email,
+                force=force,
+                build_label=build_label,
+                base_host=base_host,
+                browser_backend=managed_browser_backend or None,
+            ),
         )
 
         # Close builtin auth Chrome to release profile lock (enables headless auth later)
@@ -668,7 +818,9 @@ def login_callback(
         if email:
             console.print(f"  Account: {email}")
         console.print(f"  Credentials saved to: {auth.profile_dir}")
-        _maybe_prompt_protect_mode(profile)
+        _announce_protected(choice)
+        if not choice.is_new:
+            _maybe_prompt_protect_mode(profile)
 
     except AccountMismatchError as e:
         if provider == "builtin" and not force:
@@ -713,15 +865,19 @@ def login_callback(
                 build_label = result.get("build_label", "")
                 base_host = result.get("base_host", "")
 
-                auth.save_profile(
-                    cookies=cookies,
-                    csrf_token=csrf_token,
-                    session_id=session_id,
-                    email=email,
-                    force=True,  # Allow overwrite on retry
-                    build_label=build_label,
-                    base_host=base_host,
-                    browser_backend=managed_browser_backend or None,
+                _save_with_storage_choice(
+                    profile,
+                    choice,
+                    lambda: auth.save_profile(
+                        cookies=cookies,
+                        csrf_token=csrf_token,
+                        session_id=session_id,
+                        email=email,
+                        force=True,  # Allow overwrite on retry
+                        build_label=build_label,
+                        base_host=base_host,
+                        browser_backend=managed_browser_backend or None,
+                    ),
                 )
 
                 if launched_local_chrome:
@@ -738,7 +894,9 @@ def login_callback(
                 if email:
                     console.print(f"  Account: {email}")
                 console.print(f"  Credentials saved to: {auth.profile_dir}")
-                _maybe_prompt_protect_mode(profile)
+                _announce_protected(choice)
+                if not choice.is_new:
+                    _maybe_prompt_protect_mode(profile)
             except NLMError as retry_err:
                 console.print(f"\n[red]Error on retry:[/red] {retry_err.message}")
                 if retry_err.hint:
@@ -749,10 +907,15 @@ def login_callback(
             console.print(f"\n[yellow]Hint:[/yellow] {e.hint}")
             raise typer.Exit(1) from e
     except NLMError as e:
+        _close_login_chrome()
         console.print(f"\n[red]Error:[/red] {e.message}")
         if e.hint:
             console.print(f"\n[dim]Hint: {e.hint}[/dim]")
         raise typer.Exit(1) from e
+    except KeyboardInterrupt:
+        _close_login_chrome()
+        console.print("\n[yellow]Login cancelled.[/yellow]")
+        raise typer.Exit(130) from None
 
 
 @profile_app.command("list")
@@ -1009,12 +1172,9 @@ def storage_set(
 
     In a terminal with several saved logins and no --profile, shows a picker.
     """
-    import sys
-
     from notebooklm_tools.cli.formatters import print_json
-    from notebooklm_tools.services.auth import AuthManager
-    from notebooklm_tools.services.auth_storage import find_plain_backup_files, set_storage_mode
-    from notebooklm_tools.services.errors import ServiceError, ValidationError
+    from notebooklm_tools.cli.protection_flow import after_switch, apply_mode
+    from notebooklm_tools.services.auth_storage import saved_profile_names
     from notebooklm_tools.utils.config import ConfigError, get_auth_storage_mode, get_config
 
     mode = mode.strip().lower()
@@ -1027,7 +1187,7 @@ def storage_set(
             return None
 
     try:
-        profiles = sorted(AuthManager.list_profiles())
+        profiles = saved_profile_names()
         if profile:
             targets = [profile]
         elif all_profiles:
@@ -1042,14 +1202,7 @@ def storage_set(
         else:
             targets = [get_config().auth.default_profile]
 
-        results = []
-        errors: list[str] = []
-        for name in targets:
-            try:
-                results.append(set_storage_mode(mode=mode, profile_name=name))
-            except (ServiceError, ValidationError) as e:
-                msg = getattr(e, "user_message", str(e))
-                errors.append(msg if len(targets) == 1 else f"{name}: {msg}")
+        results, errors = apply_mode(mode, targets)
 
         if json_output:
             if len(targets) == 1 and not errors:
@@ -1067,16 +1220,7 @@ def storage_set(
         for err in errors:
             console.print(f"[red]Error:[/red] {err}")
 
-        changed = [r["profile"] for r in results if r.get("status") != "unchanged"]
-        if mode == "protected":
-            if changed and sys.platform == "darwin":
-                console.print(
-                    "[dim]Usually no popup. If one appears, enter your Mac login password and click Always Allow.[/dim]"
-                )
-            # Offer old plain backups of every protected profile, not just this run's.
-            protected_now = [p for p in profiles if _mode_of(p) == "protected"]
-            backups = sorted({f for name in protected_now for f in find_plain_backup_files(name)})
-            _offer_plain_backup_cleanup(backups)
+        after_switch(mode, results)
 
         others = [p for p in profiles if p not in targets and _mode_of(p) not in (mode, None)]
         if others and mode in label:
@@ -1100,43 +1244,6 @@ def _is_terminal() -> bool:
     import sys
 
     return sys.stdin.isatty() and sys.stdout.isatty()
-
-
-def _pick_profiles_for_mode(
-    profiles: list[str], mode: str, modes: dict[str, str | None]
-) -> list[str] | None:
-    """Checkbox picker of saved profiles; ones already in `mode` are shown but disabled."""
-    from typing import cast
-
-    import questionary  # type: ignore[import-not-found]
-
-    from notebooklm_tools.cli.commands.setup import WIZARD_STYLE
-
-    label = {"protected": "protected", "file": "plain", None: "unknown"}
-    target_label = "protected" if mode == "protected" else "plain"
-    if all(modes.get(p) == mode for p in profiles):
-        console.print(f"[green]✓[/green] All saved logins are already {target_label}.")
-        return []
-
-    width = max(len(p) for p in profiles)
-    choices = [
-        questionary.Choice(
-            title=f"{p.ljust(width)}   {label.get(modes.get(p), 'unknown')}",
-            value=p,
-            disabled=f"already {target_label}" if modes.get(p) == mode else None,
-        )
-        for p in profiles
-    ]
-    verb = "protected" if mode == "protected" else "switched back to plain files"
-    return cast(
-        list[str] | None,
-        questionary.checkbox(
-            f"Which saved logins should be {verb}?",
-            choices=choices,
-            instruction="(↑↓ move · Space select · Enter confirm)",
-            style=WIZARD_STYLE,
-        ).ask(),
-    )
 
 
 @storage_app.command("resolve")

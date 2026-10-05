@@ -1,6 +1,6 @@
 # MCP Guide
 
-Complete reference for the Gemini Notebook (formerly Google NotebookLM) MCP server — **50 tools** for AI assistants.
+Complete reference for the Gemini Notebook (formerly Google NotebookLM) MCP server — **53 tools** for AI assistants.
 
 ## Installation
 
@@ -38,6 +38,8 @@ Or use the standalone auth tool:
 ```bash
 nlm login
 ```
+
+A new profile asks whether to store the login **protected** (OS keystore, recommended) or as a plain file before the browser opens. To use a different Google account from inside an AI app, use the `profile` tool (see [Profiles & Aliases](#profiles--aliases-2-tools)).
 
 ---
 
@@ -106,13 +108,14 @@ to the notebook). For longer operations, use `notebook_query_start` and poll
 returns a structured error with a retry hint rather than an uninformative
 transport failure.
 
-### Chat Sessions (3 tools)
+### Chat Sessions (4 tools)
 
 | Tool | Description |
 |------|-------------|
 | `chat_list` | List chat sessions for a notebook |
 | `chat_get` | Get full transcript of a chat session (defaults to latest) |
 | `chat_export` | Export a chat transcript to Markdown or JSON |
+| `chat_save_to_note` | Save a chat (or one turn) as a Note in the notebook |
 
 ### Studio Content (8 tools)
 
@@ -244,11 +247,26 @@ label(notebook_id="abc", action="delete", label_id="...", confirm=True)
 | `refresh_auth` | Reload auth tokens (supports both File mode and Protected mode transparently) |
 | `save_auth_tokens` | Save cookies (fallback method) |
 
+### Profiles & Aliases (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `profile` | **Unified** — list saved accounts, show storage status, switch account (action: list, status, switch) |
+| `alias` | **Unified** — short names for notebook IDs (action: list, get, set, delete); every `notebook_id` accepts an alias |
+
+```python
+profile(action="list")                                   # accounts, storage mode, which is active
+profile(action="switch", name="personal")                # this MCP server, until it restarts
+profile(action="switch", name="work", make_default=True) # ALSO the saved default (CLI + future sessions)
+```
+
+A switch applies to the whole MCP server process. Apps that share one server across chats (Claude Desktop, CoWork) apply it to every open chat until you quit the app, so while a switch is active each tool result carries an `active_profile_note`. If the server was started with `NOTEBOOKLM_COOKIES`, switching is refused because those cookies override saved profiles. Aliases are shared across all profiles.
+
 ### Server (1 tool)
 
 | Tool | Description |
 |------|-------------|
-| `server_info` | Get version, update check, and `storage_warning` diagnostic |
+| `server_info` | Get version, update check, `storage_warning` diagnostic, and the saved profiles with their storage mode |
 
 `server_info` returns server metadata, update availability, and an optional `storage_warning` field. If credential storage has an unresolved conflict, an unfinished migration marker, or an inaccessible keystore, `storage_warning` provides clear instructions on which `nlm auth storage` command to run.
 
@@ -279,12 +297,13 @@ cross_notebook_query(query="Everything", all=True)
 
 | Tool | Description |
 |------|-------------|
-| `pipeline` | **Unified** — List or run multi-step workflows (action: list, run) |
+| `pipeline` | **Unified** — List, run or create multi-step workflows (action: list, run, create) |
 
 **`pipeline` actions:**
 ```python
 pipeline(action="list")  # List available pipelines
 pipeline(action="run", notebook_id="...", pipeline_name="ingest-and-podcast", input_url="https://...")
+pipeline(action="create", pipeline_name="mine", description="...", steps=[{"action": "notebook_query", "params": {"query": "Summarize"}}])
 ```
 
 **Built-in pipelines:** `ingest-and-podcast`, `research-and-report`, `multi-format`
@@ -413,7 +432,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 ## Context Window Tips
 
-This MCP has **50 tools** which consume context. Best practices:
+This MCP has **53 tools** which consume context. Best practices:
 
 - **Disable when not using**: In Claude Code, use `@gemini-notebook-mcp` to toggle
 - **Hide tools you don't need**: See [Selective tool exposure](#selective-tool-exposure) below to expose only a subset
@@ -459,7 +478,8 @@ my tools/agents** to connect detected clients (nothing is pre-selected; entries
 still using the old `notebooklm-mcp` name are offered under **Needs a fix** and
 renamed to `gemini-notebook-mcp`), **Add the skill to my tools/agents** for the
 optional skill (including an upload file for Claude Desktop Chat/Cowork and
-claude.ai), **Remove an MCP or skill**, or **Copy MCP setup for a tool not
+claude.ai), **Remove an MCP or skill**, **Credential protection** (protect or
+restore your saved logins), or **Copy MCP setup for a tool not
 listed** to copy a config snippet. Esc goes back from any screen. MCP setup
 defaults to the app/user-level configuration. The optional skill defaults to
 all projects (user level); project-level installation targets the current

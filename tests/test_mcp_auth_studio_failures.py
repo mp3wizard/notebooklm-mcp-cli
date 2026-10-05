@@ -74,6 +74,66 @@ def test_refresh_auth_does_not_claim_success_when_tokens_are_expired(monkeypatch
     assert "nlm login" in blob, f"Expected actionable 'nlm login' guidance, got: {result}"
 
 
+def test_refresh_auth_attempts_headless_recovery_when_cached_tokens_are_stale(monkeypatch):
+    """Stale disk credentials should not prevent the advertised headless recovery path."""
+    monkeypatch.setattr(auth_tools, "get_client", lambda: _FakeClient(), raising=True)
+    monkeypatch.setattr(auth_tools, "reset_client", lambda: None, raising=True)
+    monkeypatch.setattr(
+        core_auth,
+        "load_cached_tokens",
+        lambda: core_auth.AuthTokens(cookies={"SID": "stale"}, extracted_at=0.0),
+        raising=True,
+    )
+    _patch_credentials_usable(monkeypatch, usable=False, status="stale")
+    monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
+
+    calls = []
+
+    def fake_headless(*, profile_name, timeout=30):
+        calls.append(profile_name)
+        return core_auth.AuthTokens(cookies={"SID": "fresh"}, extracted_at=1.0)
+
+    monkeypatch.setattr(
+        "notebooklm_tools.utils.auth_browser.run_headless_auth",
+        fake_headless,
+    )
+
+    result = auth_tools.refresh_auth()
+
+    assert result.get("status") == "success", result
+    assert "headless" in result.get("message", "").lower()
+    assert len(calls) == 1
+
+
+def test_refresh_auth_respects_headless_opt_out_when_cached_tokens_are_stale(monkeypatch):
+    """NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1 must stop refresh_auth from launching the browser."""
+    monkeypatch.setattr(auth_tools, "get_client", lambda: _FakeClient(), raising=True)
+    monkeypatch.setattr(auth_tools, "reset_client", lambda: None, raising=True)
+    monkeypatch.setattr(
+        core_auth,
+        "load_cached_tokens",
+        lambda: core_auth.AuthTokens(cookies={"SID": "stale"}, extracted_at=0.0),
+        raising=True,
+    )
+    _patch_credentials_usable(monkeypatch, usable=False, status="stale")
+    monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
+    monkeypatch.setenv("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH", "1")
+
+    calls = []
+    monkeypatch.setattr(
+        "notebooklm_tools.utils.auth_browser.run_headless_auth",
+        lambda **kw: calls.append(kw),
+    )
+
+    result = auth_tools.refresh_auth()
+
+    assert calls == []
+    assert result.get("status") == "expired", result
+    blob = str(result)
+    assert "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH" in blob
+    assert "nlm login" in blob
+
+
 def test_refresh_auth_returns_helpful_error_when_env_var_set(monkeypatch):
     """When NOTEBOOKLM_COOKIES is set (e.g. via claude_desktop_config.json), the env var
     overrides all disk-based auth. A disk reload won't help — surface a clear, actionable

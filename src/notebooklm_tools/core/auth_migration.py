@@ -29,7 +29,7 @@ from notebooklm_tools.core.credential_store import (
 )
 from notebooklm_tools.core.exceptions import NLMError
 from notebooklm_tools.utils.config import (
-    get_config,
+    get_base_default_profile,
     get_profile_dir,
     get_storage_dir,
     safe_mkdir,
@@ -343,7 +343,7 @@ def capture_file_mode_snapshot(profile_name: str) -> dict[str, Any] | None:
     Uses configured default_profile to check root auth.json mirror.
     """
     profile_dir = get_profile_dir(profile_name, create=False)
-    configured_default = get_config().auth.default_profile
+    configured_default = get_base_default_profile()
     root_auth_path = (
         (get_storage_dir() / "auth.json") if profile_name == configured_default else None
     )
@@ -530,7 +530,7 @@ def migrate_profile_to_protected(profile_name: str) -> dict[str, Any]:
                 shutil.move(str(legacy_auth), str(dest))
                 quarantined_files.append((dest, legacy_auth))
 
-            configured_default = get_config().auth.default_profile
+            configured_default = get_base_default_profile()
             root_auth = get_storage_dir() / "auth.json"
             if (
                 profile_name == configured_default
@@ -757,7 +757,7 @@ def migrate_profile_to_file(profile_name: str) -> dict[str, Any]:
                 enc_file.unlink()
 
         # 5. If configured default profile, mirror to root auth.json
-        configured_default = get_config().auth.default_profile
+        configured_default = get_base_default_profile()
         if profile_name == configured_default:
             root_auth = get_storage_dir() / "auth.json"
             root_data = {
@@ -887,7 +887,7 @@ def reconcile_pending_operations(profile_name: str) -> bool:
                                 print(warn, file=sys.stderr)
                                 logger.warning(warn)
 
-                    configured_default = get_config().auth.default_profile
+                    configured_default = get_base_default_profile()
                     if profile_name == configured_default:
                         root_auth = get_storage_dir() / "auth.json"
                         if root_auth.exists() and not root_auth.is_symlink():

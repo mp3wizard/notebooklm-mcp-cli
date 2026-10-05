@@ -129,6 +129,29 @@ def _check_storage_warning() -> str | None:
         return None
 
 
+def _profile_summary() -> dict[str, Any]:
+    """Saved profiles with storage mode and problems - metadata only, never the keystore."""
+    from ...services import profiles as profile_service
+
+    try:
+        rows = []
+        for row in profile_service.list_profiles():
+            try:
+                st = profile_service.profile_storage_status(row["name"])
+            except Exception:
+                st = {}
+            rows.append(
+                {
+                    **row,
+                    "has_conflict": bool(st.get("has_conflict")),
+                    "has_pending_op": bool(st.get("has_pending_op")),
+                }
+            )
+        return {"active_profile": profile_service.get_active_profile(), "profiles": rows}
+    except Exception as exc:
+        return {"active_profile": None, "profiles": [], "profiles_error": str(exc)}
+
+
 @logged_tool()
 def server_info() -> dict[str, Any]:
     """Get version, auth status, and conservative MCP capability visibility.
@@ -167,6 +190,9 @@ def server_info() -> dict[str, Any]:
         - update_command: Command to run to update
         - mcp_capabilities: Built-in tool groups visible in this server process
         - provider_capabilities: Explicitly unprobed provider/account capabilities
+    - active_profile: Which saved account is in use and why (session switch or saved default)
+    - profiles: Saved accounts with email, storage mode (plain/protected) and any storage
+      problems. Metadata only; never opens the OS keystore.
     """
     latest = _get_latest_pypi_version()
     update_available = False
@@ -193,4 +219,5 @@ def server_info() -> dict[str, Any]:
         },
     }
 
+    info.update(_profile_summary())
     return info

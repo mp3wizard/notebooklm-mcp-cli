@@ -350,6 +350,7 @@ def _macos_browser_candidates() -> list[tuple[str, str]]:
         ("Comet", "Comet.app/Contents/MacOS/Comet"),
         ("Brave Browser", "Brave Browser.app/Contents/MacOS/Brave Browser"),
         ("Microsoft Edge", "Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+        ("Microsoft Edge Beta", "Microsoft Edge Beta.app/Contents/MacOS/Microsoft Edge Beta"),
         ("Chromium", "Chromium.app/Contents/MacOS/Chromium"),
         ("Vivaldi", "Vivaldi.app/Contents/MacOS/Vivaldi"),
         ("Opera", "Opera.app/Contents/MacOS/Opera"),
@@ -371,6 +372,7 @@ _LINUX_BROWSER_CANDIDATES: list[tuple[str, str]] = [
     ("Brave Browser", "brave-browser"),
     ("Microsoft Edge", "microsoft-edge-stable"),
     ("Microsoft Edge", "microsoft-edge"),
+    ("Microsoft Edge Beta", "microsoft-edge-beta"),
     ("Vivaldi", "vivaldi-stable"),
     ("Vivaldi", "vivaldi"),
     ("Opera", "opera"),
@@ -394,6 +396,9 @@ def _windows_browser_candidates() -> list[tuple[str, str]]:
         ("Microsoft Edge", str(pf86 / r"Microsoft\Edge\Application\msedge.exe")),
         ("Microsoft Edge", str(pf / r"Microsoft\Edge\Application\msedge.exe")),
         ("Microsoft Edge", str(local / r"Microsoft\Edge\Application\msedge.exe")),
+        ("Microsoft Edge Beta", str(pf86 / r"Microsoft\Edge Beta\Application\msedge.exe")),
+        ("Microsoft Edge Beta", str(pf / r"Microsoft\Edge Beta\Application\msedge.exe")),
+        ("Microsoft Edge Beta", str(local / r"Microsoft\Edge Beta\Application\msedge.exe")),
         ("Brave Browser", str(pf / r"BraveSoftware\Brave-Browser\Application\brave.exe")),
         ("Brave Browser", str(local / r"BraveSoftware\Brave-Browser\Application\brave.exe")),
         ("Vivaldi", str(local / r"Vivaldi\Application\vivaldi.exe")),
@@ -422,6 +427,7 @@ _BROWSER_CONFIG_MAP: dict[str, list[str]] = {
     "dia": ["Dia"],
     "comet": ["Comet"],
     "edge": ["Microsoft Edge"],
+    "edge-beta": ["Microsoft Edge Beta"],
     "chromium": ["Chromium"],
     "vivaldi": ["Vivaldi"],
     "opera": ["Opera", "Opera GX"],
@@ -457,7 +463,7 @@ def _get_chromium_path(preferred: str | None = None) -> str | None:
       falls back to the full priority list if not found.
 
     Set via ``nlm config set auth.browser <name>`` or ``NLM_BROWSER`` env var.
-    Valid names: auto, chrome, arc, brave, dia, comet, edge, chromium, vivaldi, opera.
+    Valid names: auto, chrome, arc, brave, dia, comet, edge, edge-beta, chromium, vivaldi, opera.
     """
     global _detected_browser_name
     if preferred is None:
@@ -1858,6 +1864,28 @@ def cleanup_chrome_profile_cache(profile_name: str = "default") -> int:
     return bytes_freed
 
 
+def _validate_headless_candidate(tokens: "Any", profile_name: str) -> bool:
+    """Prove extracted browser credentials work before replacing saved auth."""
+    from notebooklm_tools.core.client import NotebookLMClient
+
+    try:
+        with NotebookLMClient(
+            cookies=tokens.cookies,
+            csrf_token=tokens.csrf_token,
+            session_id=tokens.session_id,
+            build_label=tokens.build_label or "",
+            base_host=tokens.base_host or "",
+            profile_name=profile_name,
+            # Candidate validation must not persist token rotations before the
+            # candidate itself has been accepted and saved by run_headless_auth.
+            is_env_auth=True,
+        ) as client:
+            client.list_notebooks()
+        return True
+    except Exception:
+        return False
+
+
 def run_headless_auth(
     port: int = 9223,
     timeout: int = 30,
@@ -1980,7 +2008,9 @@ def run_headless_auth(
         session_id = extract_session_id(html)
         base_host = urlparse(current_url).hostname or ""
 
-        # Create and save tokens
+        # Build a candidate first. Do not replace saved credentials until
+        # an authenticated NotebookLM RPC proves the extracted browser session
+        # works outside the browser context.
         tokens = AuthTokens(
             cookies=cookies_list,
             csrf_token=csrf_token or "",
@@ -1988,6 +2018,9 @@ def run_headless_auth(
             base_host=base_host,
             extracted_at=time.time(),
         )
+        if not _validate_headless_candidate(tokens, profile_name):
+            return None
+
         save_kwargs: dict[str, Any] = {"profile_name": profile_name}
         if expected_revision is not None:
             save_kwargs["expected_revision"] = expected_revision

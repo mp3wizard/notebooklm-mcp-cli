@@ -136,9 +136,9 @@ def load_cached_tokens(profile_name: str | None = None) -> AuthTokens | None:
     # A named non-default profile must never inherit credentials from the
     # single-account legacy cache.
     if profile_name is not None:
-        from notebooklm_tools.utils.config import get_config
+        from notebooklm_tools.utils.config import get_base_default_profile
 
-        if profile_name != get_config().auth.default_profile:
+        if profile_name != get_base_default_profile():
             return None
 
     # 2. Fallback to legacy auth cache (with auto-migration) for default profile only
@@ -212,10 +212,14 @@ def save_tokens_to_cache(
     """
     from notebooklm_tools.core.auth_migration import get_raw_on_disk_storage_mode
     from notebooklm_tools.core.credential_store import get_profile_lock
-    from notebooklm_tools.utils.config import get_config, get_profile_dir
+    from notebooklm_tools.utils.config import (
+        get_base_default_profile,
+        get_config,
+        get_profile_dir,
+    )
 
-    default_profile = get_config().auth.default_profile
-    target_profile = profile_name or default_profile
+    default_profile = get_base_default_profile()
+    target_profile = profile_name or get_config().auth.default_profile
 
     with get_profile_lock(target_profile):
         disk_mode = get_raw_on_disk_storage_mode(target_profile)

@@ -43,50 +43,62 @@ def refresh_auth() -> ResultDict:
         from notebooklm_tools.services.auth import load_cached_tokens
 
         cached = load_cached_tokens()
+        stale_cached: tuple[str, str | None] | None = None
         if cached:
-            # Honesty check FIRST: reloading tokens from disk is NOT a successful
-            # re-auth if those tokens are already dead. Validate live before
-            # creating any client, otherwise agents loop on doomed studio calls
-            # (and we leave a client object initialized with bad tokens behind).
+            # A disk reload is only success if the credentials still work. If
+            # they are stale, keep going: the saved browser profile may still be
+            # able to mint fresh credentials via the headless recovery path.
             from notebooklm_tools.services.auth import credentials_are_usable
 
             usable, status, detail = credentials_are_usable(force=True)
-            if not usable:
-                return error_result(
-                    "Auth tokens were reloaded from disk but are no longer valid "
-                    f"(reason: {status}). A disk reload cannot revive expired "
-                    "credentials — run `nlm login` in a terminal to re-authenticate.",
-                    status="expired",
-                    reason=status,
-                    details=detail,
-                )
-            reset_client()
-            get_client()
-            return {
-                "status": "success",
-                "message": "Auth tokens reloaded from disk cache and validated.",
-            }
-
-        # Try headless auth if the configured default Chrome profile exists
-        try:
-            from notebooklm_tools.utils.auth_browser import run_headless_auth
-            from notebooklm_tools.utils.config import get_config
-
-            profile_name = get_config().auth.default_profile
-            tokens = run_headless_auth(profile_name=profile_name)
-            if tokens:
+            if usable:
                 reset_client()
                 get_client()
                 return {
                     "status": "success",
-                    "message": "Auth tokens refreshed via headless Chrome.",
+                    "message": "Auth tokens reloaded from disk cache and validated.",
                 }
-        except Exception as _e:
-            # SEC-007: log headless auth failure so it is visible in debug output
-            import logging as _logging
+            stale_cached = (status, detail)
 
-            _logging.getLogger(__name__).debug(
-                "Headless Chrome auth failed during refresh_auth: %s", _e
+        # Try headless auth if the configured default Chrome profile exists.
+        # Skipped when the user opted out (e.g. Workspace accounts whose session
+        # is revoked when the saved browser profile is relaunched, issue #330).
+        headless_disabled = os.environ.get("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH") == "1"
+        if not headless_disabled:
+            try:
+                from notebooklm_tools.utils.auth_browser import run_headless_auth
+                from notebooklm_tools.utils.config import get_config
+
+                profile_name = get_config().auth.default_profile
+                tokens = run_headless_auth(profile_name=profile_name)
+                if tokens:
+                    reset_client()
+                    get_client()
+                    return {
+                        "status": "success",
+                        "message": "Auth tokens refreshed via headless Chrome.",
+                    }
+            except Exception as _e:
+                # SEC-007: log headless auth failure so it is visible in debug output
+                import logging as _logging
+
+                _logging.getLogger(__name__).debug(
+                    "Headless Chrome auth failed during refresh_auth: %s", _e
+                )
+
+        if stale_cached is not None:
+            status, detail = stale_cached
+            reason_text = (
+                "automatic browser refresh is disabled (NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1)"
+                if headless_disabled
+                else "the saved browser profile could not refresh it automatically"
+            )
+            return error_result(
+                f"Cached auth is no longer valid and {reason_text}. "
+                "Run `nlm login` in a terminal to re-authenticate.",
+                status="expired",
+                reason=status,
+                details=detail,
             )
 
         return {

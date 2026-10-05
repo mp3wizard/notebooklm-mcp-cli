@@ -10,6 +10,10 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.15.1 — October 2026)
+- **Microsoft Edge Beta login browser** (`nlm config set auth.browser edge-beta`), profile-scoped health checks, and safer login recovery: a fresh browser login is verified before it replaces the saved one, `refresh_auth` can recover stale logins, `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH` is honored, and profile rename keeps the browser folder.
+- Security scan post-merge: 0 Medium+ findings in project code after one SKILL.md wording fix — [`docs/security-scan-report-2026-10-04.md`](docs/security-scan-report-2026-10-04.md)
+
 ### Upstream sync (v0.14.0 — September/October 2026)
 - **Protected mode credential storage (`nlm auth storage`)** — encrypt saved Google logins at rest with AES-256-GCM (`credentials.enc`), key stored in the OS keystore (macOS Keychain, Windows Credential Manager, Linux SecretService). File mode stays the default; nothing changes unless you opt in with `nlm auth storage set protected`. Subcommands: `status`, `set protected|file`, `resolve file|protected`, `relocate`. A terminal with several saved logins gets a checkbox picker (`--all` switches every one); conflict detection and compare-and-save semantics protect against concurrent writes; a one-time CLI tip, MCP notice, and `[y/N]` prompt (never nagged again) explain the feature after `nlm login`/`nlm setup`; `nlm doctor` lists each profile's mode.
 - **Security fix (pre-existing CVE)** — `pyjwt` 2.13.0 → 2.15.1, resolving 1 CRITICAL + 4 HIGH + 2 MEDIUM CVEs disclosed since the last scan.
@@ -602,13 +606,17 @@
 
 **Programmatic access to Gemini Notebook** — via command-line interface (CLI) or Model Context Protocol (MCP) server.
 
-> 🔒 **New: Protected login storage (recommended)**
+> 🚨 **New: Protected login storage (recommended)**
 > Your saved Google login can now be encrypted, with its key kept in your computer's keychain instead of a plain file. We highly recommend everyone switch on a personal computer:
 >
 >     nlm auth storage set protected
 >
+> 💡 You can also use the 'nlm setup' wizard and select the 'Credentials Protection' option in the wizard
+> 
 > Optional: nothing changes unless you turn it on. Servers, cron, Docker and SSH setups can keep the plain file.
-> [How it works](docs/AUTHENTICATION.md#protected-storage)
+> 📖 [How it works](docs/AUTHENTICATION.md#protected-storage) · 📺 [Watch this short video](https://www.youtube.com/shorts/7ZmF_lwJh3M)
+>
+> 🤖 Fun fact: this video was created by an agent using the gemini-notebook-mcp.
 
 > **Note:** Personal/consumer accounts are tested regularly. Gemini Notebook Enterprise support is experimental. The documented `notebook.cloud.google.com` host has been live-verified with a project-qualified `global` deployment; other Enterprise host variants may require additional validation.
 
@@ -623,7 +631,7 @@
 
 |                                   **Codex Setup + Cinematic Video & Slides**                                   |
 | :------------------------------------------------------------------------------------------------------------: |
-| [![Latest](https://img.youtube.com/vi/KrgLCrvU1dw/mqdefault.jpg)](https://www.youtube.com/watch?v=KrgLCrvU1dw) |
+| [![Latest](https://img.youtube.com/vi/KrgLCrvU1dw/mqdefault.jpg?v=20261002)](https://www.youtube.com/watch?v=KrgLCrvU1dw) |
 
 ### MCP Demos
 
@@ -641,10 +649,22 @@
 
 Three commands take you from nothing to a connected AI assistant:
 
+1. Install (gives you `nlm` and the MCP server):
+
 ```bash
-uv tool install notebooklm-mcp-cli   # 1. Install (gives you `nlm` and the MCP server)
-nlm login                            # 2. Sign in to your Google account
-nlm setup                            # 3. Connect your AI tools
+uv tool install notebooklm-mcp-cli
+```
+
+2. Sign in to your Google account:
+
+```bash
+nlm login
+```
+
+3. Connect your AI tools:
+
+```bash
+nlm setup
 ```
 
 ### The setup wizard (`nlm setup`)
@@ -658,6 +678,7 @@ Gemini Notebook — no config files to edit. Pick an option with the arrow keys:
 | **Add the MCP to my tools/agents** | Tick the tools to connect (Space), then Enter. Nothing is pre-selected. Connections still using the old `notebooklm-mcp` name appear under **Needs a fix** and are renamed to `gemini-notebook-mcp`, keeping their settings. Then it offers the skill. |
 | **Add the skill to my tools/agents** | Installs the skill that teaches your AI how to use Gemini Notebook well — for **All my projects** (default) or **Just this folder**. Upgrades are pre-ticked; older versions are only replaced after you confirm. |
 | **Remove an MCP or skill** | Lists what's installed, grouped into MCP connections and skills. Nothing is pre-selected, and each group needs its own confirmation. |
+| **Credential protection** | Protect your saved logins in your OS keystore, or restore them to plain files. It only offers what applies: *Protect* when a login is plain, *Restore* when one is protected. With several logins you get a checkbox picker. |
 | **Copy MCP setup for a tool not listed** | Copies a ready-to-paste JSON snippet to your clipboard. **Advanced options** switch to uvx, the bare command, or entry-only JSON. |
 
 - **Esc** goes back from any screen (and quits from the main menu).
@@ -727,7 +748,7 @@ Then use natural language: _"Create a notebook about quantum computing and gener
 
 - **[Getting Started](docs/GETTING_STARTED.md)** — Install, login, agent setup, and migration from another Gemini Notebook MCP
 - **[CLI Guide](docs/CLI_GUIDE.md)** — Complete command reference
-- **[MCP Guide](docs/MCP_GUIDE.md)** — All 50 MCP tools with examples
+- **[MCP Guide](docs/MCP_GUIDE.md)** — All 53 MCP tools with examples
 - **[Authentication](docs/AUTHENTICATION.md)** — Setup and troubleshooting
 - **[Remote MCP](docs/REMOTE_MCP.md)** — Web/mobile connector feasibility, security, and authentication limitations
 - **[API Reference](docs/API_REFERENCE.md)** — Internal API docs for contributors
@@ -929,6 +950,8 @@ nlm login --manual --file cookies.txt
 nlm login --provider openclaw --cdp-url http://127.0.0.1:18800
 ```
 
+New profiles ask where to keep the saved login **before** the browser opens: **Protected** (encrypted, key in your OS keystore, recommended) or a plain file. Scripts can skip the question with `nlm login --storage protected` (or `--storage file`). Existing profiles keep their mode; change it any time in `nlm setup` → **Credential protection**.
+
 **Profile management:**
 
 ```bash
@@ -938,6 +961,8 @@ nlm login profile list               # List all profiles with email addresses
 nlm login profile delete <profile>   # Delete a profile
 nlm login profile rename <old> <new> # Rename a profile
 ```
+
+**From an MCP-only app (for example Claude CoWork):** ask the AI to use the `profile` tool. It can list your accounts, switch for the session, and, only if you ask, make one your saved default.
 
 **Unattended / scheduled refresh:**
 
@@ -1016,7 +1041,7 @@ For detailed instructions and troubleshooting, see **[docs/AUTHENTICATION.md](do
 
 ## MCP Configuration
 
-> **⚠️ Context Window Warning:** This MCP provides **50 tools**. Disable it when not using Gemini Notebook to preserve context. In Claude Code: `@gemini-notebook-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
+> **⚠️ Context Window Warning:** This MCP provides **53 tools**. Disable it when not using Gemini Notebook to preserve context. In Claude Code: `@gemini-notebook-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
 
 ### Automatic Setup (Recommended)
 

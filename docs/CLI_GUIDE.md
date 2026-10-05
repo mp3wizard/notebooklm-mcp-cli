@@ -18,6 +18,7 @@ pip install notebooklm-mcp-cli
 nlm login                         # Opens browser, extracts cookies automatically
 nlm login --profile work          # Named profile for multiple accounts
 nlm login --check                 # Check if authenticated
+nlm login --storage protected     # New profile: store the login encrypted (or 'file'); skips the question
 nlm login switch <profile>        # Switch default profile
 nlm login profile list            # List all profiles with email addresses
 nlm login profile delete <name>   # Delete a profile
@@ -312,8 +313,8 @@ nlm config set output.format json       # Change default output format
 | `output.format`        | `table`   | Default output format (table, json)                                                                                                                                                                |
 | `output.color`         | `true`    | Enable colored output                                                                                                                                                                              |
 | `output.short_ids`     | `true`    | Show shortened IDs                                                                                                                                                                                 |
-| `auth.browser`         | `auto`    | Preferred browser for login (auto, chrome, arc, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if the preferred browser is not found.                                         |
-| `auth.default_profile` | `default` | Profile to use when `--profile` not specified. **Note:** MCP tools use the active default profile unless environment cookies or an explicit per-call profile (supported by `usage_get`) select another account. |
+| `auth.browser`         | `auto`    | Preferred browser for login (auto, chrome, arc, brave, edge, edge-beta, chromium, firefox, vivaldi, opera). Falls back to auto if the preferred browser is not found.                                         |
+| `auth.default_profile` | `default` | Profile to use when `--profile` not specified. **Note:** MCP tools use the active profile: the saved default, unless the MCP `profile` tool switched this server (until it restarts), environment cookies are set, or `usage_get(profile=...)` selects another account. |
 
 ### Aliases (Shortcuts)
 
@@ -403,7 +404,7 @@ explicitly scoped to the current project.
 
 The guided wizard's main menu: **Show my tools' status**, **Add the MCP to my
 tools/agents**, **Add the skill to my tools/agents**, **Remove an MCP or skill**,
-**Copy MCP setup for a tool not listed**, and **Exit**. Press **Esc** on any
+**Credential protection**, **Copy MCP setup for a tool not listed**, and **Exit**. Press **Esc** on any
 screen to go back (it quits from the main menu). Only detected tools are listed,
 and the connect and remove lists start with nothing selected. Connections that
 still use a legacy server name (`notebooklm-mcp`, `notebooklm`) show as
@@ -523,6 +524,7 @@ nlm download audio ai --id <artifact-id> --output podcast.m4a
 - Use aliases for frequently-used notebooks
 - Audio/video takes 1-5 minutes; poll with `nlm studio status`
 - Use `nlm login switch <name>` to change the default profile
+- New profiles ask plain vs protected storage before the browser opens; use `nlm login --storage protected` to skip the question in scripts
 - Run `nlm login profile list` to see all profiles with their associated email addresses
 - Run `nlm doctor` to diagnose installation, auth, or config issues
 - Use `nlm setup add <client>` to quickly configure MCP for your AI tool

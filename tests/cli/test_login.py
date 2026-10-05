@@ -14,6 +14,9 @@ class FakeAuthManager:
     def load_profile(self):
         return SimpleNamespace(name=self.profile_name, email="user@example.com")
 
+    def profile_exists(self):
+        return True
+
     def save_profile(self, **kwargs):
         self.saved = kwargs
 

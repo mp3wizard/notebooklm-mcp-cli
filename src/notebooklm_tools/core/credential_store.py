@@ -199,15 +199,21 @@ def get_installation_identity(
         }
 
         content = (json.dumps(data, indent=2) + "\n").encode("utf-8")
+        # Write to a temp file and rename it into place: readers outside the lock (the
+        # fast path above) must never see installation.json before it is complete.
+        tmp_file = install_file.with_name(f"installation.json.tmp.{secrets.token_hex(4)}")
         try:
-            fd = os.open(str(install_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            fd = os.open(str(tmp_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
             try:
                 os.write(fd, content)
                 os.fsync(fd)
             finally:
                 os.close(fd)
-        except FileExistsError:
-            return _read_installation_identity(install_file)
+            os.replace(tmp_file, install_file)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                tmp_file.unlink()
+            raise
 
         return InstallationIdentity(
             installation_id=installation_id,

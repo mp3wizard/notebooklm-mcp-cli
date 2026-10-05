@@ -57,6 +57,7 @@ nlm login [OPTIONS]
 | `--force` | | Replace credentials even if the detected account differs |
 | `--clear` | | Clear stored browser/profile state before login |
 | `--wsl` | | Use the WSL/Windows-browser authentication path |
+| `--storage` | | `protected` or `file`: where to keep the saved login for a NEW profile (skips the question; refused for existing profiles) |
 
 **Note**: Each profile gets its own isolated Chrome session, so you can be logged into multiple Google accounts simultaneously.
 
@@ -1103,7 +1104,7 @@ nlm config set <key> <value>
 | `output.format` | `table` | Default output format (table, json) |
 | `output.color` | `true` | Enable colored output |
 | `output.short_ids` | `true` | Show shortened IDs |
-| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, dia, comet, brave, edge, chromium, firefox, vivaldi, opera). Falls back to auto if a preferred named browser is not found. |
+| `auth.browser` | `auto` | Preferred browser for login (auto, chrome, arc, dia, comet, brave, edge, edge-beta, chromium, firefox, vivaldi, opera). Falls back to auto if a preferred named browser is not found. |
 | `auth.browser_path` | empty | Explicit Chromium-compatible executable path. Overrides named discovery; `NLM_BROWSER_PATH` provides the environment override. |
 | `auth.default_profile` | `default` | Profile to use when `--profile` not specified. **Note:** The MCP Server always uses the active default profile. Changing this setting will instantaneously switch the MCP server's Google account. |
 
@@ -1206,7 +1207,7 @@ the selected Claude profile before adding or removing MCP configuration. The
 CLI refuses to write while the active Claude executable is running, including
 when Relay AI launched it. Bare `nlm setup` opens a wizard with Show my tools' status,
 Add the MCP to my tools/agents, Add the skill to my tools/agents, Remove an MCP
-or skill, Copy MCP setup for a tool not listed, and Exit (Esc goes back). It
+or skill, Credential protection, Copy MCP setup for a tool not listed, and Exit (Esc goes back). It
 offers to rename entries still using the old `notebooklm-mcp` name. MCP configuration defaults to app/user scope;
 GitHub Copilot is configured in the VS Code user profile by the wizard. Its
 direct command defaults to the current project and accepts `--scope user` for

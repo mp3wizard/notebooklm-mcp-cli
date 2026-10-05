@@ -660,14 +660,18 @@ def confirm_auth_via_api(profile: str | None = None) -> tuple[bool, str | None]:
         return False, str(exc)
 
 
-def credentials_are_usable(*, force: bool = False) -> tuple[bool, str, str | None]:
+def credentials_are_usable(
+    *,
+    force: bool = False,
+    profile: str | None = None,
+) -> tuple[bool, str, str | None]:
     """Return whether NotebookLM credentials can perform API operations.
 
     Runs ``AuthHealthChecker`` first, then falls back to a direct API probe
     when probes report ``stale`` or ``unverified`` — the semi-stale case
     where the homepage rejects cookies but RPC calls still work (#224).
     """
-    report = get_auth_health_checker().check(force=force)
+    report = get_auth_health_checker(profile=profile).check(force=force)
     if report.status == "configured":
         return True, report.status, None
 
@@ -681,20 +685,24 @@ def credentials_are_usable(*, force: bool = False) -> tuple[bool, str, str | Non
     return False, report.status, detail
 
 
-_checker: AuthHealthChecker | None = None
+_checkers: dict[str | None, AuthHealthChecker] = {}
 _checker_lock = threading.Lock()
 
 
-def get_auth_health_checker() -> AuthHealthChecker:
-    """Return the process-wide AuthHealthChecker singleton.
+def get_auth_health_checker(profile: str | None = None) -> AuthHealthChecker:
+    """Return the cached AuthHealthChecker for one auth profile.
 
-    The CLI's ``nlm doctor`` and the MCP's ``server_info`` will see the
-    same cached report within a 30-second window, so duplicate probes
-    for the same on-disk state are avoided across a single user session.
+    Calls that omit ``profile`` retain the historical shared checker for the
+    configured default profile. Explicit profile names receive independent
+    cached health state so one process can validate multiple saved accounts
+    without switching global configuration.
     """
-    global _checker
-    if _checker is None:
+    key = profile.strip() if isinstance(profile, str) and profile.strip() else None
+    checker = _checkers.get(key)
+    if checker is None:
         with _checker_lock:
-            if _checker is None:
-                _checker = AuthHealthChecker()
-    return _checker
+            checker = _checkers.get(key)
+            if checker is None:
+                checker = AuthHealthChecker(profile=key)
+                _checkers[key] = checker
+    return checker

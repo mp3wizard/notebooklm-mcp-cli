@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.15.1] - 2026-10-02
+
+> Safer, smarter login recovery, plus Microsoft Edge Beta.
+> Community release: five of these changes come from **@insane66613**.
+
+### Added
+
+- **Microsoft Edge Beta is a supported login browser.** Use `nlm config set auth.browser edge-beta`, or leave it on `auto`. Found on macOS, Linux and the usual Windows install folders. Docs and the skill reference list it too. Thanks to **@insane66613** for the browser support ([PR #345](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/345)).
+- **Health checks can target one saved account.** The credential health check can now be asked about a specific profile, and each profile keeps its own cached result instead of all accounts sharing one. Nothing in the CLI or MCP uses this yet; it is groundwork for multi-account checks. Thanks to **@insane66613** ([PR #343](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/343)).
+
+### Fixed
+
+- **A fresh browser login is checked before it replaces your saved one.** Headless recovery now proves the extracted login can really talk to Gemini Notebook before saving it. If it can't, your existing saved login stays untouched. Thanks to **@insane66613** ([PR #342](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/342)).
+- **`refresh_auth` can now recover a stale login on its own.** When saved credentials are stale, the MCP `refresh_auth` tool now tries the saved browser profile before telling you to run `nlm login` (before, that step was unreachable). It respects `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1`, so Google Workspace accounts that lose their session when the browser is relaunched can opt out; when it is set, the message says so. Studio's "not signed in" hint was updated to match. Thanks to **@insane66613** for the fix ([PR #341](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/341)); the opt-out check was added during review.
+- **Renaming a profile now keeps its saved browser login with it.** `nlm login profile rename` moves the Chrome browser folder (and the Firefox one) along with the account, so the next login doesn't start from a blank browser. It refuses the rename if a browser folder already exists under the new name, and rolls everything back if a later step fails. Protected profiles still can't be renamed. Thanks to **@insane66613** ([PR #344](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/344)); the Firefox folder and the existing-folder check were added during review.
+- The first-ever creation of `installation.json` (the install identity used for protected storage) is now atomic: it is written to a temporary file and renamed into place, so a second process starting at the same moment can never read a half-written file and fail with "Corrupt or unreadable installation.json". This only affected a first protected write racing another process; it also made one CI test intermittently fail.
+
+## [0.15.0] - 2026-10-01
+
+> 🔒 **Choose how your login is stored before you sign in**
+> New logins now ask "Protected (recommended) or plain file?" *before* the browser opens, so a protected login never starts life as a plain file. `nlm setup` also gets a "Credential protection" menu item to protect or restore saved logins at any time.
+
+### Added
+
+- **Credential protection in `nlm setup`.** New main-menu item. Offers "Protect saved logins" when any login is plain, and "Restore protected logins to plain files" only when something is protected. With several logins you get the same checkbox picker as `nlm auth storage set`. The existing startup question stays.
+- **`nlm login` asks plain vs protected first (new profiles only).** Only in a real terminal on a desktop with a working keystore; SSH, containers and headless Linux stay on plain files without asking. If you type a name protected mode can't use (like `john@work.com` or `my work`), the question offers a working name instead (`john-work.com`, `my-work`) and lets you keep your original name as a plain file, all before the browser opens. Picking "protected" means no protection prompts or tips afterwards. Picking "plain" is respected: that profile is never nudged again.
+- **`nlm login --storage protected|file`.** Skips the question for a new profile (for scripts). Fails loudly instead of silently downgrading when the keystore is unavailable, and refuses to change the mode of an existing profile (use `nlm auth storage set`).
+- **MCP `profile` tool.** `action=list` shows saved accounts with email, storage mode and which is active; `action=status` shows storage details; `action=switch` changes the account for every later tool call until the MCP server restarts. `make_default=true` also saves it as your default for the CLI and future sessions. Built for apps with no CLI, like Claude CoWork.
+- **MCP `alias` tool, and aliases work everywhere.** Any tool's `notebook_id` now accepts an alias set with `nlm alias set` or the new tool.
+- **MCP `chat_save_to_note`** (CLI: `nlm chats to-note`) and **`pipeline` action `create`** (CLI: `nlm pipeline create`).
+- **`server_info` lists saved profiles** with email, storage mode and storage problems, plus which profile is active. Metadata only: it never opens the OS keystore.
+- **Active-account note.** While a profile switch is active and several profiles exist, every MCP tool result carries `active_profile_note` naming the account in use, because apps like Claude Desktop share one MCP server across chats.
+- **CLI-to-MCP parity test.** Every CLI command must map to an MCP tool or be on the deliberate CLI-only list, so gaps can't creep back.
+
+### Fixed
+
+- The one-time MCP "protect your login" notice no longer appears for a protected or already-answered active profile (it could after a profile switch).
+- The root `auth.json` backup and storage migrations always follow the saved default profile, never a temporary session switch.
+- `nlm auth storage set` and the wizard no longer list leftover empty profile folders.
+- Pressing Ctrl+C (or a failed or timed-out sign-in) during `nlm login` now closes the automation Chrome window it opened, instead of leaving it running for the next login to reuse.
+
+### Changed
+
+- Existing profiles behave as before: the after-login "Protect…?" question still appears for plain profiles that never answered.
+- Deliberately CLI-only (unsafe or interactive over MCP): `login`, `setup`, `skill`, profile delete/rename, `auth storage set/resolve/relocate`, `config`, `chat start`.
+
+### Removed
+
+- Nothing removed.
+
 ## [0.14.0] - 2026-09-30
 
 > 🔒 **New: Protected login storage (recommended)**

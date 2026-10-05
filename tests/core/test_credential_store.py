@@ -491,3 +491,29 @@ def test_orphaned_write_preparing_marker_behavior(fake_credential_store):
     # Fresh profile with no ciphertext and an orphaned write/preparing marker returns None
     store._write_operation_marker("empty_orphan_prof", operation="write", phase="preparing")
     assert store.read_credentials("empty_orphan_prof") is None
+
+
+def test_installation_identity_file_is_never_visible_half_written(tmp_path, monkeypatch):
+    """A reader outside the lock must never see installation.json before it is complete.
+
+    The identity is written to a temporary file and renamed into place, so at every
+    fsync during creation the final file must not exist yet.
+    """
+    inst_dir = tmp_path / "atomic_inst"
+    install_file = inst_dir / "installation.json"
+    seen_final_file_during_write = []
+    real_fsync = os.fsync
+
+    def spying_fsync(fd):
+        seen_final_file_during_write.append(install_file.exists())
+        return real_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", spying_fsync)
+
+    identity = get_installation_identity(inst_dir)
+
+    assert seen_final_file_during_write, "expected the identity to be fsynced while written"
+    assert not any(seen_final_file_during_write)
+    assert install_file.exists()
+    assert json.loads(install_file.read_text())["installation_id"] == identity.installation_id
+    assert not list(inst_dir.glob("installation.json.tmp*")), "temp file must not be left behind"

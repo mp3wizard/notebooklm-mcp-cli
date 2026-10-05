@@ -14,6 +14,7 @@ CHROMIUM_BROWSER_KEYS = {
     "dia",
     "comet",
     "edge",
+    "edge-beta",
     "chromium",
     "vivaldi",
     "opera",

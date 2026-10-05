@@ -46,10 +46,11 @@ mcp = FastMCP(
     instructions="""Gemini Notebook MCP - Access Gemini Notebook (notebook.google.com).
 
 **Auth:** If you get authentication errors, run `nlm login` via your Bash/terminal tool. This is the automated authentication method that handles everything. Only use save_auth_tokens as a fallback if the CLI fails.
-**Account Switching:** To switch Google Accounts for the MCP server, run `nlm login switch <profile>` in Bash. The MCP server instantly uses the active default profile.
+**Account Switching:** Call the `profile` tool (action=list, then action=switch with name=<profile>). The switch lasts until this MCP server restarts and may apply to other open chats if the app shares one server; add make_default=true only when the user asks to change their default account. `nlm login switch <profile>` in a terminal changes the saved default.
 **Confirmation:** Tools with confirm param require user approval before setting confirm=True.
 **Studio:** After creating audio/video/infographic/slides, poll studio_status for completion.
 **User notices:** If a tool result contains `user_notice`, relay it to the user once in one short line.
+**Active account:** If a tool result contains `active_profile_note`, tell the user which account is in use once per conversation.
 
 Consolidated tools:
 - source_add(source_type=url|text|drive|file, url=..., document_id=..., text=..., file_path=...): Add any source type
@@ -62,7 +63,12 @@ Consolidated tools:
 - download_artifact(artifact_type=audio|video|...): Download any artifact type
 - download_all_artifacts: Download every completed artifact of a notebook into a per-notebook folder
 - note(action=create|list|update|delete): Manage notes in notebooks
-- label(action=auto|list|reorganize|create|rename|set_emoji|move_source|delete): Manage source labels""",
+- label(action=auto|list|reorganize|create|rename|set_emoji|move_source|delete): Manage source labels
+- profile(action=list|status|switch): List saved Google accounts and choose which one to use
+- alias(action=list|get|set|delete): Short names for notebook IDs; any notebook_id accepts an alias
+- chat_save_to_note: Save a chat (or one turn) as a Note
+- pipeline(action=run|list|create): Run or define multi-step workflows
+- server_info also lists saved profiles with their storage mode (plain or protected)""",
 )
 
 # MCP request/response logger
@@ -86,6 +92,7 @@ def _register_tools() -> None:
     """Import and register all tools from the modular tools package."""
     # Import all tool modules to populate the registry
     from .tools import (  # noqa: F401
+        aliases,
         auth,
         batch,
         chat,
@@ -98,6 +105,7 @@ def _register_tools() -> None:
         notebooks,
         notes,
         pipeline,
+        profiles,
         research,
         sharing,
         smart_select,

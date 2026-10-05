@@ -700,3 +700,59 @@ def test_skill_door_goes_straight_to_choices(run):
     w.choose(MENU, "Add the skill")
     w.expect("Where should the skill live")
     assert "Add the skill?" not in w.plain_output()
+
+
+# --- credential protection door ------------------------------------------------
+
+
+def _seed_plain_login(sandbox, name="default"):
+    import json
+
+    root = sandbox.home / ".notebooklm-mcp-cli"
+    prof = root / "profiles" / name
+    prof.mkdir(parents=True)
+    (prof / "metadata.json").write_text(json.dumps({"email": f"{name}@example.com"}))
+    (prof / "cookies.json").write_text(
+        json.dumps([{"name": "SID", "value": "x", "domain": ".google.com", "path": "/"}])
+    )
+    return root, prof
+
+
+def _seed_no_keystore_probe(root, *answered):
+    """Make the real subprocess skip every keystore probe and the startup protect prompt.
+
+    The wizard subprocess has no pytest keystore guard, so an unseeded profile would
+    probe the REAL OS keystore. Keys match core/notices.py (protect_answered, probe).
+    """
+    import json
+    import time
+
+    (root / "notices.json").write_text(
+        json.dumps(
+            {
+                "protect_answered": {n: "no" for n in answered},
+                "probe": {"result": "unavailable", "checked_at": time.time()},
+            }
+        )
+    )
+
+
+def test_credential_protection_with_no_saved_logins_says_so(run):
+    w = run()
+    w.choose(MENU, "Credential protection")
+    w.expect("No saved logins yet")
+    w.expect(MENU)
+    assert w.quit() == 0
+
+
+def test_credential_protection_door_lists_plain_login_and_back_changes_nothing(run, sandbox):
+    root, prof = _seed_plain_login(sandbox)
+    _seed_no_keystore_probe(root, "default")
+    w = run()
+    w.choose(MENU, "Credential protection")
+    w.expect("plain")
+    w.expect("Protect saved logins")
+    w.choose("Credential protection", "Back")
+    w.expect(MENU)
+    assert w.quit() == 0
+    assert (prof / "cookies.json").exists()
