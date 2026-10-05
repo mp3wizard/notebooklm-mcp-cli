@@ -10,6 +10,10 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.15.2 — October 2026)
+- **`/healthz` alias** for the HTTP health endpoint (#347), **Windows sharing-violation retry** for credential reads/replace (#348), and **`research --auto-import` no longer gives up** when a just-started task isn't visible yet (#346). Also carries 0.15.0 (choose protected or plain storage before login, `nlm setup` Credential protection, MCP `profile`/`alias` tools, `chat_save_to_note`, `pipeline create`).
+- Security scan post-merge: 0 findings at Medium or above (clean merge, no conflicts); full suite 2,362 passed — [`docs/security-scan-report-2026-10-05.md`](docs/security-scan-report-2026-10-05.md)
+
 ### Upstream sync (v0.15.1 — October 2026)
 - **Microsoft Edge Beta login browser** (`nlm config set auth.browser edge-beta`), profile-scoped health checks, and safer login recovery: a fresh browser login is verified before it replaces the saved one, `refresh_auth` can recover stale logins, `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH` is honored, and profile rename keeps the browser folder.
 - Security scan post-merge: 0 Medium+ findings in project code after one SKILL.md wording fix — [`docs/security-scan-report-2026-10-04.md`](docs/security-scan-report-2026-10-04.md)
