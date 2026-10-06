@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.15.3 + usage-plan fix — October 2026)
+- **Login waits for a real sign-in** (#350): `nlm login` no longer saves anonymous cookies or closes the browser early; saved-session checks reject anonymous sessions and require a real CSRF token. **YouTube sources return their URLs** (#349). **Usage errors name the account's plan** when no usage windows come back (#352).
+- Merge conflict in `utils/cdp.py` resolved: kept upstream's sign-in wait loop plus the local SEC-007 debug log for transient poll errors.
+- Security scan post-merge: 0 findings at Medium or above; 44 Bandit Low left by design — [`docs/security-scan-report-2026-10-06.md`](docs/security-scan-report-2026-10-06.md)
+
 ### Upstream sync (v0.15.2 — October 2026)
 - **`/healthz` alias** for the HTTP health endpoint (#347), **Windows sharing-violation retry** for credential reads/replace (#348), and **`research --auto-import` no longer gives up** when a just-started task isn't visible yet (#346). Also carries 0.15.0 (choose protected or plain storage before login, `nlm setup` Credential protection, MCP `profile`/`alias` tools, `chat_save_to_note`, `pipeline create`).
 - Security scan post-merge: 0 findings at Medium or above (clean merge, no conflicts); full suite 2,362 passed — [`docs/security-scan-report-2026-10-05.md`](docs/security-scan-report-2026-10-05.md)
