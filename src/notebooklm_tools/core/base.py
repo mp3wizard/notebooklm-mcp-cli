@@ -1307,8 +1307,7 @@ class BaseClient:
 
             html = response.text
 
-            # Extract CSRF token — try multiple known key names in case Google changes
-            # the primary key (SNlM0e). Falls back to 'at=' and 'FdrFJe' patterns.
+            # Extract the CSRF token from SNlM0e; session IDs are not CSRF tokens.
             from .auth import extract_csrf_from_page_source
 
             csrf_token = extract_csrf_from_page_source(html)

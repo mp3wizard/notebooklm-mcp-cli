@@ -14,6 +14,26 @@ def _batchexecute_response(rpc_id: str, result: object) -> str:
     )
 
 
+def test_cdp_transport_preserves_saved_csrf_fallback(monkeypatch):
+    from notebooklm_tools.core.cdp_transport import get_cdp_page_context
+    from notebooklm_tools.utils import cdp
+
+    monkeypatch.setattr(cdp, "has_chrome_profile", lambda profile: True)
+    monkeypatch.setattr(cdp, "find_existing_nlm_chrome", lambda **kwargs: (9230, "ws://browser"))
+    monkeypatch.setattr(
+        cdp,
+        "find_or_create_notebooklm_page",
+        lambda port: {"webSocketDebuggerUrl": "ws://page"},
+    )
+    monkeypatch.setattr(cdp, "get_current_url", lambda ws: "https://notebook.google.com/")
+    monkeypatch.setattr(cdp, "get_page_html", lambda ws: '{"FdrFJe":"123","cfb2h":"build"}')
+
+    context = get_cdp_page_context(profile_name="work", csrf_fallback="saved-csrf", timeout=1)
+
+    assert context.csrf_token == "saved-csrf"
+    assert context.session_id == "123"
+
+
 def test_call_rpc_uses_cdp_transport_when_enabled(monkeypatch):
     """CDP mode refreshes browser-page tokens before building batchexecute payloads."""
     monkeypatch.setenv("NOTEBOOKLM_RPC_TRANSPORT", "cdp")

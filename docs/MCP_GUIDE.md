@@ -68,6 +68,11 @@ A new profile asks whether to store the login **protected** (OS keystore, recomm
 | `source_get_content` | Get raw text content |
 | `source_rename` | Rename a source in a notebook |
 
+**Source URLs:** CLI `nlm source list --json` and `nlm source get --json` return
+URLs for web and YouTube sources. The current MCP `source_list_drive` and
+`source_get_content` responses do not expose a `url` field. Use the CLI when
+the original source URL is required; do not infer it from transcript text.
+
 **`source_list_drive` parameters:**
 ```python
 source_list_drive(

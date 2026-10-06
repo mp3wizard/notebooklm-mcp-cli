@@ -34,6 +34,7 @@ def test_shim_reexports_expected_auth_symbols():
             "get_active_auth_mtime",
             "get_auth_health_checker",
             "get_cache_path",
+            "get_notebook_count",
             "load_cached_tokens",
             "save_tokens_to_cache",
             "validate_cookies",

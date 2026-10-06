@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.15.2"
+version: "0.15.3"
 description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, interactive reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "interactive report", "lesson report", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
@@ -190,6 +190,15 @@ probe was inconclusive; `error` means the health check itself failed.
 
 **Note**: Both MCP and CLI share the same authentication backend, so authenticating with one works for both.
 
+**Login completion (v0.15.3+):** Builtin Chromium/CDP login waits up to 300 seconds
+for signed-in Google cookies and the actual CSRF token. A Notebook URL, HTTP 200,
+or an anonymous `NID` cookie is not proof of authentication. If an older version
+saved only `NID` and reported success, upgrade and retry
+`nlm login --profile <name>`, then verify with `nlm login --check --profile <name>`. Keep the same
+profile; do not delete it or invent tokens to repair this failure. Builtin login
+closes its browser after completion; externally managed CDP browsers remain open.
+See [login recovery](references/troubleshooting.md#browser-closes-before-sign-in-or-reports-false-success).
+
 ### Plan Usage and Quotas
 
 Gemini Notebook meters chat and Studio usage as compute against two simultaneous
@@ -334,6 +343,13 @@ nlm source delete <source-id> --confirm
 ```
 
 **Drive types**: `doc`, `slides`, `sheets`, `pdf`
+
+**Original source URLs:** CLI `nlm source list <nb-id> --json` and
+`nlm source get <source-id> --json` return `url` for web and YouTube sources;
+`nlm source list <nb-id> --url` prints ID-to-URL pairs. The current MCP
+`source_list_drive` and `source_get_content` results omit that field. Use the CLI
+when the original URL is needed instead of assuming a field or inferring a URL
+from transcript text.
 
 ### 4. Research (Source Discovery)
 

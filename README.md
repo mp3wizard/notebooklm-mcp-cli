@@ -633,9 +633,9 @@
 
 ### Latest
 
-|                                   **Codex Setup + Cinematic Video & Slides**                                   |
-| :------------------------------------------------------------------------------------------------------------: |
-| [![Latest](https://img.youtube.com/vi/KrgLCrvU1dw/mqdefault.jpg?v=20261002)](https://www.youtube.com/watch?v=KrgLCrvU1dw) |
+| **Claude Cowork & Interactive Reports** | **Codex Setup + Cinematic Video & Slides** |
+| :---: | :---: |
+| [![Claude Cowork and Interactive Reports demo](https://img.youtube.com/vi/UXxqTpNNGt0/mqdefault.jpg)](https://www.youtube.com/watch?v=UXxqTpNNGt0) | [![Codex Setup, Cinematic Video and Slides demo](https://img.youtube.com/vi/KrgLCrvU1dw/mqdefault.jpg?v=20261002)](https://www.youtube.com/watch?v=KrgLCrvU1dw) |
 
 ### MCP Demos
 

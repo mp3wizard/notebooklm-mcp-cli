@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Usage errors now include the account's plan identifier when Gemini Notebook returns no usage windows, instead of implying that usage is unavailable only for Enterprise/Workspace accounts ([Issue #352](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/352)).
+
+## [0.15.3] - 2026-10-05
+
+> Browser login waits for real sign-in, saved-session checks reject anonymous cookies, and YouTube sources return their URLs.
+
+### Added
+
+- Nothing added.
+
+### Fixed
+
+- **A fresh login no longer closes the browser before sign-in.** `nlm login` now waits for signed-in Google cookies and the app's CSRF token before saving credentials or reporting success. An anonymous landing page and its `NID` cookie cannot finish login. If sign-in times out, no anonymous credentials replace your saved session. Verified with a fresh profile on the reporting Mac: the browser stayed open until sign-in, then saved a usable session and closed normally ([Issue #350](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/350)).
+- **Broken saved sessions no longer trap users behind "Authentication valid."** Live authentication checks require the actual CSRF field or confirmation through the notebook API. Session IDs and unrelated `at=` text are no longer mistaken for CSRF tokens, and offline checks reject anonymous cookie sets even when they were saved recently. An API authentication rejection now reaches login validation instead of being hidden behind "network slow"; genuine network failures remain inconclusive.
+- **YouTube sources return their URLs.** Source listing and source content retrieval now read YouTube URLs from `metadata[5][0]` when the usual web URL slot is empty. Existing web-source extraction is preserved. Verified through the CLI and live MCP source tools; MCP responses retain their existing fields. Thanks to **@maxdata** for the fix and captured response examples ([PR #349](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/349)).
+
+### Changed
+
+- The README features the latest [Claude Cowork & Interactive Reports walkthrough](https://www.youtube.com/watch?v=UXxqTpNNGt0), alongside the Codex setup demo.
+- Authentication docs and the bundled skill explain real sign-in detection, recovery with the same profile, and the distinction between CLI source URLs and the current MCP response fields.
+
+### Removed
+
+- Nothing removed.
+
 ## [0.15.2] - 2026-10-04
 
 > Research auto-import that waits out a slow start, a Windows credential-lock fix, and a `/healthz` alias for monitors that expect one.

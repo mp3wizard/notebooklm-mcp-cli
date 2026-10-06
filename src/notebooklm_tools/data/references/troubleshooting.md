@@ -61,6 +61,34 @@ profile is relaunched. On those accounts, set
 `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` to turn off the automatic self-heal and
 `nlm auth refresh`.
 
+### Browser Closes Before Sign-in or Reports False Success
+
+Older versions could save an anonymous `NID` cookie, close the browser before
+sign-in, and then report "Authentication valid" for an unusable session. A page
+at `notebook.google.com` or an HTTP 200 response does not prove sign-in.
+
+1. Upgrade to v0.15.3 or later.
+2. Retry login using the same profile, then verify it:
+
+   ```bash
+   nlm login --profile work
+   nlm login --check --profile work
+   ```
+
+A successful `--check` exits with code 0 and reports "Authentication valid".
+A failed or inconclusive check exits with code 2 and explains the failure.
+
+Builtin Chromium/CDP login waits up to 300 seconds for signed-in cookies and the
+app's CSRF token. On timeout it saves no anonymous credentials and leaves an
+existing saved login untouched. Profile deletion and invented token values are
+not recovery steps for this bug. Share only redacted diagnostics, never cookies
+or credential values.
+
+If the check is `unverified` because of a network timeout, check connectivity or
+try a read-only API call first. An API authentication rejection requires login.
+An externally managed CDP browser staying open after login is expected; builtin
+login closes the browser it launched.
+
 ### Browser Doesn't Launch
 
 **Symptoms:**
@@ -111,12 +139,15 @@ profile is relaunched. On those accounts, set
    nlm login --profile work
    ```
 
-3. **Delete corrupted profile:**
+3. **Retry an expired or unusable session with the same profile:**
 
    ```bash
-   nlm login profile delete <profile-name>
    nlm login --profile <profile-name>
+   nlm login --check --profile <profile-name>
    ```
+
+   If a profile is confirmed corrupted and cannot be repaired, ask before deleting
+   its saved login. A timeout or anonymous session alone does not justify deletion.
 
 4. **Switch default profile:**
 

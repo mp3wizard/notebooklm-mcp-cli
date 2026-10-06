@@ -125,6 +125,17 @@ I need to authenticate with NotebookLM.
 **Expected:** Chrome opens, logs in, and tokens are saved. On WSL2, Windows Chrome opens and
 the CDP connection succeeds in both NAT and mirrored networking modes.
 
+**Anonymous-session regression (#350):**
+1. Run login with a new profile. Before signing in, the browser must remain open;
+   a public landing page, build label, or anonymous `NID` cookie must not finish login.
+2. Complete Google sign-in. Login saves signed-in cookies and a CSRF token, then
+   closes the browser it launched. Verify the profile with `nlm login --check`.
+3. If sign-in times out, login fails without saving anonymous credentials.
+4. For a profile previously saved with only `NID`, rerunning login opens the
+   sign-in browser. `--check` must not report success based on a public HTTP 200 page.
+5. An API authentication rejection must fail validation; a genuine network timeout
+   remains inconclusive and must not be mislabeled as credential expiry.
+
 ---
 
 ### Test 1.3 - List Notebooks

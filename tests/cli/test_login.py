@@ -1,8 +1,42 @@
 from types import SimpleNamespace
 
+import pytest
 from typer.testing import CliRunner
 
 from notebooklm_tools.cli.main import app
+
+
+@pytest.mark.parametrize("error_kind", ["client", "auth"])
+def test_notebook_count_does_not_hide_authentication_rejection(monkeypatch, error_kind):
+    from notebooklm_tools.cli.main import _best_effort_notebook_count
+    from notebooklm_tools.core.errors import ClientAuthenticationError
+    from notebooklm_tools.core.exceptions import AuthenticationError
+
+    error = ClientAuthenticationError if error_kind == "client" else AuthenticationError
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def list_notebooks(self):
+            raise error("Authentication expired")
+
+    monkeypatch.setattr("notebooklm_tools.core.client.NotebookLMClient", Client)
+    profile = SimpleNamespace(
+        cookies={"SID": "expired"},
+        csrf_token="csrf",
+        session_id="123",
+        build_label="build",
+        base_host="",
+    )
+    with pytest.raises(AuthenticationError):
+        _best_effort_notebook_count(profile)
 
 
 class FakeAuthManager:
@@ -229,7 +263,11 @@ def test_best_effort_notebook_count_swallows_timeout(monkeypatch):
 
     monkeypatch.setattr("notebooklm_tools.core.client.NotebookLMClient", FakeClient)
     profile = SimpleNamespace(
-        cookies={"SID": "sid"}, csrf_token="csrf", session_id="session", build_label="build"
+        cookies={"SID": "sid"},
+        csrf_token="csrf",
+        session_id="session",
+        build_label="build",
+        base_host="",
     )
 
     assert _best_effort_notebook_count(profile) is None

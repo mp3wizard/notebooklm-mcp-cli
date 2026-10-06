@@ -4,6 +4,7 @@ import contextlib
 import logging
 import os
 from collections.abc import Callable
+from types import SimpleNamespace
 from typing import Any, NamedTuple, TypeVar
 
 import typer
@@ -143,7 +144,7 @@ def _best_effort_notebook_count(profile: Any) -> int | None:
 
     The notebook count is a convenience shown alongside a successful auth
     check. A slow or timed-out notebook list must never turn an otherwise-valid
-    session into a failure, so every error here degrades to ``None``.
+    session into a failure. API authentication rejections still invalidate it.
 
     Args:
         profile: The loaded profile whose credentials are used for the call.
@@ -151,20 +152,13 @@ def _best_effort_notebook_count(profile: Any) -> int | None:
     Returns:
         The number of notebooks, or None if the list could not be fetched.
     """
-    from notebooklm_tools.core.client import NotebookLMClient
+    from notebooklm_tools.services.auth import get_notebook_count
+    from notebooklm_tools.services.errors import ServiceError
 
     try:
-        with NotebookLMClient(
-            cookies=profile.cookies,
-            csrf_token=profile.csrf_token or "",
-            session_id=profile.session_id or "",
-            build_label=profile.build_label or "",
-            base_host=profile.base_host or "",
-            profile_name=getattr(profile, "name", None),
-        ) as client:
-            return len(client.list_notebooks())
-    except Exception:
-        return None
+        return get_notebook_count(profile)
+    except ServiceError as exc:
+        raise _auth_failure_from_result(SimpleNamespace(reason="expired")) from exc
 
 
 def _validate_saved_profile(auth: Any) -> tuple[Any, int | None]:
@@ -200,7 +194,7 @@ def _print_auth_valid(profile: Any, notebook_count: int | None) -> None:
         console.print(f"  Notebooks found: {notebook_count}")
     else:
         console.print(
-            "  [dim]Notebook count unavailable (network slow); credentials are valid[/dim]"
+            "  [dim]Notebook count unavailable; credentials passed the authentication check[/dim]"
         )
     if profile.email:
         console.print(f"  Account: {profile.email}")

@@ -107,23 +107,21 @@ def get_usage(client: NotebookLMClient) -> dict:
             hint="If this is an authentication error, run 'nlm auth refresh' or 'nlm login'.",
         ) from e
 
+    try:
+        tier = client.get_entitlement_tier()
+    except Exception:
+        tier = None
+
     if not raw_windows:
+        plan = f" (plan: {tier})" if tier else ""
         raise ServiceError(
             "Usage response contained no windows",
-            user_message=(
-                "Gemini Notebook returned no usage information. "
-                "Usage data may be unavailable for Enterprise/Workspace accounts."
-            ),
+            user_message=f"Gemini Notebook returned no usage information{plan}.",
             hint=(
                 "For CLI troubleshooting, run 'nlm --debug usage'. "
                 "For MCP, start the server with 'notebooklm-mcp --debug'."
             ),
         )
-
-    try:
-        tier = client.get_entitlement_tier()
-    except Exception:
-        tier = None
 
     windows = [_shape_window(w) for w in raw_windows]
     windows.sort(

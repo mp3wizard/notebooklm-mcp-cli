@@ -49,6 +49,21 @@ def _drive_file_id(source_type: object, metadata: list[Any]) -> str | None:
     return drive_id if isinstance(drive_id, str) and drive_id else None
 
 
+def _source_url(source_type: object, metadata: list[Any]) -> str | None:
+    """Return a source's URL from its metadata.
+
+    Web sources carry the URL at ``metadata[7][0]``. YouTube sources (type 9) leave
+    that slot empty and carry ``[url, video_id, channel]`` at ``metadata[5]``.
+    """
+    candidates = [metadata[7] if len(metadata) > 7 else None]
+    if source_type == constants.SOURCE_TYPE_YOUTUBE:
+        candidates.append(metadata[5] if len(metadata) > 5 else None)
+    for info in candidates:
+        if isinstance(info, list) and info and isinstance(info[0], str):
+            return info[0]
+    return None
+
+
 def _resolve_source_type_name(source_type: object, metadata: list[Any]) -> str:
     """Resolve ambiguous source codes using explicit MIME metadata when available."""
     if source_type == constants.SOURCE_TYPE_WORD_DOC:
@@ -350,12 +365,12 @@ class SourceMixin(BaseClient):
                             constants.SOURCE_TYPE_WORD_DOC,
                         )
 
-                        # Extract URL if available (position 7)
-                        url = None
-                        if isinstance(metadata, list) and len(metadata) > 7:
-                            url_info = metadata[7]
-                            if isinstance(url_info, list) and len(url_info) > 0:
-                                url = url_info[0]
+                        # Extract URL (position 7 for web, position 5 for YouTube)
+                        url = (
+                            _source_url(source_type, metadata)
+                            if isinstance(metadata, list)
+                            else None
+                        )
 
                         # Extract processing status from src[3][1]
                         # 1=processing, 2=ready, 3=error/done(audio),
@@ -1095,11 +1110,7 @@ class SourceMixin(BaseClient):
                         type_code = metadata[4]
                         source_type = _resolve_source_type_name(type_code, metadata)
 
-                    # URL might be at position 7 for web sources
-                    if len(metadata) > 7 and isinstance(metadata[7], list):
-                        url_info = metadata[7]
-                        if len(url_info) > 0 and isinstance(url_info[0], str):
-                            url = url_info[0]
+                    url = _source_url(metadata[4] if len(metadata) > 4 else None, metadata)
 
             # Extract content from result[3][0] - array of content blocks
             if len(result) > 3 and isinstance(result[3], list):

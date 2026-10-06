@@ -331,3 +331,71 @@ def test_wait_for_source_ready_allows_transient_unknown_audio_state():
     )
 
     assert result == ready
+
+
+def _youtube_metadata():
+    # Shape captured from a live get_source (hizoJc) response for a YouTube source.
+    # The URL slot at metadata[7] is empty; the URL is at metadata[5][0].
+    return [
+        None,
+        8553,
+        [1766850041, 63757000],
+        ["00000000-0000-0000-0000-000000000000", [1766850040, 782055000]],
+        9,
+        ["https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ", "Example Channel"],
+        1,
+        None,
+        11169,
+    ]
+
+
+def _web_metadata():
+    return [
+        None,
+        1200,
+        [1766850041, 63757000],
+        ["00000000-0000-0000-0000-000000000000", [1766850040, 782055000]],
+        5,
+        None,
+        1,
+        ["https://example.com/article"],
+    ]
+
+
+def test_get_notebook_sources_returns_youtube_url_from_metadata_5():
+    from notebooklm_tools.core.sources import SourceMixin
+
+    mixin = SourceMixin(cookies={"test": "cookie"}, csrf_token="test")
+    mixin.get_notebook = MagicMock(
+        return_value=[
+            [
+                "Notebook",
+                [
+                    [["source-1"], "Video", _youtube_metadata(), [None, 2]],
+                    [["source-2"], "Article", _web_metadata(), [None, 2]],
+                ],
+                "notebook-1",
+            ]
+        ]
+    )
+
+    sources = mixin.get_notebook_sources_with_types("notebook-1")
+
+    assert sources[0]["url"] == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert sources[1]["url"] == "https://example.com/article"
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        (_youtube_metadata(), "https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+        (_web_metadata(), "https://example.com/article"),
+    ],
+)
+def test_get_source_fulltext_returns_url(metadata, expected):
+    from notebooklm_tools.core.sources import SourceMixin
+
+    mixin = SourceMixin(cookies={"test": "cookie"}, csrf_token="test")
+    mixin._call_rpc = MagicMock(return_value=[[["source-1"], "Title", metadata], None, None, []])
+
+    assert mixin.get_source_fulltext("source-1")["url"] == expected

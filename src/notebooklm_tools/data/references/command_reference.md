@@ -352,6 +352,10 @@ nlm source list <notebook-id> [OPTIONS]
 When freshness is skipped, `stale`/`is_stale` is `null` (unknown), not
 `false` (fresh).
 
+Source listing JSON includes `url` for web and YouTube sources. The current MCP
+`source_list_drive` and `source_get_content` responses omit this field; use the
+CLI when an original source URL is needed.
+
 ### nlm source add
 
 Add a source to a notebook.
@@ -401,6 +405,8 @@ nlm source get <source-id> [OPTIONS]
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--profile` | `-p` | Use specific profile |
+
+`nlm source get <source-id> --json` includes the original web or YouTube `url`.
 
 ### nlm source describe
 

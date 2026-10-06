@@ -17,12 +17,73 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import httpx
+import pytest
 
 from notebooklm_tools.core.auth import (
     AuthCheckResult,
     AuthManager,
     check_auth,
 )
+
+
+def test_session_id_is_not_extracted_as_csrf():
+    from notebooklm_tools.core.auth import extract_csrf_from_page_source
+
+    assert extract_csrf_from_page_source('{"FdrFJe":"123","cfb2h":"public"}') is None
+
+
+def test_unrelated_query_parameter_is_not_extracted_as_csrf():
+    from notebooklm_tools.core.auth import extract_csrf_from_page_source
+
+    assert extract_csrf_from_page_source('<a href="/?format=chart">Chart</a>') is None
+
+
+def test_recent_anonymous_profile_is_not_valid_offline(tmp_path, monkeypatch):
+    monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
+    AuthManager("content-work").save_profile(cookies={"NID": "anonymous"})
+
+    result = check_auth(profile="content-work", live=False)
+
+    assert result.valid is False
+    assert result.reason == "expired"
+
+
+@pytest.mark.parametrize("rpc_result", ["expired", "network_error", "valid"])
+def test_public_homepage_requires_api_confirmation(tmp_path, monkeypatch, rpc_result):
+    from notebooklm_tools.core.errors import ClientAuthenticationError
+
+    monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
+    manager = AuthManager("content-work")
+    manager.save_profile(cookies={"NID": "anonymous"}, csrf_token="")
+    response = httpx.Response(
+        200,
+        request=httpx.Request("GET", "https://notebook.google.com/"),
+        text='{"FdrFJe":"123","cfb2h":"public"}',
+    )
+    with (
+        patch("notebooklm_tools.core.auth._fetch_notebooklm_homepage", return_value=response),
+        patch("notebooklm_tools.core.client.NotebookLMClient") as mock_client,
+    ):
+        client = mock_client.return_value
+        client.csrf_token = "real-csrf"
+        client._session_id = "456"
+        client._bl = "app-build"
+        if rpc_result == "expired":
+            client.list_notebooks.side_effect = ClientAuthenticationError("Authentication expired")
+        elif rpc_result == "network_error":
+            client.list_notebooks.side_effect = httpx.ReadTimeout("network slow")
+        else:
+            client.list_notebooks.return_value = []
+        result = check_auth(profile="content-work", live=True)
+
+    assert result.valid is (rpc_result == "valid")
+    if rpc_result == "expired":
+        assert result.reason == "expired"
+        assert AuthManager("content-work").load_profile().csrf_token == ""
+    elif rpc_result == "network_error":
+        assert result.reason.startswith("network_error:")
+    else:
+        assert AuthManager("content-work").load_profile().csrf_token == "real-csrf"
 
 
 class TestCheckAuthAPI:

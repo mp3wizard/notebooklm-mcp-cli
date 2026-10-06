@@ -1689,6 +1689,8 @@ def extract_cookies_from_page(
     wait_for_login: bool = True,
     login_timeout: int = 300,
 ) -> dict[str, Any]:
+    from notebooklm_tools.core.auth import validate_cookies
+
     page = find_or_create_notebooklm_page_by_cdp_url(cdp_http_url)
     if not page:
         raise AuthenticationError(
@@ -1708,50 +1710,35 @@ def extract_cookies_from_page(
     if not _is_notebooklm_url(current_url):
         navigate_to_url(ws_url, get_notebooklm_url())
 
-    # Check login status
-    current_url = get_current_url(ws_url)
-
-    if not is_logged_in(current_url) and wait_for_login:
+    # Anonymous landing pages use the same host and have page metadata too.
+    # Only accept the app's CSRF token together with signed-in Google cookies.
+    start_time = time.time()
+    last_log_at = 0
+    if wait_for_login:
         _logger.warning("Waiting for sign-in in browser window (timeout: %ds)...", login_timeout)
-        start_time = time.time()
-        last_log_at = 0
-        while time.time() - start_time < login_timeout:
-            time.sleep(0.5)
-            try:
-                current_url = get_current_url(ws_url)
-                if is_logged_in(current_url):
+    while True:
+        try:
+            current_url = get_current_url(ws_url)
+            if is_logged_in(current_url):
+                html = get_page_html(ws_url)
+                cookies = get_page_cookies(ws_url)
+                csrf_token = extract_csrf_token(html)
+                if csrf_token and validate_cookies(cookies):
                     break
-            except Exception as _e:
-                # SEC-007: transient CDP poll failure during login wait — log and continue
-                _logger.debug("Transient error polling login status: %s", _e)
-            elapsed = int(time.time() - start_time)
-            if elapsed - last_log_at >= 30:
-                last_log_at = elapsed
-                _logger.warning("Still waiting for sign-in... (%ds elapsed)", elapsed)
-
-        if not is_logged_in(current_url):
+        except Exception as _e:
+            # SEC-007: transient CDP poll failure during login wait — log and continue
+            _logger.debug("Transient error polling login status: %s", _e)
+        elapsed = time.time() - start_time
+        if not wait_for_login or elapsed >= login_timeout:
             raise AuthenticationError(
-                message="Login timeout",
+                message="Login timeout" if wait_for_login else "Browser is not signed in",
                 hint="Please log in to NotebookLM in the connected browser window.",
             )
+        if int(elapsed) - last_log_at >= 30:
+            last_log_at = int(elapsed)
+            _logger.warning("Still waiting for sign-in... (%ds elapsed)", last_log_at)
+        time.sleep(0.5)
 
-    # Wait for NotebookLM to fully load (session tokens in DOM)
-    html, ready = _wait_for_page_ready(ws_url, timeout=30)
-    if not ready:
-        _logger.warning("Page loaded but session tokens not found in DOM after 30s")
-
-    # Extract cookies
-    cookies = get_page_cookies(ws_url)
-
-    if not cookies:
-        raise AuthenticationError(
-            message="No cookies extracted",
-            hint="Make sure you're fully logged in.",
-        )
-
-    # Get page HTML for CSRF, session ID, email, and build label
-    # html already fetched by _wait_for_page_ready
-    csrf_token = extract_csrf_token(html)
     session_id = extract_session_id(html)
     email = extract_email(html)
     build_label = extract_build_label(html)

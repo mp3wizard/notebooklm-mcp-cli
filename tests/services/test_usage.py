@@ -43,8 +43,10 @@ class FakeClient(UsageMixin):
         self._usage_payload = usage_payload
         self._entitlement_payload = entitlement_payload
         self._usage_error = usage_error
+        self.rpc_calls = []
 
     def _call_rpc(self, rpc_id, params, *args, **kwargs):
+        self.rpc_calls.append(rpc_id)
         if rpc_id == self.RPC_GET_USAGE:
             if self._usage_error:
                 raise self._usage_error
@@ -101,21 +103,42 @@ def test_authentication_failure_is_raised_not_reported_as_quota():
     with pytest.raises(ServiceError) as excinfo:
         get_usage(client)
     assert "auth refresh" in (excinfo.value.hint or "")
+    assert client.rpc_calls == [client.RPC_GET_USAGE]
 
 
-def test_empty_window_list_raises():
-    with pytest.raises(ServiceError):
-        get_usage(FakeClient([1, [], None, []]))
-
-
-def test_empty_usage_response_explains_enterprise_limit_and_debug_surfaces():
+@pytest.mark.parametrize("payload", [[2], [1, [], None, []]])
+@pytest.mark.parametrize(
+    "tier",
+    [
+        "NOTEBOOKLM_TIER_PRO_AFFILIATE_USER",
+        "NOTEBOOKLM_TIER_PRO_DASHER_END_USER",
+        "NOTEBOOKLM_TIER_FUTURE_USER",
+    ],
+)
+def test_empty_usage_response_reports_actual_tier_and_debug_surfaces(payload, tier):
+    client = FakeClient(payload, entitlement_payload=[[[tier]]])
     with pytest.raises(ServiceError) as excinfo:
-        get_usage(FakeClient([1, [], None, []]))
+        get_usage(client)
 
     error = excinfo.value
-    assert "Enterprise/Workspace" in error.user_message
+    assert tier in error.user_message
+    assert "Enterprise/Workspace" not in error.user_message
     assert "nlm --debug usage" in error.hint
     assert "notebooklm-mcp --debug" in error.hint
+    assert client.rpc_calls == [client.RPC_GET_USAGE, client.RPC_GET_ENTITLEMENT]
+
+
+@pytest.mark.parametrize("entitlement", [[], RuntimeError("Tier lookup failed")])
+def test_empty_usage_response_stays_neutral_when_tier_is_unavailable(entitlement):
+    with pytest.raises(ServiceError) as excinfo:
+        get_usage(FakeClient([2], entitlement_payload=entitlement))
+
+    error = excinfo.value
+    assert "no usage information" in error.user_message
+    assert "Enterprise/Workspace" not in error.user_message
+    assert "plan:" not in error.user_message
+    assert "None" not in error.user_message
+    assert "Tier lookup failed" not in error.user_message
 
 
 def test_malformed_payload_raises():

@@ -22,6 +22,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import httpx
+import pytest
 
 from notebooklm_tools.core.auth import AuthManager
 from notebooklm_tools.services.auth import (
@@ -159,6 +160,31 @@ def _save_fake_profile(tmp_path, monkeypatch):
         },
         email="test@example.com",
     )
+
+
+@pytest.mark.parametrize(
+    "api_result, expected_status",
+    [
+        ((False, "ClientAuthenticationError: expired"), "stale"),
+        ((False, "network_error: ReadTimeout"), "unverified"),
+        ((True, None), "configured"),
+    ],
+)
+def test_public_homepage_does_not_prove_health(tmp_path, monkeypatch, api_result, expected_status):
+    _save_fake_profile(tmp_path, monkeypatch)
+    response = httpx.Response(
+        200,
+        request=httpx.Request("GET", "https://notebook.google.com/"),
+        text='{"FdrFJe":"123","cfb2h":"public"}',
+    )
+    with (
+        patch("notebooklm_tools.core.auth._fetch_notebooklm_homepage", return_value=response),
+        patch.object(AuthHealthChecker, "_probe_api", return_value=api_result),
+    ):
+        report = AuthHealthChecker().check(force=True)
+
+    assert report.status == expected_status
+    assert report.valid is (expected_status == "configured")
 
 
 class TestCheckEndToEnd:

@@ -1759,6 +1759,14 @@ Each source in the notebook response has this structure:
 ```
 
 ### Source Types (metadata position 4)
+
+The metadata example above shows a Drive source. For URL-bearing responses,
+web sources (type 5) carry `[url]` at `metadata[7]`; YouTube sources (type 9)
+carry `[url, video_id, channel]` at `metadata[5]` and normally leave
+`metadata[7]` empty. The shared URL extractor checks position 7 first, then
+falls back to position 5 only for YouTube. These are response metadata slots,
+not the positions used in the add-source request payload.
+
 | Type | Meaning | Drive Doc Info | Can Sync |
 |------|---------|----------------|----------|
 | 1 | **Google Docs** (Documents, including Gemini Notes) | `[doc_id, version_hash]` | **Yes** |
@@ -1843,6 +1851,12 @@ The MCP needs these cookies (automatically filtered from the full cookie header)
    - Subsequent requests reuse cached tokens
    - No fetching needed
    - Cache updates automatically when tokens are refreshed
+
+`SNlM0e` is the CSRF field. `FdrFJe` is a session ID and `cfb2h` is a build
+label; neither proves sign-in or substitutes for a CSRF token. Unrelated
+`at=` text in page markup is not a token either. Interactive CDP login requires
+the actual CSRF field together with the required signed-in cookies. Live
+validation of a homepage without CSRF falls back to a notebook API check.
 
 ---
 

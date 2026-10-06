@@ -95,6 +95,11 @@ nlm notebook query <id> "question" --json # Response includes the original quest
 
 ### Sources
 
+`nlm source list --json` and `nlm source get --json` include the original URL
+for web and YouTube sources. Use `source list --url` for an ID-to-URL list.
+The MCP `source_list_drive` and `source_get_content` responses currently omit
+this field; use the CLI when you need source URLs.
+
 ```bash
 nlm source list <notebook>                         # List sources
 nlm source add <notebook> --url "https://..."      # Add URL
