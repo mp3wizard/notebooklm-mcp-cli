@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.15.4 — October 2026)
+- **Windows CI**, **ephemeral CDP port fallback**, **actionable headless refresh diagnostics** (#363, #364), **atomic alias/tag updates** (#354, #359), **bounded async query concurrency** (`NOTEBOOKLM_ASYNC_QUERY_MAX_INFLIGHT`, #358), **isolated download temp files** (#357), **cached PyPI version checks** (#361) and **PEP 440 version comparison** (#362).
+- Conflicts in `mcp/tools/auth.py` and `services/chat.py` resolved: kept upstream logic plus local SEC-007 debug log.
+- Security scan post-merge: 0 findings at Medium or above; 44 Bandit Low left by design — [`docs/security-scan-report-2026-10-07.md`](docs/security-scan-report-2026-10-07.md)
+
 ### Upstream sync (v0.15.3 + usage-plan fix — October 2026)
 - **Login waits for a real sign-in** (#350): `nlm login` no longer saves anonymous cookies or closes the browser early; saved-session checks reject anonymous sessions and require a real CSRF token. **YouTube sources return their URLs** (#349). **Usage errors name the account's plan** when no usage windows come back (#352).
 - Merge conflict in `utils/cdp.py` resolved: kept upstream's sign-in wait loop plus the local SEC-007 debug log for transient poll errors.
