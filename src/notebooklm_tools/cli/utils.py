@@ -13,6 +13,7 @@ from notebooklm_tools import __version__
 from notebooklm_tools.core.client import NotebookLMClient
 from notebooklm_tools.services.auth import AuthManager
 from notebooklm_tools.utils.config import get_config, get_storage_dir
+from notebooklm_tools.utils.versioning import is_newer_version
 
 
 def make_console(**kwargs) -> "Console":
@@ -192,16 +193,6 @@ def _fetch_latest_version() -> str | None:
         return None
 
 
-def _compare_versions(current: str, latest: str) -> bool:
-    """Compare version strings. Returns True if latest > current."""
-    try:
-        current_parts = [int(x) for x in current.split(".")]
-        latest_parts = [int(x) for x in latest.split(".")]
-        return latest_parts > current_parts
-    except (ValueError, AttributeError):
-        return False
-
-
 def check_for_updates() -> tuple[bool, str | None]:
     """Check if a new version is available.
 
@@ -214,13 +205,13 @@ def check_for_updates() -> tuple[bool, str | None]:
     if cached:
         latest = cached.get("latest_version")
         if latest:
-            return _compare_versions(__version__, latest), latest
+            return is_newer_version(__version__, latest), latest
 
     # Fetch from PyPI
     latest = _fetch_latest_version()
     if latest:
         _save_version_cache(latest)
-        return _compare_versions(__version__, latest), latest
+        return is_newer_version(__version__, latest), latest
 
     return False, None
 

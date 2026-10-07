@@ -1,14 +1,78 @@
 #!/usr/bin/env python3
 """Tests for DownloadMixin."""
 
+import os
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
 
 from notebooklm_tools.core.base import BaseClient
-from notebooklm_tools.core.download import DownloadMixin
+from notebooklm_tools.core.download import DownloadMixin, _create_download_temp_path
 from notebooklm_tools.core.errors import ArtifactDownloadError, ArtifactParseError
+
+
+def test_download_temp_paths_are_unique_and_same_directory(tmp_path):
+    output = tmp_path / "artifact.bin"
+    first = _create_download_temp_path(output)
+    second = _create_download_temp_path(output)
+    try:
+        assert first != second
+        assert first.parent == tmp_path
+        assert second.parent == tmp_path
+        assert first.name.startswith(".nlm-download-")
+        assert second.name.startswith(".nlm-download-")
+        assert first.exists()
+        assert second.exists()
+    finally:
+        first.unlink(missing_ok=True)
+        second.unlink(missing_ok=True)
+
+
+def test_failed_download_cleans_only_its_own_temp_file(tmp_path):
+    mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+    output = tmp_path / "artifact.bin"
+    unrelated = _create_download_temp_path(output)
+    unrelated.write_bytes(b"keep")
+
+    request = httpx.Request("GET", "https://example.com/file")
+    response = httpx.Response(500, request=request)
+
+    class FailingResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def raise_for_status(self):
+            raise httpx.HTTPStatusError("boom", request=request, response=response)
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def stream(self, method, url):
+            return FailingResponse()
+
+    try:
+        with (
+            patch("notebooklm_tools.core.download.httpx.Client", FakeClient),
+            pytest.raises(ArtifactDownloadError),
+        ):
+            mixin._download_url_sync("https://example.com/file", str(output))
+
+        assert unrelated.read_bytes() == b"keep"
+        assert list(tmp_path.glob(".nlm-download-*.tmp")) == [unrelated]
+        assert not output.exists()
+    finally:
+        unrelated.unlink(missing_ok=True)
 
 
 class TestDownloadMixinImport:
@@ -155,11 +219,13 @@ class TestDownloadMixinMethods:
                 return FakeResponse()
 
         output = tmp_path / "table.xlsx"
+        output.write_bytes(b"old")
         with patch("notebooklm_tools.core.download.httpx.Client", FakeClient):
             result = mixin.download_data_table("nb-1", str(output), "xlsx-1")
 
         assert result == str(output)
         assert output.read_bytes() == b"PK\x03\x04xlsx"
+        assert not list(tmp_path.glob(".nlm-download-*.tmp"))
         assert captured == {
             "method": "GET",
             "url": "https://contribution.usercontent.google/download?c=download-token",
@@ -663,6 +729,7 @@ class TestDownloadUrlCookies:
                 return MockStreamResponse()
 
         output = tmp_path / "out.bin"
+        output.write_bytes(b"old")
 
         with patch("notebooklm_tools.core.download.httpx.AsyncClient", MockAsyncClient):
             result = await mixin._download_url(
@@ -671,6 +738,7 @@ class TestDownloadUrlCookies:
 
         assert result == str(output)
         assert output.read_bytes() == b"data"
+        assert not list(tmp_path.glob(".nlm-download-*.tmp"))
 
         cookies = captured["cookies"]
         assert cookies.get("SID", domain=".google.com") == "sid-value"
@@ -845,3 +913,41 @@ class TestStudioMindMapDownload:
 
         assert out == str(tmp_path / "quiz.json")
         assert mock_content.call_args[0][1] == "q-1"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits")
+def test_download_temp_file_honors_umask_not_owner_only(tmp_path):
+    umask = os.umask(0)
+    os.umask(umask)
+    temp = _create_download_temp_path(tmp_path / "artifact.bin")
+    try:
+        assert temp.stat().st_mode & 0o777 == 0o666 & ~umask
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def test_interrupted_download_removes_its_temp_file(tmp_path):
+    mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+    output = tmp_path / "artifact.bin"
+
+    class InterruptedClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def stream(self, method, url):
+            raise KeyboardInterrupt
+
+    with (
+        patch("notebooklm_tools.core.download.httpx.Client", InterruptedClient),
+        pytest.raises(KeyboardInterrupt),
+    ):
+        mixin._download_url_sync("https://example.com/file", str(output))
+
+    assert not list(tmp_path.glob(".nlm-download-*.tmp"))
+    assert not output.exists()

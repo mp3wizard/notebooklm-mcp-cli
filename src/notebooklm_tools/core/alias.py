@@ -1,7 +1,12 @@
 """Alias management for NotebookLM CLI."""
 
 import json
+import os
+import tempfile
+from pathlib import Path
 from typing import Any
+
+from filelock import FileLock
 
 from notebooklm_tools.utils.config import get_config_dir
 
@@ -31,58 +36,94 @@ class AliasManager:
     def __init__(self) -> None:
         self.config_dir = get_config_dir()
         self.aliases_file = self.config_dir / "aliases.json"
+        self.lock_file = self.config_dir / "locks" / "aliases.lock"
         self._aliases: dict[str, AliasEntry] = {}
         self._load()
 
-    def _load(self) -> None:
-        """Load aliases from disk."""
+    def _lock(self) -> FileLock:
+        """Return the cross-process lock guarding aliases.json."""
+        self.lock_file.parent.mkdir(parents=True, exist_ok=True)
+        return FileLock(self.lock_file)
+
+    def _load_unlocked(self) -> None:
+        """Load aliases from disk. Caller must hold the alias lock."""
         if not self.aliases_file.exists():
+            self._aliases = {}
             return
 
         try:
             content = self.aliases_file.read_text(encoding="utf-8")
-            if content:
-                raw_data = json.loads(content)
-                # Convert to AliasEntry objects (handles legacy format)
-                self._aliases = {
-                    name: AliasEntry.from_dict(data) for name, data in raw_data.items()
-                }
-        except Exception:
-            # On error, start with empty map
+            if not content:
+                self._aliases = {}
+                return
+            raw_data = json.loads(content)
+            self._aliases = {name: AliasEntry.from_dict(data) for name, data in raw_data.items()}
+        except (OSError, json.JSONDecodeError, TypeError, ValueError, AttributeError):
             self._aliases = {}
 
-    def _save(self) -> None:
-        """Save aliases to disk."""
+    def _load(self) -> None:
+        """Refresh aliases from disk under the cross-process lock.
+
+        Reads still work (unlocked) when the lock file cannot be created,
+        e.g. on a read-only config directory.
+        """
+        try:
+            with self._lock():
+                self._load_unlocked()
+        except OSError:
+            self._load_unlocked()
+
+    def _save_unlocked(self) -> None:
+        """Atomically save aliases. Caller must hold the alias lock."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
         data = {name: entry.to_dict() for name, entry in self._aliases.items()}
-        self.aliases_file.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        fd, temp_name = tempfile.mkstemp(
+            dir=self.config_dir,
+            prefix=".aliases-",
+            suffix=".tmp",
         )
+        temp_path = Path(temp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as file:
+                json.dump(data, file, indent=2, ensure_ascii=False)
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temp_path, self.aliases_file)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
 
     def set_alias(self, name: str, value: str, alias_type: str = "unknown") -> None:
-        """Set an alias with optional type."""
-        self._aliases[name] = AliasEntry(value=value, alias_type=alias_type)
-        self._save()
+        """Set an alias without losing concurrent updates from another process."""
+        with self._lock():
+            self._load_unlocked()
+            self._aliases[name] = AliasEntry(value=value, alias_type=alias_type)
+            self._save_unlocked()
 
     def get_alias(self, name: str) -> str | None:
-        """Get an alias value."""
+        """Get an alias value from the latest on-disk state."""
+        self._load()
         entry = self._aliases.get(name)
         return entry.value if entry else None
 
     def get_entry(self, name: str) -> AliasEntry | None:
         """Get the full alias entry including type."""
+        self._load()
         return self._aliases.get(name)
 
     def delete_alias(self, name: str) -> bool:
-        """Delete an alias. Returns True if deleted."""
-        if name in self._aliases:
+        """Delete an alias without clobbering concurrent updates."""
+        with self._lock():
+            self._load_unlocked()
+            if name not in self._aliases:
+                return False
             del self._aliases[name]
-            self._save()
+            self._save_unlocked()
             return True
-        return False
 
     def list_aliases(self) -> dict[str, AliasEntry]:
-        """List all aliases with their types."""
+        """List the latest aliases with their types."""
+        self._load()
         return self._aliases.copy()
 
     def resolve(self, id_or_alias: str) -> str:
@@ -91,6 +132,7 @@ class AliasManager:
         If the input matches a known alias, return the aliased value.
         Otherwise return the input as-is.
         """
+        self._load()
         entry = self._aliases.get(id_or_alias)
         return entry.value if entry else id_or_alias
 

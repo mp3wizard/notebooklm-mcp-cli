@@ -1,6 +1,7 @@
 """Chat service — shared business logic for notebook querying and chat configuration."""
 
 import logging
+import os
 import threading
 import time
 import uuid
@@ -195,12 +196,27 @@ class PendingQueryState(TypedDict):
     error: str | None
     error_details: dict[str, str | int | bool] | None
     created_at: float
+    expires_at: float
+    finished_at: float | None
 
 
 # --- Async query state management ---
 _QUERY_TTL_SECONDS = 600  # 10 minutes
+_DEFAULT_MAX_INFLIGHT_QUERIES = 8
 _pending_queries: dict[str, PendingQueryState] = {}
 _pending_lock = threading.Lock()
+
+
+def _max_inflight_queries() -> int:
+    """Return the configured async-query admission limit."""
+    raw = os.environ.get("NOTEBOOKLM_ASYNC_QUERY_MAX_INFLIGHT", "").strip()
+    if not raw:
+        return _DEFAULT_MAX_INFLIGHT_QUERIES
+    try:
+        value = int(raw)
+    except ValueError:
+        return _DEFAULT_MAX_INFLIGHT_QUERIES
+    return max(1, value)
 
 
 class ConfigureResult(TypedDict):
@@ -432,13 +448,18 @@ class QueryStatusResult(TypedDict):
 
 
 def _cleanup_expired_queries() -> None:
-    """Remove entries older than _QUERY_TTL_SECONDS. Must be called with _pending_lock held."""
+    """Evict stale running queries and finished results after their retention window."""
     now = time.monotonic()
-    expired = [
-        qid
-        for qid, entry in _pending_queries.items()
-        if now - entry["created_at"] > _QUERY_TTL_SECONDS
-    ]
+    expired = []
+    for qid, entry in _pending_queries.items():
+        if entry["status"] == "in_progress":
+            expires_at = entry.get("expires_at", entry["created_at"] + _QUERY_TTL_SECONDS)
+            if now > expires_at:
+                expired.append(qid)
+            continue
+        finished_at = entry.get("finished_at") or entry["created_at"]
+        if now - finished_at > _QUERY_TTL_SECONDS:
+            expired.append(qid)
     for qid in expired:
         logger.debug("Evicting expired async query %s", qid)
         del _pending_queries[qid]
@@ -469,10 +490,12 @@ def _run_query_in_background(
             if query_id in _pending_queries:
                 _pending_queries[query_id]["status"] = "completed"
                 _pending_queries[query_id]["result"] = result
+                _pending_queries[query_id]["finished_at"] = time.monotonic()
     except Exception as e:
         with _pending_lock:
             if query_id in _pending_queries:
                 _pending_queries[query_id]["status"] = "error"
+                _pending_queries[query_id]["finished_at"] = time.monotonic()
                 if isinstance(e, ServiceError):
                     _pending_queries[query_id]["error"] = e.user_message
                     _pending_queries[query_id]["error_details"] = e.details() or None
@@ -516,19 +539,35 @@ def query_start(
             user_message="Please provide a question to ask.",
         )
 
-    # Validate notebook has sources
-    if not source_ids:
-        try:
-            nb = notebook_service.get_notebook(client, notebook_id)
-            if nb["source_count"] == 0:
-                raise ValidationError(
-                    "Cannot query an empty notebook.",
-                    user_message="This notebook has no sources to query. Add a source first using 'nlm source add' or 'nlm research start'.",
-                )
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.debug("Could not prefetch notebook details for empty-check (async): %s", e)
+    query_id = uuid.uuid4().hex[:12]
+    created_at = time.monotonic()
+    effective_timeout = DEFAULT_QUERY_TIMEOUT if timeout is None else max(0.0, timeout)
+    expires_at = created_at + max(_QUERY_TTL_SECONDS, effective_timeout)
+
+    with _pending_lock:
+        _cleanup_expired_queries()
+        inflight = sum(1 for entry in _pending_queries.values() if entry["status"] == "in_progress")
+        limit = _max_inflight_queries()
+        if inflight >= limit:
+            raise ServiceError(
+                f"Async query limit reached ({inflight}/{limit})",
+                user_message=(
+                    f"Too many async notebook queries are already running ({inflight}/{limit})."
+                ),
+                hint="Poll existing query IDs and retry after one finishes.",
+                category="resource_exhausted",
+                retryable=True,
+                suggested_action="poll_existing_queries",
+            )
+        _pending_queries[query_id] = {
+            "status": "in_progress",
+            "result": None,
+            "error": None,
+            "error_details": None,
+            "created_at": created_at,
+            "expires_at": expires_at,
+            "finished_at": None,
+        }
 
     budget = _QueryBudget(timeout)
     try:
@@ -540,19 +579,13 @@ def query_start(
         )
         worker_timeout = budget.remaining()
     except httpx.TimeoutException as e:
+        with _pending_lock:
+            _pending_queries.pop(query_id, None)
         raise _query_timeout_service_error(e) from e
-
-    query_id = uuid.uuid4().hex[:12]
-
-    with _pending_lock:
-        _cleanup_expired_queries()
-        _pending_queries[query_id] = {
-            "status": "in_progress",
-            "result": None,
-            "error": None,
-            "error_details": None,
-            "created_at": time.monotonic(),
-        }
+    except Exception:
+        with _pending_lock:
+            _pending_queries.pop(query_id, None)
+        raise
 
     thread = threading.Thread(
         target=_run_query_in_background,
@@ -568,7 +601,12 @@ def query_start(
         ),
         daemon=True,
     )
-    thread.start()
+    try:
+        thread.start()
+    except Exception:
+        with _pending_lock:
+            _pending_queries.pop(query_id, None)
+        raise
 
     return {
         "query_id": query_id,

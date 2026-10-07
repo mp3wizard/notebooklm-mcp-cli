@@ -9,10 +9,10 @@ from notebooklm_tools.cli.main import app
 
 def test_auth_refresh_success(monkeypatch):
     """A successful headless refresh reports success and exits 0."""
-    calls: list[str] = []
+    calls: list[tuple[str, bool]] = []
 
-    def fake_headless(*, profile_name, timeout=30):
-        calls.append(profile_name)
+    def fake_headless(*, profile_name, timeout=30, raise_on_error=False):
+        calls.append((profile_name, raise_on_error))
         return SimpleNamespace(cookies={"SID": "fresh"})
 
     monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
@@ -21,16 +21,16 @@ def test_auth_refresh_success(monkeypatch):
     result = CliRunner().invoke(app, ["auth", "refresh", "--profile", "work"])
 
     assert result.exit_code == 0
-    assert calls == ["work"]
+    assert calls == [("work", True)]
     assert "refreshed" in result.output.lower()
 
 
 def test_auth_refresh_uses_default_profile(monkeypatch):
     """Without --profile, the configured default profile is refreshed."""
-    calls: list[str] = []
+    calls: list[tuple[str, bool]] = []
 
-    def fake_headless(*, profile_name, timeout=30):
-        calls.append(profile_name)
+    def fake_headless(*, profile_name, timeout=30, raise_on_error=False):
+        calls.append((profile_name, raise_on_error))
         return SimpleNamespace(cookies={"SID": "fresh"})
 
     monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
@@ -43,7 +43,7 @@ def test_auth_refresh_uses_default_profile(monkeypatch):
     result = CliRunner().invoke(app, ["auth", "refresh"])
 
     assert result.exit_code == 0
-    assert calls == ["acct"]
+    assert calls == [("acct", True)]
 
 
 def test_auth_refresh_failure_exits_nonzero(monkeypatch):
@@ -51,7 +51,7 @@ def test_auth_refresh_failure_exits_nonzero(monkeypatch):
     monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
     monkeypatch.setattr(
         "notebooklm_tools.utils.auth_browser.run_headless_auth",
-        lambda *, profile_name, timeout=30: None,
+        lambda *, profile_name, timeout=30, raise_on_error=False: None,
     )
 
     result = CliRunner().invoke(app, ["auth", "refresh", "--profile", "work"])
@@ -64,7 +64,7 @@ def test_auth_refresh_blocks_when_env_cookies_override(monkeypatch):
     """NOTEBOOKLM_COOKIES overrides disk auth, so refresh is refused up front."""
     called = False
 
-    def fake_headless(*, profile_name, timeout=30):
+    def fake_headless(*, profile_name, timeout=30, raise_on_error=False):
         nonlocal called
         called = True
         return SimpleNamespace(cookies={"SID": "fresh"})
@@ -83,7 +83,7 @@ def test_auth_refresh_blocked_when_headless_disabled(monkeypatch):
     """NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1 refuses the manual refresh (#330)."""
     called = False
 
-    def fake_headless(*, profile_name, timeout=30):
+    def fake_headless(*, profile_name, timeout=30, raise_on_error=False):
         nonlocal called
         called = True
         return SimpleNamespace(cookies={"SID": "fresh"})
@@ -97,3 +97,24 @@ def test_auth_refresh_blocked_when_headless_disabled(monkeypatch):
     assert result.exit_code == 1
     assert "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH" in result.output
     assert called is False
+
+
+def test_auth_refresh_surfaces_browser_infrastructure_error(monkeypatch):
+    """Explicit CLI refresh should print the actionable browser failure."""
+    monkeypatch.delenv("NOTEBOOKLM_COOKIES", raising=False)
+
+    def fail_headless(*, profile_name, timeout=30, raise_on_error=False):
+        assert profile_name == "work"
+        assert raise_on_error is True
+        raise RuntimeError("No available ports in range 9222-9231.")
+
+    monkeypatch.setattr(
+        "notebooklm_tools.utils.auth_browser.run_headless_auth",
+        fail_headless,
+    )
+
+    result = CliRunner().invoke(app, ["auth", "refresh", "--profile", "work"])
+
+    assert result.exit_code == 1
+    assert "refresh failed" in result.output.lower()
+    assert "9222-9231" in result.output

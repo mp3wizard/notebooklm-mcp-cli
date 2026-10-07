@@ -83,7 +83,7 @@ def test_select_auth_backend_passes_comet_preference_to_chromium_discovery():
 def test_get_chromium_path_selects_named_comet_on_macos():
     from notebooklm_tools.utils.cdp import _get_chromium_path
 
-    expected = "/Applications/Comet.app/Contents/MacOS/Comet"
+    expected = str(Path("/Applications") / "Comet.app/Contents/MacOS/Comet")
 
     def fake_exists(path: Path) -> bool:
         return str(path) == expected
@@ -390,3 +390,142 @@ def test_get_headers_defaults_host_when_unset(tmp_path, monkeypatch):
 
     assert headers["Origin"] == "https://notebooklm.google.com"
     assert headers["Referer"] == "https://notebooklm.google.com/"
+
+
+def test_headless_auth_forwards_diagnostic_mode_to_chromium(monkeypatch):
+    """Explicit refresh diagnostics must reach the Chromium backend."""
+    from notebooklm_tools.utils import auth_browser, cdp
+
+    calls = {}
+    monkeypatch.setattr(
+        auth_browser,
+        "_get_saved_browser_backend",
+        lambda _profile: "chromium_cdp",
+    )
+    monkeypatch.setattr(
+        auth_browser,
+        "select_auth_backend",
+        lambda: {"backend": "chromium_cdp", "browser": "Google Chrome"},
+    )
+
+    def fake_headless(
+        *,
+        timeout,
+        profile_name,
+        expected_revision,
+        force,
+        raise_on_error,
+    ):
+        calls.update(
+            profile_name=profile_name,
+            raise_on_error=raise_on_error,
+        )
+        return None
+
+    monkeypatch.setattr(cdp, "run_headless_auth", fake_headless)
+
+    result = auth_browser.run_headless_auth(
+        profile_name="work",
+        raise_on_error=True,
+    )
+
+    assert result is None
+    assert calls == {"profile_name": "work", "raise_on_error": True}
+
+
+def test_headless_auth_diagnostic_mode_preserves_backend_fallback(monkeypatch):
+    """A diagnostic failure in one backend must not block a later fallback."""
+    from notebooklm_tools.core.exceptions import AuthenticationError
+    from notebooklm_tools.utils import auth_browser, cdp, firefox
+
+    token = object()
+    calls = []
+    monkeypatch.setattr(
+        auth_browser,
+        "_get_saved_browser_backend",
+        lambda _profile: "firefox_profile",
+    )
+    monkeypatch.setattr(
+        auth_browser,
+        "select_auth_backend",
+        lambda: {"backend": "firefox_profile", "browser": "Firefox"},
+    )
+
+    def fail_firefox(**kwargs):
+        calls.append(("firefox", kwargs["raise_on_error"]))
+        raise AuthenticationError(message="Firefox profile unavailable")
+
+    def succeed_chromium(**kwargs):
+        calls.append(("chromium", kwargs["raise_on_error"]))
+        return token
+
+    monkeypatch.setattr(firefox, "run_headless_auth", fail_firefox)
+    monkeypatch.setattr(cdp, "run_headless_auth", succeed_chromium)
+
+    result = auth_browser.run_headless_auth(
+        profile_name="work",
+        raise_on_error=True,
+    )
+
+    assert result is token
+    assert calls == [("firefox", True), ("chromium", True)]
+
+
+def test_headless_auth_diagnostic_mode_reports_preferred_backend_failure(monkeypatch):
+    """A later fallback's failure must not hide the preferred backend's real error."""
+    import pytest
+
+    from notebooklm_tools.core.exceptions import AuthenticationError
+    from notebooklm_tools.utils import auth_browser, cdp, firefox
+
+    monkeypatch.setattr(auth_browser, "_get_saved_browser_backend", lambda _p: "firefox_profile")
+    monkeypatch.setattr(
+        auth_browser,
+        "select_auth_backend",
+        lambda: {"backend": "firefox_profile", "browser": "Firefox"},
+    )
+
+    def fail_firefox(**kwargs):
+        raise AuthenticationError(message="Firefox signed out")
+
+    def fail_chromium(**kwargs):
+        raise AuthenticationError(message="No saved browser profile is available")
+
+    monkeypatch.setattr(firefox, "run_headless_auth", fail_firefox)
+    monkeypatch.setattr(cdp, "run_headless_auth", fail_chromium)
+
+    with pytest.raises(AuthenticationError) as exc_info:
+        auth_browser.run_headless_auth(profile_name="work", raise_on_error=True)
+
+    assert exc_info.value.message == "Firefox signed out"
+
+
+def test_firefox_headless_auth_raises_when_profile_missing_in_diagnostic_mode(monkeypatch):
+    import pytest
+
+    from notebooklm_tools.core.exceptions import AuthenticationError
+    from notebooklm_tools.utils import firefox
+
+    monkeypatch.setattr("notebooklm_tools.utils.config.get_auth_storage_mode", lambda _p: "file")
+    monkeypatch.setattr(firefox, "has_firefox_profile", lambda _p: False)
+
+    assert firefox.run_headless_auth(profile_name="work") is None
+    with pytest.raises(AuthenticationError, match="No saved Firefox profile"):
+        firefox.run_headless_auth(profile_name="work", raise_on_error=True)
+
+
+def test_firefox_headless_auth_raises_when_cookies_invalid_in_diagnostic_mode(monkeypatch):
+    import pytest
+
+    from notebooklm_tools.core.exceptions import AuthenticationError
+    from notebooklm_tools.utils import firefox
+
+    monkeypatch.setattr("notebooklm_tools.utils.config.get_auth_storage_mode", lambda _p: "file")
+    monkeypatch.setattr(firefox, "has_firefox_profile", lambda _p: True)
+    monkeypatch.setattr(firefox, "get_firefox_profile_dir", lambda _p: Path("."))
+    monkeypatch.setattr(firefox, "_read_google_cookies", lambda _d: [])
+    monkeypatch.setattr("notebooklm_tools.core.auth.validate_cookies", lambda _c: False)
+
+    assert firefox.run_headless_auth(profile_name="work") is None
+    with pytest.raises(AuthenticationError, match="required NotebookLM cookies"):
+        firefox.run_headless_auth(profile_name="work", raise_on_error=True)

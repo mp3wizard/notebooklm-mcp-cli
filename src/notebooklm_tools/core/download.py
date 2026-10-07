@@ -5,7 +5,9 @@ import asyncio
 import csv
 import html as html_module
 import json
+import os
 import re
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -25,6 +27,15 @@ from .errors import (
 )
 from .studio import render_interactive_report_markdown
 from .utils import is_mind_map_json
+
+
+def _create_download_temp_path(output_file: Path) -> Path:
+    """Reserve a unique same-directory temp file for one download transfer."""
+    # Not tempfile.mkstemp: it forces 0600, which the final file would inherit.
+    # O_EXCL still guarantees a unique file; 0o666 lets the umask decide the mode.
+    temp_path = output_file.parent / f".nlm-download-{uuid.uuid4().hex}.tmp"
+    os.close(os.open(temp_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666))
+    return temp_path
 
 
 class DownloadMixin(BaseClient):
@@ -156,9 +167,6 @@ class DownloadMixin(BaseClient):
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Use temp file to prevent corrupted partial downloads
-        temp_file = output_file.with_suffix(output_file.suffix + ".tmp")
-
         # Build headers with auth cookies
         base_headers = getattr(
             self,
@@ -193,6 +201,7 @@ class DownloadMixin(BaseClient):
         # Per-chunk timeouts: 10s connect, 30s per chunk read/write
         # This allows large files to download without timeout while detecting stalls
         timeout = httpx.Timeout(connect=10.0, read=30.0, write=30.0, pool=30.0)
+        temp_file = _create_download_temp_path(output_file)
 
         try:
             async with (
@@ -252,7 +261,7 @@ class DownloadMixin(BaseClient):
                                 progress_callback(bytes_downloaded, total_bytes)
 
             # Move temp file to final location only on success
-            temp_file.rename(output_file)
+            os.replace(temp_file, output_file)
             return str(output_file)
 
         except httpx.HTTPError as e:
@@ -269,12 +278,14 @@ class DownloadMixin(BaseClient):
             raise ArtifactDownloadError(
                 "file", details=f"Failed to download from {url[:50]}...: {str(e)}"
             ) from e
+        finally:
+            # Also covers cancellation/Ctrl-C, which skip the except blocks above.
+            temp_file.unlink(missing_ok=True)
 
     def _download_url_sync(self, url: str, output_path: str) -> str:
         """Stream a binary artifact URL synchronously to a local file."""
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        temp_file = output_file.with_suffix(output_file.suffix + ".tmp")
 
         base_headers = getattr(
             self,
@@ -295,6 +306,7 @@ class DownloadMixin(BaseClient):
             cookies.delete("__Secure-OSID", domain=domain)
 
         timeout = httpx.Timeout(connect=10.0, read=30.0, write=30.0, pool=30.0)
+        temp_file = _create_download_temp_path(output_file)
         try:
             with (
                 httpx.Client(
@@ -307,7 +319,7 @@ class DownloadMixin(BaseClient):
                     for chunk in response.iter_bytes(chunk_size=65536):
                         output.write(chunk)
 
-            temp_file.rename(output_file)
+            os.replace(temp_file, output_file)
             return str(output_file)
         except httpx.HTTPError as e:
             if temp_file.exists():
@@ -321,6 +333,8 @@ class DownloadMixin(BaseClient):
             raise ArtifactDownloadError(
                 "file", details=f"Failed to download from {url[:50]}...: {e}"
             ) from e
+        finally:
+            temp_file.unlink(missing_ok=True)
 
     def _list_raw(self, notebook_id: str) -> list[Any]:
         """Get raw artifact list for parsing download URLs."""

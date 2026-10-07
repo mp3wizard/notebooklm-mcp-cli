@@ -49,9 +49,9 @@ def test_packaged_skill_md_moves_version_to_metadata():
 
 def test_source_skill_md_is_untouched(tmp_path):
     src = sp._data_dir() / "SKILL.md"
-    before = src.read_text()
+    before = src.read_text(encoding="utf-8")
     sp.build_skill_zip(tmp_path)
-    assert src.read_text() == before
+    assert src.read_text(encoding="utf-8") == before
 
 
 @pytest.mark.parametrize(

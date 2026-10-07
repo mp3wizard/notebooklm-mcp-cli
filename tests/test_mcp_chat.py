@@ -108,6 +108,31 @@ async def test_notebook_query_accepts_string_source_ids_at_mcp_boundary(monkeypa
     assert seen["source_ids"] == ["src-1", "src-2"]
 
 
+def test_notebook_query_start_returns_structured_capacity_error(monkeypatch):
+    monkeypatch.setattr(chat_tools, "get_client", lambda: object())
+
+    def saturated_query_start(*args, **kwargs):
+        raise ServiceError(
+            "Async query limit reached (8/8)",
+            user_message="Too many async notebook queries are already running (8/8).",
+            hint="Poll existing query IDs and retry after one finishes.",
+            category="resource_exhausted",
+            retryable=True,
+            suggested_action="poll_existing_queries",
+        )
+
+    monkeypatch.setattr(chat_tools.chat_service, "query_start", saturated_query_start)
+
+    result = chat_tools.notebook_query_start("nb-123", "question")
+
+    assert result["status"] == "error"
+    assert result["error_details"] == {
+        "category": "resource_exhausted",
+        "retryable": True,
+        "suggested_action": "poll_existing_queries",
+    }
+
+
 @pytest.mark.asyncio
 async def test_notebook_query_returns_structured_timeout_error(monkeypatch):
     client = MagicMock()

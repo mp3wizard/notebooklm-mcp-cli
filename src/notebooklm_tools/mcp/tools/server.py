@@ -1,15 +1,23 @@
 """Server tools - Server info and version checking."""
 
 import json
+import threading
+import time
 import urllib.request
 from typing import Any, cast
 
 from notebooklm_tools import __version__
+from notebooklm_tools.utils.versioning import is_newer_version
 
 from ._utils import logged_tool
 
+_VERSION_CACHE_TTL_SECONDS = 86400
+_VERSION_FAILURE_CACHE_TTL_SECONDS = 300
+_version_cache_lock = threading.Lock()
+_version_cache: tuple[float, str | None] | None = None
 
-def _get_latest_pypi_version() -> str | None:
+
+def _fetch_latest_pypi_version() -> str | None:
     """Fetch the latest version from PyPI.
 
     Returns:
@@ -30,19 +38,40 @@ def _get_latest_pypi_version() -> str | None:
     return None
 
 
-def _compare_versions(current: str, latest: str) -> bool:
-    """Compare version strings to determine if an update is available.
+def _get_latest_pypi_version() -> str | None:
+    """Return the latest PyPI version with bounded process-local caching.
 
-    Returns:
-        True if latest is greater than current.
+    Successful lookups are reused for 24 hours. Failed lookups are cached for
+    five minutes so an offline long-lived MCP server does not pay the two-second
+    network timeout on every server_info() call.
     """
-    try:
-        # Simple comparison: split by dots and compare numerically
-        current_parts = [int(x) for x in current.split(".")]
-        latest_parts = [int(x) for x in latest.split(".")]
-        return latest_parts > current_parts
-    except (ValueError, AttributeError):
-        return False
+    global _version_cache
+
+    def _cached_value(now: float) -> tuple[bool, str | None]:
+        cached = _version_cache
+        if cached is None:
+            return False, None
+        checked_at, latest = cached
+        ttl = (
+            _VERSION_CACHE_TTL_SECONDS if latest is not None else _VERSION_FAILURE_CACHE_TTL_SECONDS
+        )
+        if now - checked_at < ttl:
+            return True, latest
+        return False, None
+
+    now = time.monotonic()
+    fresh, latest = _cached_value(now)
+    if fresh:
+        return latest
+
+    with _version_cache_lock:
+        now = time.monotonic()
+        fresh, latest = _cached_value(now)
+        if fresh:
+            return latest
+        latest = _fetch_latest_pypi_version()
+        _version_cache = (now, latest)
+        return latest
 
 
 def _check_auth_status() -> str:
@@ -198,7 +227,7 @@ def server_info() -> dict[str, Any]:
     update_available = False
 
     if latest:
-        update_available = _compare_versions(__version__, latest)
+        update_available = is_newer_version(__version__, latest)
 
     info: dict[str, Any] = {
         "status": "success",

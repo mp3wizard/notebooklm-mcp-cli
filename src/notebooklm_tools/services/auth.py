@@ -629,8 +629,42 @@ class AuthHealthChecker:
 # ---------------------------------------------------------------------------
 
 
+_notebook_count_cache: dict[str | None, tuple[float, int]] = {}
+_count_cache_lock = threading.Lock()
+_COUNT_CACHE_TTL = 10.0  # seconds
+
+
+def _record_confirmed_notebook_count(profile: str | None, count: int) -> None:
+    if not isinstance(profile, str) or not profile.strip():
+        return
+    now = time.monotonic()
+    key = profile.strip()
+    with _count_cache_lock:
+        _notebook_count_cache[key] = (now, count)
+
+
+def _get_confirmed_notebook_count(profile: str | None) -> int | None:
+    if not isinstance(profile, str) or not profile.strip():
+        return None
+    now = time.monotonic()
+    key = profile.strip()
+    with _count_cache_lock:
+        entry = _notebook_count_cache.get(key)
+        if entry is not None:
+            ts, count = entry
+            if now - ts <= _COUNT_CACHE_TTL:
+                return count
+            del _notebook_count_cache[key]
+    return None
+
+
 def get_notebook_count(profile: Any) -> int | None:
     """Return a best-effort count without hiding an API authentication rejection."""
+    profile_name = getattr(profile, "name", None)
+    cached = _get_confirmed_notebook_count(profile_name)
+    if cached is not None:
+        return cached
+
     from notebooklm_tools.core.client import NotebookLMClient
     from notebooklm_tools.core.errors import ClientAuthenticationError
     from notebooklm_tools.core.exceptions import AuthenticationError
@@ -643,9 +677,11 @@ def get_notebook_count(profile: Any) -> int | None:
             session_id=profile.session_id or "",
             build_label=profile.build_label or "",
             base_host=profile.base_host or "",
-            profile_name=getattr(profile, "name", None),
+            profile_name=profile_name,
         ) as client:
-            return len(client.list_notebooks())
+            count = len(client.list_notebooks())
+            _record_confirmed_notebook_count(profile_name, count)
+            return count
     except (AuthenticationError, ClientAuthenticationError) as exc:
         raise ServiceError("Credentials have expired.", category="authentication") from exc
     except Exception:
@@ -665,6 +701,12 @@ def confirm_auth_via_api(profile: str | None = None) -> tuple[bool, str | None]:
 
     from notebooklm_tools.core.auth import AuthManager
     from notebooklm_tools.core.client import NotebookLMClient
+    from notebooklm_tools.core.errors import (
+        ClientAuthenticationError,
+        RPCError,
+        TransientBackendError,
+    )
+    from notebooklm_tools.core.exceptions import AuthenticationError
 
     manager = AuthManager(profile)
     if not manager.profile_exists():
@@ -680,10 +722,45 @@ def confirm_auth_via_api(profile: str | None = None) -> tuple[bool, str | None]:
             base_host=p.base_host or "",
             profile_name=profile,
         ) as client:
-            client.list_notebooks()
+            notebooks = client.list_notebooks()
+            _record_confirmed_notebook_count(profile, len(notebooks))
         return True, None
+    except (ClientAuthenticationError, AuthenticationError) as exc:
+        return False, f"auth_expired: {type(exc).__name__}: {exc}"
+    except RPCError as exc:
+        if exc.error_code in (7, 16):
+            return False, f"auth_expired: RPCError({exc.error_code}): {exc}"
+        return False, f"network_error: RPCError({exc.error_code}): {exc}"
+    except TransientBackendError as exc:
+        return False, f"network_error: TransientBackendError: {exc}"
     except Exception as exc:
-        return False, str(exc)
+        import httpx as _httpx
+
+        if isinstance(exc, _httpx.HTTPStatusError):
+            if exc.response.status_code in (401, 403):
+                return False, f"auth_expired: HTTPStatusError: {exc.response.status_code}"
+            return False, f"network_error: HTTPStatusError: {exc.response.status_code}"
+        if isinstance(exc, (_httpx.TimeoutException, _httpx.RequestError)):
+            return False, f"network_error: {type(exc).__name__}: {exc}"
+        return False, f"network_error: {type(exc).__name__}: {exc}"
+
+
+def _is_auth_rejection(err: str | None) -> bool:
+    if not err:
+        return False
+    if err.startswith("network_error:"):
+        return False
+    lower = err.lower()
+    return (
+        lower.startswith("auth_expired:")
+        or "clientauthenticationerror" in lower
+        or "authenticationerror" in lower
+        or "expired" in lower
+        or "unauthenticated" in lower
+        or "permission_denied" in lower
+        or "401" in lower
+        or "403" in lower
+    )
 
 
 def credentials_are_usable(
@@ -699,13 +776,20 @@ def credentials_are_usable(
     """
     report = get_auth_health_checker(profile=profile).check(force=force)
     if report.status == "configured":
-        return True, report.status, None
+        if not force:
+            return True, report.status, None
+        ok, err = confirm_auth_via_api(profile=report.profile)
+        if ok:
+            return True, "configured", None
+        status = "stale" if _is_auth_rejection(err) else "unverified"
+        return False, status, err
 
     if report.status in ("stale", "unverified"):
         ok, err = confirm_auth_via_api(profile=report.profile)
         if ok:
             return True, "configured", None
-        return False, report.status, err
+        status = "stale" if _is_auth_rejection(err) else "unverified"
+        return False, status, err
 
     detail = next((p.error for p in report.probes if p.error), None)
     return False, report.status, detail

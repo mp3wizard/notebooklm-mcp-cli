@@ -1,7 +1,11 @@
 """Smart select service — tag management and intelligent notebook selection."""
 
 import json
+import os
+import tempfile
 from pathlib import Path
+
+from filelock import FileLock
 
 from ..utils.config import get_storage_dir
 from ._compat import TypedDict
@@ -38,23 +42,50 @@ def _get_tags_path() -> Path:
     return get_storage_dir() / TAGS_FILE
 
 
-def _load_tags() -> dict[str, TagEntry]:
-    """Load tags from disk. Returns dict keyed by notebook_id."""
-    path = _get_tags_path()
+def _get_tags_lock(path: Path | None = None) -> FileLock:
+    """Return the cross-process lock guarding tags.json."""
+    tags_path = path or _get_tags_path()
+    lock_path = tags_path.parent / "locks" / "tags.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    return FileLock(lock_path)
+
+
+def _load_tags_unlocked(path: Path) -> dict[str, TagEntry]:
+    """Load tags from disk. Caller must hold the tags lock."""
     if not path.exists():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return data
-    except (json.JSONDecodeError, KeyError):
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, TypeError, ValueError):
         return {}
 
 
-def _save_tags(tags: dict[str, TagEntry]) -> None:
-    """Save tags to disk."""
+def _load_tags() -> dict[str, TagEntry]:
+    """Load the latest tags from disk under the cross-process lock."""
     path = _get_tags_path()
+    with _get_tags_lock(path):
+        return _load_tags_unlocked(path)
+
+
+def _save_tags_unlocked(path: Path, tags: dict[str, TagEntry]) -> None:
+    """Atomically save tags. Caller must hold the tags lock."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(tags, indent=2, ensure_ascii=False), encoding="utf-8")
+    fd, temp_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=".tags-",
+        suffix=".tmp",
+    )
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as file:
+            json.dump(tags, file, indent=2, ensure_ascii=False)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def tag_add(
@@ -88,27 +119,28 @@ def tag_add(
             user_message="Please provide at least one non-empty tag.",
         )
 
-    all_tags = _load_tags()
-    existing = all_tags.get(
-        notebook_id,
-        {
-            "notebook_id": notebook_id,
-            "notebook_title": notebook_title,
-            "tags": [],
-        },
-    )
+    path = _get_tags_path()
+    with _get_tags_lock(path):
+        all_tags = _load_tags_unlocked(path)
+        existing = all_tags.get(
+            notebook_id,
+            {
+                "notebook_id": notebook_id,
+                "notebook_title": notebook_title,
+                "tags": [],
+            },
+        )
 
-    if notebook_title:
-        existing["notebook_title"] = notebook_title
+        if notebook_title:
+            existing["notebook_title"] = notebook_title
 
-    existing_tags = set(existing["tags"])
-    existing_tags.update(tags)
-    existing["tags"] = sorted(existing_tags)
+        existing_tags = set(existing["tags"])
+        existing_tags.update(tags)
+        existing["tags"] = sorted(existing_tags)
 
-    all_tags[notebook_id] = existing
-    _save_tags(all_tags)
-
-    return existing
+        all_tags[notebook_id] = existing
+        _save_tags_unlocked(path, all_tags)
+        return existing
 
 
 def tag_remove(
@@ -127,30 +159,32 @@ def tag_remove(
     Raises:
         NotFoundError: If notebook has no tags
     """
-    all_tags = _load_tags()
+    path = _get_tags_path()
+    with _get_tags_lock(path):
+        all_tags = _load_tags_unlocked(path)
 
-    if notebook_id not in all_tags:
-        raise NotFoundError(
-            f"No tags found for notebook {notebook_id}",
-            user_message=f"Notebook {notebook_id} has no tags.",
-        )
+        if notebook_id not in all_tags:
+            raise NotFoundError(
+                f"No tags found for notebook {notebook_id}",
+                user_message=f"Notebook {notebook_id} has no tags.",
+            )
 
-    tags_to_remove = {t.strip().lower() for t in tags if t.strip()}
-    entry = all_tags[notebook_id]
-    entry["tags"] = [t for t in entry["tags"] if t not in tags_to_remove]
+        tags_to_remove = {t.strip().lower() for t in tags if t.strip()}
+        entry = all_tags[notebook_id]
+        entry["tags"] = [t for t in entry["tags"] if t not in tags_to_remove]
 
-    if not entry["tags"]:
-        del all_tags[notebook_id]
-        _save_tags(all_tags)
-        return {
-            "notebook_id": notebook_id,
-            "notebook_title": entry.get("notebook_title", ""),
-            "tags": [],
-        }
+        if not entry["tags"]:
+            del all_tags[notebook_id]
+            _save_tags_unlocked(path, all_tags)
+            return {
+                "notebook_id": notebook_id,
+                "notebook_title": entry.get("notebook_title", ""),
+                "tags": [],
+            }
 
-    all_tags[notebook_id] = entry
-    _save_tags(all_tags)
-    return entry
+        all_tags[notebook_id] = entry
+        _save_tags_unlocked(path, all_tags)
+        return entry
 
 
 def tag_list() -> TagListResult:

@@ -358,6 +358,7 @@ def test_copy_to_clipboard_linux_wl_copy(monkeypatch):
 
 
 def test_copy_to_clipboard_fallback_when_unavailable(monkeypatch):
+    monkeypatch.setattr(setup_wizard.platform, "system", lambda: "Linux")
     monkeypatch.setattr(setup_wizard.shutil, "which", lambda cmd: None)
     assert setup_wizard.copy_to_clipboard('{"test": true}') is False
 

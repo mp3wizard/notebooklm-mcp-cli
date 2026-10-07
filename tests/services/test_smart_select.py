@@ -1,12 +1,15 @@
 """Tests for smart_select service — tag management and intelligent notebook selection."""
 
 import json
+import threading
 from unittest.mock import patch
 
 import pytest
 
 from notebooklm_tools.services.errors import NotFoundError, ValidationError
 from notebooklm_tools.services.smart_select import (
+    _get_tags_lock,
+    _save_tags_unlocked,
     smart_select,
     tag_add,
     tag_list,
@@ -151,6 +154,43 @@ class TestSmartSelect:
 
 
 class TestPersistence:
+    def test_waiting_writer_reloads_latest_state_before_mutation(self, tags_dir):
+        path = tags_dir / "tags.json"
+        started = threading.Event()
+        errors: list[Exception] = []
+
+        def writer() -> None:
+            started.set()
+            try:
+                tag_add("nb-002", ["beta"], "Second")
+            except Exception as exc:  # pragma: no cover - asserted below
+                errors.append(exc)
+
+        with _get_tags_lock(path):
+            thread = threading.Thread(target=writer)
+            thread.start()
+            assert started.wait(timeout=1)
+            thread.join(timeout=0.05)
+            assert thread.is_alive()
+            _save_tags_unlocked(
+                path,
+                {
+                    "nb-001": {
+                        "notebook_id": "nb-001",
+                        "notebook_title": "First",
+                        "tags": ["alpha"],
+                    }
+                },
+            )
+
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+        assert errors == []
+        entries = {entry["notebook_id"]: entry for entry in tag_list()["entries"]}
+        assert set(entries) == {"nb-001", "nb-002"}
+        assert entries["nb-001"]["tags"] == ["alpha"]
+        assert entries["nb-002"]["tags"] == ["beta"]
+
     def test_tags_persist_to_disk(self, tags_dir):
         tag_add("nb-001", ["ai"], "AI")
         path = tags_dir / "tags.json"

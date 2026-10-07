@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.15.3"
+version: "0.15.4"
 description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, interactive reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "interactive report", "lesson report", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
@@ -198,6 +198,8 @@ saved only `NID` and reported success, upgrade and retry
 profile; do not delete it or invent tokens to repair this failure. Builtin login
 closes its browser after completion; externally managed CDP browsers remain open.
 See [login recovery](references/troubleshooting.md#browser-closes-before-sign-in-or-reports-false-success).
+
+**Headless refresh & CDP port fallback (v0.15.4+):** `nlm auth refresh` surfaces actionable failure diagnostics (explaining signed-out profiles, missing browser profiles, or candidate credential rejection) rather than silently returning empty tokens. Headless authentication also automatically falls back to an OS-assigned ephemeral port when default ports conflict.
 
 ### Plan Usage and Quotas
 

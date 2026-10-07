@@ -299,7 +299,7 @@ def test_race_4_profile_rename(fake_credential_store):
 
     # Rename profile directory
     p_old = get_profile_dir("old_name")
-    p_new = get_profile_dir("new_name")
+    p_new = get_profile_dir("new_name", create=False)
     p_old.rename(p_new)
 
     # Save to old profile fails because credentials.enc no longer exists there

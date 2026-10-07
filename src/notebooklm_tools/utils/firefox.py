@@ -197,6 +197,7 @@ def run_headless_auth(
     profile_name: str = "default",
     expected_revision: str | None = None,
     force: bool | None = None,
+    raise_on_error: bool = False,
 ) -> Any | None:
     """Refresh cached credentials from the saved Firefox profile cookie store."""
     del timeout
@@ -222,11 +223,21 @@ def run_headless_auth(
             )
 
     if not has_firefox_profile(profile_name):
+        if raise_on_error:
+            raise AuthenticationError(
+                message=f"No saved Firefox profile is available for '{profile_name}'",
+                hint="Run 'nlm login' once in a desktop session to create and sign in the managed browser profile.",
+            )
         return None
 
     try:
         cookies = _read_google_cookies(get_firefox_profile_dir(profile_name))
         if not validate_cookies(cookies):
+            if raise_on_error:
+                raise AuthenticationError(
+                    message="Saved Firefox profile did not expose the required NotebookLM cookies",
+                    hint="Run 'nlm login' in a desktop session to refresh the managed browser profile.",
+                )
             return None
         tokens = AuthTokens(cookies=cookies, extracted_at=time.time())
         save_kwargs: dict[str, Any] = {"profile_name": profile_name}
@@ -237,7 +248,12 @@ def run_headless_auth(
         rev = save_tokens_to_cache(tokens, **save_kwargs)
         tokens.revision = rev
         return tokens
-    except CredentialStoreError:
+    except (CredentialStoreError, AuthenticationError):
         raise
-    except Exception:
+    except Exception as exc:
+        if raise_on_error:
+            raise AuthenticationError(
+                message=f"Headless Firefox refresh failed ({type(exc).__name__})",
+                hint="Run 'nlm login' in a desktop session to re-authenticate.",
+            ) from exc
         return None

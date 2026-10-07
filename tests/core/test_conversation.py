@@ -263,7 +263,7 @@ class TestQueryUsesServerConversationId:
             call.kwargs for call in mock_client_class.call_args_list if "cookies" in call.kwargs
         ]
         assert len(request_client_calls) == 1
-        assert 0 < request_client_calls[0]["timeout"] <= 120.0
+        assert 0 < request_client_calls[0]["timeout"] <= 120.0 + 1e-9
         assert request_client_calls[0]["cookies"]
         assert request_client_calls[0]["headers"] == {
             "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"

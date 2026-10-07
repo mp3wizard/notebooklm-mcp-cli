@@ -107,6 +107,7 @@ def test_cli_does_not_save_anonymous_browser_credentials(browser, monkeypatch, s
         patch("notebooklm_tools.core.auth._fetch_notebooklm_homepage", return_value=response),
         patch("notebooklm_tools.core.client.NotebookLMClient") as client,
     ):
+        client.return_value.__enter__.return_value = client.return_value
         client.return_value.list_notebooks.side_effect = ClientAuthenticationError("expired")
         result = CliRunner().invoke(
             app, ["login", "--profile", "content-work", "--storage", "file"]

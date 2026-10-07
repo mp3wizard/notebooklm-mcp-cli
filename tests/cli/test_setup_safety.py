@@ -1,6 +1,7 @@
 """Tests for safe configuration file handling and backups."""
 
 import json
+import os
 import stat
 from pathlib import Path
 
@@ -13,6 +14,12 @@ from notebooklm_tools.cli.setup_safety import (
     capture_backups,
     read_json_config,
 )
+
+
+def _assert_posix_mode(path: Path, expected: int) -> None:
+    """Assert exact mode only where chmod has POSIX permission semantics."""
+    if os.name != "nt":
+        assert stat.S_IMODE(path.stat().st_mode) == expected
 
 
 def test_missing_json_returns_empty_dict(tmp_path):
@@ -60,7 +67,7 @@ def test_atomic_write_preserves_permissions(tmp_path):
     target.chmod(0o640)
     atomic_write_text(target, '{"val": 2}')
     assert target.read_text(encoding="utf-8") == '{"val": 2}'
-    assert stat.S_IMODE(target.stat().st_mode) == 0o640
+    _assert_posix_mode(target, 0o640)
 
 
 def test_backup_existing_file(tmp_path, monkeypatch):
@@ -77,8 +84,8 @@ def test_backup_existing_file(tmp_path, monkeypatch):
     assert backup_path.exists()
     assert backup_path.is_file()
     assert backup_path.parent == fake_home / ".notebooklm-mcp-cli" / "backups"
-    assert stat.S_IMODE(backup_path.stat().st_mode) == 0o600
-    assert stat.S_IMODE(backup_path.parent.stat().st_mode) == 0o700
+    _assert_posix_mode(backup_path, 0o600)
+    _assert_posix_mode(backup_path.parent, 0o700)
     assert json.loads(backup_path.read_text(encoding="utf-8")) == {"key": "original"}
 
 
@@ -101,7 +108,7 @@ def test_backup_existing_dir(tmp_path, monkeypatch):
     assert backup_path.is_dir()
     assert (backup_path / "SKILL.md").read_text(encoding="utf-8") == "---\nname: test\n---\n"
     assert (backup_path / "references" / "guide.md").read_text(encoding="utf-8") == "# Guide"
-    assert stat.S_IMODE(backup_path.stat().st_mode) == 0o700
+    _assert_posix_mode(backup_path, 0o700)
 
 
 def test_backup_existing_rejects_symlink(tmp_path, monkeypatch):

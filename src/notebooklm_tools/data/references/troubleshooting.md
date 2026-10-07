@@ -162,6 +162,15 @@ login closes the browser it launched.
    nlm login --check
    ```
 
+### Headless Refresh Failures (`nlm auth refresh`)
+
+**Symptoms & Actions:**
+
+- **`No saved browser profile is available for '<profile>'`**: Run `nlm login --profile <profile>` once in an interactive desktop session to create the managed browser profile.
+- **`Saved browser profile '<profile>' is not signed in to NotebookLM`**: The profile was signed out or Google session expired. Run `nlm login --profile <profile>` in an interactive session.
+- **`NotebookLM rejected the credentials extracted from the saved browser profile`**: Google rejected the refreshed cookies. Re-authenticate with `nlm login`.
+- **Port conflicts**: Headless authentication automatically falls back to an OS-assigned ephemeral port (port 0) if default ports (9222/9223) conflict or are occupied.
+
 ### Credential Storage Issues (Protected Mode)
 
 **Repeated Keychain Prompts (macOS):**

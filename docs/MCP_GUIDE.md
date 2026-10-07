@@ -424,6 +424,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 | `NOTEBOOKLM_MCP_DEBUG` | Enable debug logging |
 | `NOTEBOOKLM_HL` | Interface language and default artifact locale, including regional BCP-47 values such as `es-419` (default: en) |
 | `NOTEBOOKLM_QUERY_TIMEOUT` | Query timeout (seconds) |
+| `NOTEBOOKLM_ASYNC_QUERY_MAX_INFLIGHT` | Maximum concurrent `notebook_query_start` workers (default: 8; minimum: 1) |
 | `NOTEBOOKLM_BASE_URL` | Override base URL for Enterprise/Workspace (default: `https://notebooklm.google.com`) |
 | `NOTEBOOKLM_PROJECT_ID` | Required GCP project ID or number for Gemini Notebook Enterprise |
 | `NOTEBOOKLM_LOCATION` | Enterprise location/multi-region (`global`, `us`, or `eu`; default: `global`) |

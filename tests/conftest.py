@@ -17,9 +17,12 @@ def _is_allowed_live_modification(rel_path: str) -> bool:
     return bool(fnmatch.fnmatch(norm, "profiles/*/metadata.json"))
 
 
-def _snapshot_storage_dir(dir_path: Path) -> dict[str, float]:
-    """Record relative file paths and modification times (never file contents)."""
-    snapshot: dict[str, float] = {}
+StorageFingerprint = tuple[int, int]
+
+
+def _snapshot_storage_dir(dir_path: Path) -> dict[str, StorageFingerprint]:
+    """Record path fingerprints as (mtime_ns, size), never file contents."""
+    snapshot: dict[str, StorageFingerprint] = {}
     if not dir_path.exists():
         return snapshot
     for root, dirs, files in os.walk(dir_path):
@@ -27,18 +30,19 @@ def _snapshot_storage_dir(dir_path: Path) -> dict[str, float]:
         for f in files:
             p = Path(root) / f
             try:
-                rel = str(p.relative_to(dir_path))
-                snapshot[rel] = p.stat().st_mtime
+                rel = p.relative_to(dir_path).as_posix()
+                stat_result = p.stat()
+                snapshot[rel] = (stat_result.st_mtime_ns, stat_result.st_size)
             except (OSError, ValueError):
                 pass
     return snapshot
 
 
 def _check_tripwire_changes(
-    before_mcp_cli: dict[str, float],
-    after_mcp_cli: dict[str, float],
-    before_mcp: dict[str, float],
-    after_mcp: dict[str, float],
+    before_mcp_cli: dict[str, StorageFingerprint],
+    after_mcp_cli: dict[str, StorageFingerprint],
+    before_mcp: dict[str, StorageFingerprint],
+    after_mcp: dict[str, StorageFingerprint],
 ) -> tuple[list[str], list[str]]:
     """Compare snapshots and return (critical_failures, allowed_warnings)."""
     critical_failures: list[str] = []
@@ -81,10 +85,10 @@ def _check_tripwire_changes(
 
 
 def _evaluate_tripwire(
-    before_cli: dict[str, float],
-    after_cli: dict[str, float],
-    before_mcp: dict[str, float],
-    after_mcp: dict[str, float],
+    before_cli: dict[str, StorageFingerprint],
+    after_cli: dict[str, StorageFingerprint],
+    before_mcp: dict[str, StorageFingerprint],
+    after_mcp: dict[str, StorageFingerprint],
 ) -> tuple[list[str], list[str]]:
     """Evaluate snapshots against tripwire rules, print warnings, and fail on violations."""
     critical_failures, allowed_warnings = _check_tripwire_changes(
@@ -107,7 +111,9 @@ def _evaluate_tripwire(
     return critical_failures, allowed_warnings
 
 
-_tripwire_key = pytest.StashKey[tuple[Path, Path, dict[str, float], dict[str, float]]]()
+_tripwire_key = pytest.StashKey[
+    tuple[Path, Path, dict[str, StorageFingerprint], dict[str, StorageFingerprint]]
+]()
 
 
 def pytest_configure(config):

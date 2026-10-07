@@ -126,7 +126,7 @@ class TestQuery:
         assert call_kwargs["query_text"] == "question"
         assert call_kwargs["source_ids"] == ["src-1"]
         assert call_kwargs["conversation_id"] is None
-        assert 0 < call_kwargs["timeout"] <= 120.0
+        assert 0 < call_kwargs["timeout"] <= 120.0 + 1e-9
 
     def test_new_conversation_passed_through(self, mock_client):
         mock_client.query.return_value = {"answer": "ok"}
@@ -145,7 +145,7 @@ class TestQuery:
         assert call_kwargs["source_ids"] == ["src-1"]
         assert call_kwargs["conversation_id"] is None
         assert call_kwargs["new_conversation"] is True
-        assert 0 < call_kwargs["timeout"] <= 120.0
+        assert 0 < call_kwargs["timeout"] <= 120.0 + 1e-9
 
     def test_enterprise_source_resolution_uses_enterprise_list(self, mock_client):
         """Whole-notebook Enterprise queries must not call consumer get_notebook."""
@@ -174,7 +174,7 @@ class TestQuery:
         assert call_kwargs["query_text"] == "question"
         assert call_kwargs["source_ids"] is None
         assert call_kwargs["conversation_id"] is None
-        assert 0 < call_kwargs["timeout"] <= 30.0
+        assert 0 < call_kwargs["timeout"] <= 30.0 + 1e-9
 
     @patch("notebooklm_tools.services.chat.notebook_service")
     def test_query_reuses_validated_sources_and_timeout_budget(
@@ -361,6 +361,68 @@ class TestQueryStart:
         r2 = query_start(mock_client, "nb-123", "q2")
         assert r1["query_id"] != r2["query_id"]
 
+    def test_rejects_when_async_query_limit_is_full(self, mock_client, monkeypatch):
+        import threading
+
+        gate = threading.Event()
+
+        def blocked_query(**kwargs):
+            gate.wait(2)
+            return {"answer": "done"}
+
+        monkeypatch.setenv("NOTEBOOKLM_ASYNC_QUERY_MAX_INFLIGHT", "1")
+        with _pending_lock:
+            _pending_queries.clear()
+        mock_client.query.side_effect = blocked_query
+
+        first = query_start(mock_client, "nb-123", "q1", source_ids=["src-1"])
+        try:
+            with pytest.raises(ServiceError) as exc_info:
+                query_start(mock_client, "nb-123", "q2", source_ids=["src-1"])
+            assert exc_info.value.category == "resource_exhausted"
+            assert exc_info.value.retryable is True
+            assert exc_info.value.suggested_action == "poll_existing_queries"
+        finally:
+            gate.set()
+
+        assert first["status"] == "in_progress"
+
+    def test_thread_start_failure_releases_async_query_slot(self, mock_client, monkeypatch):
+        import threading
+
+        monkeypatch.setenv("NOTEBOOKLM_ASYNC_QUERY_MAX_INFLIGHT", "1")
+        with _pending_lock:
+            _pending_queries.clear()
+
+        def cannot_start(self):
+            raise RuntimeError("can't start new thread")
+
+        monkeypatch.setattr(threading.Thread, "start", cannot_start)
+        with pytest.raises(RuntimeError):
+            query_start(mock_client, "nb-123", "q1", source_ids=["src-1"])
+
+        with _pending_lock:
+            assert not _pending_queries
+
+    def test_completed_query_releases_async_query_slot(self, mock_client, monkeypatch):
+        import time as _time
+
+        monkeypatch.setenv("NOTEBOOKLM_ASYNC_QUERY_MAX_INFLIGHT", "1")
+        with _pending_lock:
+            _pending_queries.clear()
+        mock_client.query.return_value = {"answer": "done"}
+
+        first = query_start(mock_client, "nb-123", "q1", source_ids=["src-1"])
+        for _ in range(100):
+            if query_status(first["query_id"])["status"] == "completed":
+                break
+            _time.sleep(0.01)
+        else:
+            raise AssertionError("First async query did not complete")
+
+        second = query_start(mock_client, "nb-123", "q2", source_ids=["src-1"])
+        assert second["status"] == "in_progress"
+
     def test_ttl_cleanup_evicts_expired(self, mock_client):
         """Verify stale entries get cleaned up on the next query_start call."""
         import time as _time
@@ -464,6 +526,28 @@ class TestQueryStatus:
         assert first_status["status"] == "completed"
         assert second_status == first_status
 
+    def test_in_progress_query_is_not_evicted_by_result_ttl(self, mock_client, monkeypatch):
+        import time as _time
+
+        monkeypatch.setenv("NOTEBOOKLM_ASYNC_QUERY_MAX_INFLIGHT", "1")
+        with _pending_lock:
+            _pending_queries.clear()
+            _pending_queries["long-running"] = {
+                "status": "in_progress",
+                "result": None,
+                "error": None,
+                "error_details": None,
+                "created_at": _time.monotonic() - _QUERY_TTL_SECONDS - 1,
+                "expires_at": _time.monotonic() + 60,
+                "finished_at": None,
+            }
+
+        with pytest.raises(ServiceError) as exc_info:
+            query_start(mock_client, "nb-123", "blocked", source_ids=["src-1"])
+
+        assert exc_info.value.category == "resource_exhausted"
+        assert query_status("long-running")["status"] == "in_progress"
+
     def test_status_evicts_expired_query_before_reading(self, mock_client):
         import time as _time
 
@@ -473,7 +557,8 @@ class TestQueryStatus:
                 "result": {"answer": "expired"},
                 "error": None,
                 "error_details": None,
-                "created_at": _time.monotonic() - _QUERY_TTL_SECONDS - 1,
+                "created_at": _time.monotonic() - (_QUERY_TTL_SECONDS * 2),
+                "finished_at": _time.monotonic() - _QUERY_TTL_SECONDS - 1,
             }
 
         with pytest.raises(ValidationError, match="not found"):

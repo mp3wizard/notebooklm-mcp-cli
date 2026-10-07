@@ -1,5 +1,6 @@
 """Tests for services.downloads module."""
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -597,7 +598,7 @@ class TestDownloadAll:
 
         result = await download_all(bulk_client, "nb-1", str(tmp_path))
 
-        names = sorted(item["path"].rsplit("/", 1)[-1] for item in result["items"])
+        names = sorted(Path(item["path"]).name for item in result["items"])
         assert names == ["same.xlsx", "same_2.xlsx"]
 
     @pytest.mark.asyncio

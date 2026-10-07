@@ -162,12 +162,16 @@ def _best_effort_notebook_count(profile: Any) -> int | None:
 
 
 def _validate_saved_profile(auth: Any) -> tuple[Any, int | None]:
-    """Validate saved credentials using the lightweight authoritative check.
+    """Validate saved credentials using the same policy as MCP auth recovery.
 
-    Validity is decided by ``check_validity`` (a homepage probe), not by a full
-    ``list_notebooks()`` call, so a slow notebook list on a large account cannot
-    turn a valid session into a crash or false failure. The notebook count is
-    fetched as a best-effort extra and is None when it cannot be retrieved.
+    The CLI previously treated a successful homepage probe as authoritative.
+    That can produce a false positive when Google's homepage still accepts the
+    cookies but NotebookLM RPCs reject them. Reuse credentials_are_usable so
+    nlm login, nlm login --check, and the MCP auth broker agree on
+    configured/stale/unverified state.
+
+    The notebook count remains best-effort display metadata and never changes
+    an otherwise-valid result.
 
     Args:
         auth: The AuthManager for the profile being checked.
@@ -176,13 +180,38 @@ def _validate_saved_profile(auth: Any) -> tuple[Any, int | None]:
         A tuple of (profile, notebook_count) where notebook_count may be None.
 
     Raises:
-        AuthenticationError: If the credentials are not valid.
+        AuthenticationError: If the credentials are not usable.
     """
-    p = auth.load_profile()
+    from notebooklm_tools.core.exceptions import AuthenticationError
+    from notebooklm_tools.services.auth import credentials_are_usable
 
-    result = auth.check_validity(live=True)
-    if not result.valid:
-        raise _auth_failure_from_result(result)
+    p = auth.load_profile()
+    usable, status, detail = credentials_are_usable(force=True, profile=p.name)
+    if not usable:
+        if status == "not_configured":
+            raise AuthenticationError(
+                "No saved credentials found.",
+                hint="Run 'nlm login' to authenticate.",
+            )
+        if status == "stale":
+            raise AuthenticationError(
+                "Credentials have expired.",
+                hint="Run 'nlm login' to re-authenticate.",
+            )
+        if status == "unverified":
+            suffix = f": {detail}" if detail else ""
+            raise AuthenticationError(
+                f"Could not verify NotebookLM credentials{suffix}",
+                hint=(
+                    "Check your connection and try again — your saved credentials may "
+                    "still be valid."
+                ),
+            )
+        suffix = f": {detail}" if detail else ""
+        raise AuthenticationError(
+            f"Authentication check failed ({status}){suffix}",
+            hint="Run 'nlm login' to re-authenticate.",
+        )
 
     return p, _best_effort_notebook_count(p)
 
@@ -1062,7 +1091,10 @@ def auth_refresh(
 
     with console.status(f"Refreshing session for profile '{profile_name}'..."):
         try:
-            tokens = run_headless_auth(profile_name=profile_name)
+            tokens = run_headless_auth(
+                profile_name=profile_name,
+                raise_on_error=True,
+            )
         except Exception as exc:
             console.print(f"[red]✗[/red] Refresh failed: {exc}")
             raise typer.Exit(1) from exc

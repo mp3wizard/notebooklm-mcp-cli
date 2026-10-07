@@ -180,6 +180,12 @@ fails, so a scheduler can react. Example launchd/cron keep-alive (every 30 min):
 > **Note:** This needs a saved Chrome profile (from a prior `nlm login`). It
 > does not help when `NOTEBOOKLM_COOKIES` is set as an environment variable —
 > that value overrides saved credentials, so update it directly instead.
+>
+> In v0.15.4 and later, `nlm auth refresh` provides descriptive, actionable diagnostics
+> indicating whether the saved profile was missing, signed out, encountered a DevTools websocket
+> error, timed out loading NotebookLM, or had its extracted credentials rejected by the API.
+> In addition, headless authentication automatically falls back to an OS-assigned ephemeral
+> port if default DevTools ports (e.g. 9222/9223) are occupied or conflict.
 
 > **Disabling the refresh:** Some Google Workspace accounts have their session
 > revoked server-side whenever the saved browser profile is relaunched (issue

@@ -69,6 +69,7 @@ def test_find_existing_nlm_chrome_reuses_only_matching_profile(storage_dir):
     }
 
     with (
+        patch.object(cdp, "_pid_is_alive", return_value=True),
         patch.object(cdp, "_fetch_cdp_version", return_value=version),
         patch.object(cdp, "_mapped_chrome_owns_profile", return_value=True),
     ):

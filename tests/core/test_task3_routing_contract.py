@@ -536,6 +536,7 @@ def test_corrupt_config_clean_error_in_mcp_and_cli(tmp_path, monkeypatch):
         env=env,
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     assert cli_proc.returncode == 1
     assert "✗ Error: Corrupt configuration file" in cli_proc.stdout
