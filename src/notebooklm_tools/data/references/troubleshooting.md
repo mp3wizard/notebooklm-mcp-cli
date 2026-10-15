@@ -46,10 +46,11 @@ nlm login --check || nlm login
 
 **Unattended machines:** A live session self-heals — when the short-lived
 cookies age out, the client runs a headless refresh automatically. To refresh
-proactively from a scheduler (so a session never lapses between jobs), use:
+proactively from a scheduler, use:
 
 ```bash
-nlm auth refresh          # Headless, no interaction; exits non-zero on failure
+nlm auth refresh --profile work  # Headless; exits non-zero on failure
+nlm auth refresh --http-only --profile work  # Force HTTP; no browser launch
 ```
 
 Run it on a timer (e.g. cron/launchd every 30 min). It needs a saved Chrome
@@ -59,7 +60,20 @@ is set as an environment variable (that value overrides saved credentials).
 Some Google Workspace accounts have their session revoked when the saved browser
 profile is relaunched. On those accounts, set
 `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` to turn off the automatic self-heal and
-`nlm auth refresh`.
+browser-based `nlm auth refresh`. The HTTP-only mode remains available but
+cannot renew browser-dependent PSIDTS cookies or revive a fully expired login.
+
+Automatic recovery has a per-process cooldown (900 seconds by default) and
+failure ceiling (3 by default). Concurrent requests share an active recovery;
+a waiter can time out after 60 seconds. An explicit refresh bypasses the budget.
+If automatic recovery is deferred, check the session and choose an explicit
+refresh or interactive login for the same profile instead of repeatedly retrying.
+Changed credentials reset the budget. Configure limits with
+`NOTEBOOKLM_AUTH_RECOVERY_COOLDOWN_SECONDS` and
+`NOTEBOOKLM_AUTH_MAX_HEADLESS_FAILURES` (0 disables that limit).
+
+For MCP, `refresh_auth(profile="work")` refreshes the named saved account
+without switching the server's active account.
 
 ### Browser Closes Before Sign-in or Reports False Success
 

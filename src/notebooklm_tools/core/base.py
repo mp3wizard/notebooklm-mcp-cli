@@ -9,6 +9,7 @@ Internal API. See CLAUDE.md for full documentation.
 """
 
 import contextlib
+import hashlib
 import json
 import logging
 import os
@@ -459,6 +460,7 @@ class BaseClient:
         project_id: str | None = None,
         auth_revision: str | None = None,
         is_env_auth: bool | None = None,
+        rpc_transport: str | None = None,
     ):
         """
         Initialize the base client.
@@ -487,6 +489,7 @@ class BaseClient:
         self._base_host = base_host
         self._profile_name = profile_name
         self._auth_revision = auth_revision
+        self._rpc_transport = rpc_transport
         if is_env_auth is None:
             self._is_env_auth = bool(os.environ.get("NOTEBOOKLM_COOKIES") and profile_name is None)
         else:
@@ -872,6 +875,8 @@ class BaseClient:
         return present
 
     def _cdp_rpc_transport_enabled(self) -> bool:
+        if getattr(self, "_rpc_transport", None) is not None:
+            return self._rpc_transport == "cdp"
         from .cdp_transport import cdp_transport_enabled
 
         return cdp_transport_enabled()
@@ -1471,39 +1476,50 @@ class BaseClient:
         if os.environ.get("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH") == "1":
             logger.debug("Headless refresh disabled via NOTEBOOKLM_DISABLE_HEADLESS_REFRESH")
             return False
-        try:
-            from notebooklm_tools.utils.auth_browser import run_headless_auth
-            from notebooklm_tools.utils.config import get_config
+        from notebooklm_tools.utils.config import get_config
 
-            profile_name = self._profile_name or get_config().auth.default_profile
-            tokens = run_headless_auth(
-                profile_name=profile_name,
-                expected_revision=starting_rev,
-                force=False,
-            )
-            if tokens:
-                with self._state_lock:
-                    self.cookies = tokens.cookies
-                    self.csrf_token = tokens.csrf_token
-                    self._session_id = tokens.session_id
-                    self._auth_revision = getattr(tokens, "revision", None)
-                return True
-        except StaleRevisionError:
-            # Disk changed while browser ran; keep disk login and drop browser result
-            logger.info("Disk credentials changed during headless auth; keeping disk credentials.")
-            reloaded = load_cached_tokens(profile_name=self._profile_name)
-            if reloaded:
-                with self._state_lock:
-                    self.cookies = reloaded.cookies
-                    self.csrf_token = reloaded.csrf_token
-                    self._session_id = reloaded.session_id
-                    if reloaded.build_label:
-                        self._bl = reloaded.build_label
-                    if reloaded.base_host:
-                        self._base_host = reloaded.base_host
-                    self._auth_revision = reloaded.revision
-                return True
-        except Exception as e:
-            logger.debug(f"Headless auth failed: {e}")
+        from .auth_recovery_budget import run_automatic_recovery
 
-        return False
+        profile_name = self._profile_name or get_config().auth.default_profile
+
+        def recover():
+            try:
+                from notebooklm_tools.utils.auth_browser import run_headless_auth
+
+                return run_headless_auth(
+                    profile_name=profile_name,
+                    expected_revision=starting_rev,
+                    force=False,
+                )
+            except StaleRevisionError:
+                # Keep credentials saved by a concurrent external login.
+                logger.info(
+                    "Disk credentials changed during headless auth; keeping disk credentials."
+                )
+                return load_cached_tokens(profile_name=profile_name)
+            except Exception as e:
+                logger.debug(f"Headless auth failed: {e}")
+                return None
+
+        budget_revision = starting_rev
+        if budget_revision is None:
+            # File-mode profiles have no envelope revision. A cookie change
+            # from an external login must still reset the recovery budget.
+            cookie_snapshot = cached.cookies if cached else self.cookies
+            budget_revision = hashlib.sha256(
+                json.dumps(cookie_snapshot, sort_keys=True).encode()
+            ).hexdigest()
+        tokens = run_automatic_recovery(profile_name, budget_revision, recover)
+        if not tokens:
+            logger.info("Automatic headless auth failed or deferred by per-profile recovery budget")
+            return False
+        with self._state_lock:
+            self.cookies = tokens.cookies
+            self.csrf_token = tokens.csrf_token
+            self._session_id = tokens.session_id
+            if tokens.build_label:
+                self._bl = tokens.build_label
+            if tokens.base_host:
+                self._base_host = tokens.base_host
+            self._auth_revision = getattr(tokens, "revision", None)
+        return True

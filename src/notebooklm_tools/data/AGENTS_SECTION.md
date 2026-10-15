@@ -1,5 +1,5 @@
 <!-- nlm-skill-start -->
-<!-- nlm-version: 0.15.4 -->
+<!-- nlm-version: 0.15.5 -->
 ## NLM - Gemini Notebook (formerly Google NotebookLM) CLI Expert
 
 **Triggers:** "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast", "audio overview", "research"
@@ -11,6 +11,7 @@ Expert assistant for Gemini Notebook automation via CLI. Use when users want to 
 ```bash
 nlm login                    # Authenticate with NotebookLM
 nlm auth refresh             # Non-interactive refresh (unattended/schedulers)
+nlm auth refresh --http-only # Validate and save without launching a browser
 nlm notebook create "Title"  # Create notebook
 nlm source add <id> --url "https://..."  # Add web source
 nlm audio create <id> --confirm          # Generate podcast
@@ -33,7 +34,7 @@ nlm auth storage set protected # Encrypt stored credentials (OS credential store
 7. **⚠️ NEVER use `nlm chat start`**: It's an interactive REPL. Use `nlm notebook query` instead
 8. **Use the configured MCP name**: Register this server as `gemini-notebook-mcp`; the executable remains `notebooklm-mcp` for compatibility.
 9. **Use the setup wizard for client configuration**: Run `nlm setup` to detect installed clients and choose status, add MCP, add skill, remove, or copy MCP setup (the user drives it in a real terminal; Esc goes back). Connections still using the old `notebooklm-mcp` name are offered for a rename to `gemini-notebook-mcp`. For Claude Desktop Chat/Cowork or claude.ai, `nlm skill package` creates an upload file (`~/Downloads/nlm-skill.zip`). MCP setup defaults to app/user scope. Codex CLI and the ChatGPT desktop app share one MCP config on the same host. The optional skill defaults to all projects (user level); choose project level only when the user wants this folder. The wizard backs up existing configs and skills before changing them.
-10. **Check plan usage before quota-limited work**: Run `nlm usage` or call `usage_get` to inspect rolling and weekly percentages and reset times. Authentication failures should be refreshed with `nlm auth refresh`, not treated as exhausted quota.
+10. **Check plan usage before quota-limited work**: Run `nlm usage` or call `usage_get` to inspect rolling and weekly percentages and reset times. Authentication failures should be refreshed with `nlm auth refresh`, not treated as exhausted quota. Use `--http-only` when browser launch must be avoided; fully expired logins still require `nlm login`. MCP `refresh_auth(profile="work")` refreshes a named account without switching the active account.
 
 ### Common Workflows
 

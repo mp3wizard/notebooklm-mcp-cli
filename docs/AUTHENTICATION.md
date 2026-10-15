@@ -157,6 +157,17 @@ This means you can stay logged into multiple Google accounts simultaneously with
 
 ---
 
+## Automatic Recovery
+
+Automatic browser recovery is limited per profile within each process:
+`NOTEBOOKLM_AUTH_RECOVERY_COOLDOWN_SECONDS` defaults to 900 seconds and
+`NOTEBOOKLM_AUTH_MAX_HEADLESS_FAILURES` defaults to 3 failed attempts.
+Set either value to 0 to disable that limit. A changed credential revision
+(or changed cookies in file mode) resets the budget; success clears its failure count. Concurrent requests share
+an active recovery and wait up to 60 seconds for its result instead of consuming
+another attempt. Explicit CLI and MCP refresh commands bypass this budget.
+These limits are not a durable policy across separate processes.
+
 ## Unattended / Scheduled Refresh
 
 A logged-in session normally self-heals: when the short-lived cookies age out,
@@ -167,6 +178,7 @@ you can also refresh proactively so a session never lapses between jobs:
 ```bash
 nlm auth refresh                 # Refresh the default profile
 nlm auth refresh --profile work  # Refresh a named profile
+nlm auth refresh --http-only     # Validate and save an HTTP-only refresh
 ```
 
 `nlm auth refresh` runs a headless browser against the saved profile — no
@@ -190,7 +202,11 @@ fails, so a scheduler can react. Example launchd/cron keep-alive (every 30 min):
 > **Disabling the refresh:** Some Google Workspace accounts have their session
 > revoked server-side whenever the saved browser profile is relaunched (issue
 > #330). Set `NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` to turn off both the
-> automatic self-heal and `nlm auth refresh` on those accounts.
+> automatic browser self-heal and browser-based `nlm auth refresh` on those accounts.
+> `nlm auth refresh --http-only` remains available: it forces HTTP transport even
+> when `NOTEBOOKLM_RPC_TRANSPORT=cdp` is configured. It saves candidates only
+> after a valid authenticated API response. It cannot renew browser-dependent
+> PSIDTS cookies or revive a fully expired login.
 
 ---
 

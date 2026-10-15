@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.15.4"
+version: "0.15.5"
 description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, interactive reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "interactive report", "lesson report", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
@@ -52,7 +52,7 @@ nlm usage --json        # Return usage data as machine-readable JSON
 
 1. **Authenticate when needed**: Run `nlm login` for first-time setup or confirmed stale/missing credentials. Saved cookies often remain usable for weeks.
 2. **Do not confuse network failures with expired auth**: `auth_status="unverified"` means the probe was inconclusive. Check connectivity or try an API call before asking the user to log in again.
-3. **Auto-Authentication Recovery**: The CLI includes automatic 3-layer auth recovery (CSRF refresh -> Token reload -> Headless Auth) and 3x server error retries. Most errors are handled automatically. You only need to manually run `nlm login` if all recovery layers fail. For unattended machines, `nlm auth refresh` refreshes a session non-interactively (headless) from a scheduler so it never lapses between jobs.
+3. **Auto-Authentication Recovery**: The CLI includes automatic 3-layer auth recovery (CSRF refresh -> Token reload -> Headless Auth) and 3x server error retries. Most errors are handled automatically. You only need to manually run `nlm login` if all recovery layers fail. Automatic browser recovery has a per-process cooldown and failure budget; concurrent requests share an active recovery. Explicit `nlm auth refresh` bypasses these limits. Use `--http-only` when a browser must not open; it cannot renew browser-dependent PSIDTS cookies or revive a fully expired login.
 4. **⚠️ ALWAYS ASK USER BEFORE DELETE**: Before executing ANY delete command, ask the user for explicit confirmation. Deletions are **irreversible**. Show what will be deleted and warn about permanent data loss.
 5. **Always obtain approval before generation or deletion**: Direct
    `studio_create` and delete operations enforce `--confirm` / `confirm=True`.
@@ -144,6 +144,8 @@ nlm login
 
 # Then reload tokens in MCP
 mcp__gemini-notebook-mcp__refresh_auth()
+# Refresh a specific saved account without switching the active account:
+mcp__gemini-notebook-mcp__refresh_auth(profile="work")
 # Returns status: "success" (valid), "expired" (tokens dead, run `nlm login`),
 # or "error". `nlm login` is the only recovery path for "expired".
 ```
@@ -170,6 +172,8 @@ nlm login profile list              # List all profiles with email addresses
 nlm login profile delete <name>     # Delete a profile
 nlm login profile rename <old> <new> # Rename a profile
 nlm auth refresh                    # Non-interactive headless refresh (schedulers/unattended)
+nlm auth refresh --profile work     # Refresh a named saved account
+nlm auth refresh --http-only        # Validate and save without opening a browser
 nlm auth storage status             # Check credential storage mode (file or protected)
 nlm auth storage set protected      # Encrypt credentials using OS credential store (--profile X or --all)
 nlm auth storage set file           # Decrypt credentials back to plain files (downgrade prep)
@@ -200,6 +204,21 @@ closes its browser after completion; externally managed CDP browsers remain open
 See [login recovery](references/troubleshooting.md#browser-closes-before-sign-in-or-reports-false-success).
 
 **Headless refresh & CDP port fallback (v0.15.4+):** `nlm auth refresh` surfaces actionable failure diagnostics (explaining signed-out profiles, missing browser profiles, or candidate credential rejection) rather than silently returning empty tokens. Headless authentication also automatically falls back to an OS-assigned ephemeral port when default ports conflict.
+
+**Refresh safety (v0.15.5+):** `--http-only` forces HTTP transport even when
+`NOTEBOOKLM_RPC_TRANSPORT=cdp` is configured and saves credentials only after a
+valid authenticated API response. It remains available when
+`NOTEBOOKLM_DISABLE_HEADLESS_REFRESH=1` disables browser recovery. On accounts
+where reopening the browser revokes the session, keep browser recovery disabled;
+an HTTP-only failure may still require interactive `nlm login`.
+
+Automatic browser recovery defaults to a 900-second cooldown and three failures
+per profile within each process. Set `NOTEBOOKLM_AUTH_RECOVERY_COOLDOWN_SECONDS`
+or `NOTEBOOKLM_AUTH_MAX_HEADLESS_FAILURES` to 0 to disable that limit. A new
+credential revision or changed file-mode cookies resets the budget; success
+clears the failure count. Concurrent callers wait up to 60 seconds for the same
+recovery result. Separate processes serialize Chromium recovery with a
+per-profile lock. Explicit CLI/MCP refresh bypasses the automatic budget.
 
 ### Plan Usage and Quotas
 

@@ -75,6 +75,8 @@ save_auth_tokens(cookies=<cookie_header>)
 | `NOTEBOOKLM_SESSION_ID` | No | (DEPRECATED - auto-extracted) |
 | `NOTEBOOKLM_BL` | No | Override for build label / bl URL param (auto-extracted from page) |
 | `NOTEBOOKLM_HL` | No | Interface language and default artifact language (default: `en`) |
+| `NOTEBOOKLM_AUTH_RECOVERY_COOLDOWN_SECONDS` | No | Automatic browser recovery cooldown per profile/process (default: 900; 0 disables) |
+| `NOTEBOOKLM_AUTH_MAX_HEADLESS_FAILURES` | No | Automatic browser recovery failure ceiling per profile/process (default: 3; 0 disables) |
 
 ### Token Expiration
 
@@ -195,7 +197,7 @@ don't read local skill folders.
 | `notebook_share_public` | Enable/disable public link access |
 | `notebook_share_invite` | Invite collaborator by email |
 | `save_auth_tokens` | Save tokens extracted via Chrome DevTools MCP |
-| `refresh_auth` | Reload auth tokens or run headless auth |
+| `refresh_auth` | Reload/validate auth or run headless recovery; optional `profile` targets an account without switching the active account |
 | `note_create` | Create a note in a notebook |
 | `note_list` | List all notes in a notebook |
 | `note_update` | Update a note's content or title |

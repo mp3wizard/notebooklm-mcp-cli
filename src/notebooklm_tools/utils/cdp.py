@@ -1931,7 +1931,7 @@ def _validate_headless_candidate(tokens: "Any", profile_name: str) -> bool:
         return False
 
 
-def run_headless_auth(
+def _run_headless_auth_unlocked(
     port: int = 9223,
     timeout: int = 30,
     profile_name: str = "default",
@@ -2153,3 +2153,62 @@ def run_headless_auth(
         # Don't terminate if we connected to existing Chrome instance
         if chrome_process and not chrome_was_running:
             terminate_chrome(chrome_process, port)
+
+
+def run_headless_auth(
+    port: int = 9223,
+    timeout: int = 30,
+    profile_name: str = "default",
+    expected_revision: str | None = None,
+    force: bool | None = None,
+    raise_on_error: bool = False,
+) -> "Any | None":
+    """Serialize headless recovery per profile across CLI and MCP processes.
+
+    A second caller reuses a validated credential revision saved by the winner
+    instead of launching a second browser against the same Google session.
+    Locks are separate from credential-storage locks to avoid nesting them
+    across the browser/network operation.
+    """
+    from filelock import FileLock
+    from filelock import Timeout as FileLockTimeout
+
+    from notebooklm_tools.core.auth import load_cached_tokens
+    from notebooklm_tools.utils.config import get_storage_dir, validate_profile_name
+
+    validate_profile_name(profile_name, strict=False)
+    before = load_cached_tokens(profile_name=profile_name)
+    before_revision = expected_revision or getattr(before, "revision", None)
+    before_extracted = getattr(before, "extracted_at", 0) or 0
+    lock_dir = get_storage_dir() / "locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock = FileLock(lock_dir / f"{profile_name}.recovery.lock", timeout=max(1, timeout))
+
+    try:
+        with lock:
+            updated = load_cached_tokens(profile_name=profile_name)
+            revision_changed = updated is not None and (
+                (before_revision is not None and updated.revision != before_revision)
+                or (before_revision is None and (updated.extracted_at or 0) > before_extracted)
+            )
+            if (
+                not force
+                and revision_changed
+                and _validate_headless_candidate(updated, profile_name)
+            ):
+                return updated
+            return _run_headless_auth_unlocked(
+                port=port,
+                timeout=timeout,
+                profile_name=profile_name,
+                expected_revision=expected_revision,
+                force=force,
+                raise_on_error=raise_on_error,
+            )
+    except FileLockTimeout as exc:
+        if raise_on_error:
+            raise AuthenticationError(
+                message=f"Headless authentication is already running for profile '{profile_name}'",
+                hint="Retry after the concurrent refresh completes.",
+            ) from exc
+        return None

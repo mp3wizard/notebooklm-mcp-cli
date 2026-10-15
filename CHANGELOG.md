@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.5] - 2026-10-14
+
+### Added
+
+- **Validated HTTP-only refresh.** `nlm auth refresh --http-only --profile <name>` refreshes eligible cookies and page tokens without launching a browser, even when CDP transport is configured. It saves credentials only after a valid authenticated notebook API response, accepts an authenticated account with zero notebooks, and rejects missing or malformed API payloads. This mode cannot renew browser-dependent PSIDTS cookies or revive a fully expired Google login ([PR #370](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/370)).
+- **Account-specific MCP refresh.** `refresh_auth(profile="work")` validates or recovers the requested saved account without switching the active account or replacing another account's MCP client. Calls without a profile preserve the existing behavior ([PR #372](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/372)).
+
+### Fixed
+
+- **Serialized Chromium recovery across processes.** Concurrent CLI and MCP processes use a separate per-profile recovery lock, reuse newer validated credentials, and fail safely on lock timeout instead of launching competing browsers ([PR #369](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/369)).
+- **Bounded automatic browser recovery.** Automatic attempts have a per-profile, per-process cooldown (900 seconds by default) and failure ceiling (3 by default). Concurrent callers share one active attempt and its refreshed tokens, with a bounded 60-second wait. Changed credential revisions or file-mode cookies reset the budget; success clears failures. Explicit CLI/MCP refresh commands bypass these limits. Configure the limits through `NOTEBOOKLM_AUTH_RECOVERY_COOLDOWN_SECONDS` and `NOTEBOOKLM_AUTH_MAX_HEADLESS_FAILURES`; 0 disables the corresponding limit ([PR #371](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/371)).
+- HTTP-only refresh now returns a non-secret typed service result and translates failures into service-layer errors.
+
+### Changed
+
+- Updated authentication, CLI/MCP documentation and the bundled skill with refresh modes, account targeting, recovery limits, and their limitations.
+- Updated the pinned `astral-sh/setup-uv` GitHub Action from 10.2.0 to 10.3.0 in CI, publishing and release checks ([PR #373](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/373)).
+
+### Removed
+
+- Nothing removed.
+
+### Credits
+
+Thanks to **@insane66613** for the authentication improvements in [#369](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/369), [#370](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/370), [#371](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/371) and [#372](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/372), and **@dependabot** for [#373](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/373).
+
 ## [0.15.4] - 2026-10-06
 
 > Windows CI validation, ephemeral CDP port fallback, actionable headless refresh diagnostics, atomic concurrency for aliases and tags, bounded query concurrency, and MCP server version caching.

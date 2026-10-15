@@ -20,14 +20,23 @@ from ._utils import (
 
 
 @logged_tool()
-def refresh_auth() -> ResultDict:
-    """Reload auth tokens from disk or run headless re-authentication.
+def refresh_auth(profile: str | None = None) -> ResultDict:
+    """Reload auth for the requested profile without switching the active account.
 
     Call this after running `nlm login` to pick up new tokens,
-    or to attempt automatic re-authentication if Chrome profile has saved login.
+    or attempt headless recovery with the profile's saved browser.
+    An explicit profile does not switch the MCP server's active account.
 
     Returns status indicating if tokens were refreshed successfully.
     """
+
+    def reload_active_client() -> None:
+        from notebooklm_tools.utils.config import get_config
+
+        if profile is None or profile == get_config().auth.default_profile:
+            reset_client()
+            get_client()
+
     try:
         # If NOTEBOOKLM_COOKIES is set in the environment (e.g. claude_desktop_config.json),
         # it overrides all disk-based auth. Disk reload won't help — the env var wins on
@@ -44,7 +53,7 @@ def refresh_auth() -> ResultDict:
         # Try reloading from disk first
         from notebooklm_tools.services.auth import load_cached_tokens
 
-        cached = load_cached_tokens()
+        cached = load_cached_tokens(profile_name=profile) if profile else load_cached_tokens()
         stale_cached: tuple[str, str | None] | None = None
         headless_failure: AuthenticationError | None = None
         if cached:
@@ -53,10 +62,13 @@ def refresh_auth() -> ResultDict:
             # able to mint fresh credentials via the headless recovery path.
             from notebooklm_tools.services.auth import credentials_are_usable
 
-            usable, status, detail = credentials_are_usable(force=True)
+            usable, status, detail = (
+                credentials_are_usable(force=True, profile=profile)
+                if profile
+                else credentials_are_usable(force=True)
+            )
             if usable:
-                reset_client()
-                get_client()
+                reload_active_client()
                 return {
                     "status": "success",
                     "message": "Auth tokens reloaded from disk cache and validated.",
@@ -72,14 +84,13 @@ def refresh_auth() -> ResultDict:
                 from notebooklm_tools.utils.auth_browser import run_headless_auth
                 from notebooklm_tools.utils.config import get_config
 
-                profile_name = get_config().auth.default_profile
+                profile_name = profile or get_config().auth.default_profile
                 tokens = run_headless_auth(
                     profile_name=profile_name,
                     raise_on_error=True,
                 )
                 if tokens:
-                    reset_client()
-                    get_client()
+                    reload_active_client()
                     return {
                         "status": "success",
                         "message": "Auth tokens refreshed via headless Chrome.",

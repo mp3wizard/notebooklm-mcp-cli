@@ -1057,14 +1057,18 @@ def auth_refresh(
         "-p",
         help="Profile to refresh (default: the configured default profile).",
     ),
+    http_only: bool = typer.Option(
+        False,
+        "--http-only",
+        help="Refresh cookies and page tokens over HTTP, without launching a browser.",
+    ),
 ) -> None:
-    """Refresh a session non-interactively so Google reissues its cookies.
+    """Refresh NotebookLM authentication without an interactive sign-in.
 
-    Runs a headless-browser pass against the saved Chrome profile, which makes
-    Google reissue the short-lived cookies (``*PSIDTS``) that keep a session
-    alive. Unlike ``nlm login``, this needs no user interaction, so schedulers
-    (cron/launchd) can keep an unattended session alive without an interactive
-    re-login. Exits non-zero if the refresh fails, so scripts can react.
+    Default mode uses the managed headless browser and can renew PSIDTS cookies.
+    --http-only never launches a browser: it refreshes eligible cookies and
+    CSRF/session tokens, then requires an authenticated RPC before saving.
+    Browserless refresh cannot revive a fully expired Google login.
     """
     import os
 
@@ -1078,7 +1082,7 @@ def auth_refresh(
         )
         raise typer.Exit(1)
 
-    if os.environ.get("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH") == "1":
+    if not http_only and os.environ.get("NOTEBOOKLM_DISABLE_HEADLESS_REFRESH") == "1":
         console.print(
             "[yellow]![/yellow] Headless refresh is disabled via "
             "NOTEBOOKLM_DISABLE_HEADLESS_REFRESH. Unset it to run a refresh."
@@ -1086,6 +1090,18 @@ def auth_refresh(
         raise typer.Exit(1)
 
     profile_name = profile or get_config().auth.default_profile
+    if http_only:
+        from notebooklm_tools.services.auth_http import refresh_auth_http_only
+        from notebooklm_tools.services.errors import ServiceError
+
+        with console.status(f"Checking browserless refresh for '{profile_name}'..."):
+            try:
+                refresh_auth_http_only(profile_name)
+            except ServiceError as exc:
+                console.print(f"[red]✗[/red] HTTP-only refresh failed: {exc}")
+                raise typer.Exit(1) from exc
+        console.print(f"[green]✓[/green] HTTP-only session refresh validated for '{profile_name}'.")
+        return
 
     from notebooklm_tools.utils.auth_browser import run_headless_auth
 

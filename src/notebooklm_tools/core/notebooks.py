@@ -16,6 +16,7 @@ from typing import Any
 from . import constants
 from .base import BaseClient
 from .data_types import Notebook
+from .errors import RPCError
 from .utils import parse_timestamp
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,9 @@ class NotebookMixin(BaseClient):
     multiple inheritance in the final NotebookLMClient class.
     """
 
-    def list_notebooks(self, debug: bool = False) -> list[Notebook]:
+    def list_notebooks(
+        self, debug: bool = False, *, require_valid_response: bool = False
+    ) -> list[Notebook]:
         """List all notebooks."""
         if getattr(self, "_is_enterprise", lambda: False)():
             # In Enterprise mode, rG2vCb returns the notebook list
@@ -53,6 +56,9 @@ class NotebookMixin(BaseClient):
             # [null, 1, null, [2]] - params for list notebooks
             params = [None, 1, None, [2]]
             result = self._call_rpc(self.RPC_LIST_NOTEBOOKS, params)
+
+        if require_valid_response and not isinstance(result, list):
+            raise RPCError("Notebook list RPC returned no valid payload")
 
         if debug:
             logger.debug(f"Result type: {type(result)}")

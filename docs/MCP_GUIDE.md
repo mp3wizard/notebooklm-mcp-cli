@@ -249,7 +249,7 @@ label(notebook_id="abc", action="delete", label_id="...", confirm=True)
 
 | Tool | Description |
 |------|-------------|
-| `refresh_auth` | Reload auth tokens (supports both File mode and Protected mode transparently) |
+| `refresh_auth` | Validate/reload tokens or recover a saved session; optional `profile` targets a named account without switching the active account (File and Protected storage) |
 | `save_auth_tokens` | Save cookies (fallback method) |
 
 ### Profiles & Aliases (2 tools)

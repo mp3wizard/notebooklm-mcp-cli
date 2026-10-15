@@ -104,14 +104,21 @@ cookies. Runs a headless-browser pass against the saved profile — no user
 interaction — which keeps an unattended session (cron/launchd) alive without
 an interactive `nlm login`. Exits non-zero if the refresh fails.
 
+`--http-only` refreshes eligible cookies and page tokens over HTTP, even when
+CDP transport is configured. It cannot renew browser-dependent PSIDTS cookies
+or revive a fully expired login. Explicit refresh bypasses automatic recovery
+cooldown and failure limits.
+
 ```bash
 nlm auth refresh
 nlm auth refresh --profile work
+nlm auth refresh --http-only
 ```
 
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--profile` | `-p` | Profile to refresh (default: the configured default profile) |
+| `--http-only` | | Force HTTP transport without launching a browser; validate before saving |
 
 **Example:**
 ```bash

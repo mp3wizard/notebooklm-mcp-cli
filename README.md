@@ -987,9 +987,15 @@ also refresh proactively from a scheduler so a session never lapses:
 ```bash
 nlm auth refresh                     # Headless, no interaction; exits non-zero on failure
 nlm auth refresh --profile work      # Refresh a named profile
+nlm auth refresh --http-only         # Validate without opening a browser
 ```
 
-Run it on a timer (cron/launchd). It needs a saved Chrome profile from a prior
+`--http-only` forces HTTP transport, including when CDP transport is configured.
+It cannot renew browser-dependent PSIDTS cookies or revive a fully expired login.
+Automatic recovery uses a per-process cooldown and failure budget; explicit
+refresh commands bypass these limits. See [authentication guidance](docs/AUTHENTICATION.md#automatic-recovery).
+
+Run browser-based refresh on a timer (cron/launchd). It needs a saved Chrome profile from a prior
 `nlm login`, and does not apply when `NOTEBOOKLM_COOKIES` is set as an
 environment variable (that value overrides saved credentials).
 
@@ -1312,7 +1318,9 @@ _(All queries sent from CLI or MCP automatically persist in your Gemini Notebook
 2. Reloads cookies from disk if updated externally
 3. Runs headless browser auth if profile has saved login
 
-You can also call `refresh_auth()` to explicitly reload tokens.
+You can also call `refresh_auth()` to explicitly reload and validate tokens, or
+`refresh_auth(profile="work")` to refresh a named saved account without
+switching the MCP server's active account.
 
 If automatic refresh fails (Google login fully expired), run `nlm login` again.
 
