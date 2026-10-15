@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.15.5 — October 2026)
+- **Validated HTTP-only refresh** (`nlm auth refresh --http-only`, #370), **account-specific MCP `refresh_auth(profile=...)`** (#372), **cross-process serialized Chromium recovery** (#369) and **bounded automatic browser recovery** with cooldown and failure ceiling (`NOTEBOOKLM_AUTH_RECOVERY_COOLDOWN_SECONDS`, `NOTEBOOKLM_AUTH_MAX_HEADLESS_FAILURES`, #371). `setup-uv` action bumped to 10.3.0 (#373).
+- Clean merge, no conflicts.
+- Security scan post-merge: 0 findings at Medium or above; 45 Bandit Low left by design — [`docs/security-scan-report-2026-10-15.md`](docs/security-scan-report-2026-10-15.md)
+
 ### Upstream sync (v0.15.4 — October 2026)
 - **Windows CI**, **ephemeral CDP port fallback**, **actionable headless refresh diagnostics** (#363, #364), **atomic alias/tag updates** (#354, #359), **bounded async query concurrency** (`NOTEBOOKLM_ASYNC_QUERY_MAX_INFLIGHT`, #358), **isolated download temp files** (#357), **cached PyPI version checks** (#361) and **PEP 440 version comparison** (#362).
 - Conflicts in `mcp/tools/auth.py` and `services/chat.py` resolved: kept upstream logic plus local SEC-007 debug log.
