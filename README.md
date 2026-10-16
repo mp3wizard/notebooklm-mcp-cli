@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (unreleased auth fixes after v0.15.5 — October 2026)
+- **Headless sign-in requires a valid notebook API response** (#374), **background recovery rejects stale writes when another process updated credentials** (#375), and **failed profile saves leave the legacy credential cache untouched** (#376). Touches `core/auth.py`, `utils/cdp.py`, `utils/firefox.py`.
+- Clean merge, no conflicts.
+- Security scan post-merge: 0 findings at Medium or above; 45 Bandit Low left by design — [`docs/security-scan-report-2026-10-16.md`](docs/security-scan-report-2026-10-16.md)
+
 ### Upstream sync (v0.15.5 — October 2026)
 - **Validated HTTP-only refresh** (`nlm auth refresh --http-only`, #370), **account-specific MCP `refresh_auth(profile=...)`** (#372), **cross-process serialized Chromium recovery** (#369) and **bounded automatic browser recovery** with cooldown and failure ceiling (`NOTEBOOKLM_AUTH_RECOVERY_COOLDOWN_SECONDS`, `NOTEBOOKLM_AUTH_MAX_HEADLESS_FAILURES`, #371). `setup-uv` action bumped to 10.3.0 (#373).
 - Clean merge, no conflicts.
