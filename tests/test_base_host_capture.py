@@ -37,7 +37,7 @@ class TestValidateHeadlessCandidate:
             profile_name="work",
             is_env_auth=True,
         )
-        client.list_notebooks.assert_called_once_with()
+        client.list_notebooks.assert_called_once_with(require_valid_response=True)
 
     def test_invalid_candidate_is_rejected(self):
         tokens = AuthTokens(cookies={"SID": "fresh"}, csrf_token="csrf")
@@ -107,7 +107,11 @@ class TestRunHeadlessAuthCapturesBaseHost:
             profile_name="tsm",
         )
 
-        mock_save.assert_called_once_with(tokens, profile_name="tsm")
+        mock_save.assert_called_once()
+        assert mock_save.call_args.args == (tokens,)
+        assert mock_save.call_args.kwargs["profile_name"] == "tsm"
+        assert mock_save.call_args.kwargs["force"] is False
+        assert isinstance(mock_save.call_args.kwargs["expected_file_fingerprint"], str)
 
     def test_rpc_invalid_candidate_is_not_cached_or_returned(self):
         tokens, mock_save = self._run_with_current_url(

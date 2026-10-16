@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Headless sign-in requires a valid notebook API response.** Missing or malformed response payloads no longer validate candidate credentials. A valid response with zero notebooks remains accepted ([PR #374](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/374)).
+- **Background recovery preserves newer saved credentials.** Chromium and Firefox recovery compare the starting credential revision or file-mode authentication state before saving, rejecting stale writes when another process updates the profile ([PR #375](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/375)).
+- **Failed profile saves leave the legacy credential cache unchanged.** The default account's file-mode root cache is updated only after its profile save succeeds ([PR #376](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/376)).
+
+### Credits
+
+Thanks to **@insane66613** for these three authentication fixes.
+
 ## [0.15.5] - 2026-10-14
 
 ### Added

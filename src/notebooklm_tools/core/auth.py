@@ -7,6 +7,7 @@ Storage location: ~/.notebooklm-mcp-cli/ (unified for CLI and MCP)
 """
 
 import contextlib
+import hashlib
 import json
 import logging
 import os
@@ -229,12 +230,32 @@ def _atomic_write_json(target_path: Path, data: Any) -> None:
                 tmp_path.unlink()
 
 
+def auth_state_fingerprint(tokens: Any | None) -> str:
+    """Opaque digest of persisted file-mode authentication state.
+
+    Used as a compare-and-save guard under the profile lock. Never log or
+    expose the credential material (or its digest) to users.
+    """
+    if tokens is None:
+        return hashlib.sha256(b"missing-auth-profile").hexdigest()
+    state = {
+        "cookies": getattr(tokens, "cookies", None),
+        "csrf_token": getattr(tokens, "csrf_token", None) or "",
+        "session_id": getattr(tokens, "session_id", None) or "",
+        "build_label": getattr(tokens, "build_label", None) or "",
+        "base_host": getattr(tokens, "base_host", None) or "",
+    }
+    canonical = json.dumps(state, sort_keys=True, default=str, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def save_tokens_to_cache(
     tokens: AuthTokens,
     silent: bool = False,
     profile_name: str | None = None,
     expected_revision: str | None = None,
     force: bool = True,
+    expected_file_fingerprint: str | None = None,
 ) -> str | None:
     """Save tokens to a profile and mirror the configured default to auth.json in file mode.
 
@@ -255,6 +276,15 @@ def save_tokens_to_cache(
 
     with get_profile_lock(target_profile):
         disk_mode = get_raw_on_disk_storage_mode(target_profile)
+        # File-mode profiles have no encrypted envelope revision. Compare the
+        # complete saved auth state while holding the same profile write lock.
+        if disk_mode == "file" and expected_file_fingerprint is not None:
+            manager = get_auth_manager(target_profile)
+            current = manager.load_profile(force_reload=True) if manager.profile_exists() else None
+            if auth_state_fingerprint(current) != expected_file_fingerprint:
+                from notebooklm_tools.core.credential_store import StaleRevisionError
+
+                raise StaleRevisionError(target_profile, "file-state-changed", None)
         if expected_revision is not None:
             from notebooklm_tools.core.credential_store import (
                 StaleRevisionError,
@@ -285,7 +315,6 @@ def save_tokens_to_cache(
                     m = json.loads(meta_path.read_text(encoding="utf-8"))
                     if isinstance(m, dict) and m.get("email"):
                         root_data["email"] = m["email"]
-            _atomic_write_json(root_cache, root_data)
 
         manager = get_auth_manager(target_profile)
         saved_profile = manager.save_profile(
@@ -297,6 +326,10 @@ def save_tokens_to_cache(
             force=force,
             expected_revision=expected_revision,
         )
+        # Publish the legacy root mirror only after the canonical profile save
+        # succeeds. A rejected or failed profile write must not publish tokens.
+        if disk_mode == "file" and target_profile == default_profile:
+            _atomic_write_json(root_cache, root_data)
 
     if not silent:
         logger.info(f"Auth tokens cached for profile '{target_profile}'")

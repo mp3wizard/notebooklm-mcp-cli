@@ -202,9 +202,19 @@ def run_headless_auth(
     """Refresh cached credentials from the saved Firefox profile cookie store."""
     del timeout
 
-    from notebooklm_tools.core.auth import AuthTokens, save_tokens_to_cache, validate_cookies
+    from notebooklm_tools.core.auth import (
+        AuthTokens,
+        auth_state_fingerprint,
+        load_cached_tokens,
+        save_tokens_to_cache,
+        validate_cookies,
+    )
     from notebooklm_tools.core.credential_store import CredentialStoreError
     from notebooklm_tools.utils.config import get_auth_storage_mode
+
+    before = load_cached_tokens(profile_name=profile_name)
+    before_revision = expected_revision or getattr(before, "revision", None)
+    before_file_fingerprint = auth_state_fingerprint(before)
 
     # Preflight store availability for protected profile
     if get_auth_storage_mode(profile_name) == "protected":
@@ -240,11 +250,13 @@ def run_headless_auth(
                 )
             return None
         tokens = AuthTokens(cookies=cookies, extracted_at=time.time())
-        save_kwargs: dict[str, Any] = {"profile_name": profile_name}
-        if expected_revision is not None:
-            save_kwargs["expected_revision"] = expected_revision
-        if force is not None:
-            save_kwargs["force"] = force
+        save_kwargs: dict[str, Any] = {
+            "profile_name": profile_name,
+            "force": False if force is None else force,
+            "expected_file_fingerprint": before_file_fingerprint,
+        }
+        if before_revision is not None:
+            save_kwargs["expected_revision"] = before_revision
         rev = save_tokens_to_cache(tokens, **save_kwargs)
         tokens.revision = rev
         return tokens
