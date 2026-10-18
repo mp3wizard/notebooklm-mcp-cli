@@ -762,6 +762,7 @@ Then use natural language: _"Create a notebook about quantum computing and gener
 | Cross-notebook query                          | `nlm cross query`               | `cross_notebook_query`               |
 | Pipelines (multi-step workflows)              | `nlm pipeline run/list`         | `pipeline`                           |
 | Tag & smart select                            | `nlm tag add/list/select`       | `tag`                                |
+| Manage collections (home page groups)         | —                               | `collection_*`                       |
 | Configure AI tools                            | `nlm setup` (wizard), `nlm setup add/remove/list` | —                          |
 | Install AI Skills                             | `nlm skill install/update`      | —                                    |
 | Diagnose issues                               | `nlm doctor`                    | —                                    |

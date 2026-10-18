@@ -236,6 +236,31 @@ label(notebook_id="abc", action="move_source", label_id="...", source_id="...")
 label(notebook_id="abc", action="delete", label_id="...", confirm=True)
 ```
 
+### Collections (5 tools)
+
+Native collections group whole notebooks on the NotebookLM home page (distinct
+from source labels inside a notebook).
+
+| Tool | Description |
+|------|-------------|
+| `collection_list` | List all collections with their notebook IDs and emoji |
+| `collection_create` | Create a collection, optionally with an initial notebook list |
+| `collection_edit` | Rename a collection and/or replace its notebook list |
+| `collection_set_emoji` | Set or clear the collection emoji (pass `""` to clear) |
+| `collection_delete` | Delete a collection (requires `confirm=True`); notebooks are not deleted |
+
+**Examples:**
+```python
+collection_create(name="Client work", notebook_ids=["abc123"])
+collection_edit(collection_id="...", name="Current clients")
+collection_edit(collection_id="...", notebook_ids=["abc123", "def456"])  # complete list
+collection_set_emoji(collection_id="...", emoji="📁")
+collection_delete(collection_id="...", confirm=True)
+```
+
+`collection_edit` accepts the complete notebook list and sends only what
+changed. An unknown `collection_id` raises before anything is written.
+
 ### Sharing (4 tools)
 
 | Tool | Description |
