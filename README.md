@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.15.6 — October 2026)
+- **Collection editing works again** (#377): `edit_collection` sends one rename/add/remove operation per call and raises on an unknown collection ID before writing. Collections MCP tools now documented in the MCP guide and bundled skill. Includes the v0.15.6 auth fixes (#374-#376) already synced.
+- Clean merge, no conflicts.
+- Security scan post-merge: 0 findings at Medium or above; 45 Bandit Low left by design — [`docs/security-scan-report-2026-10-18.md`](docs/security-scan-report-2026-10-18.md)
+
 ### Upstream sync (unreleased auth fixes after v0.15.5 — October 2026)
 - **Headless sign-in requires a valid notebook API response** (#374), **background recovery rejects stale writes when another process updated credentials** (#375), and **failed profile saves leave the legacy credential cache untouched** (#376). Touches `core/auth.py`, `utils/cdp.py`, `utils/firefox.py`.
 - Clean merge, no conflicts.
