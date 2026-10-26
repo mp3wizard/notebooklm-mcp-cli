@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.15.8 — October 2026)
+- **Windows Store Claude Desktop config path follows migrated data folder** (#378, v0.15.7); **negative Google session IDs accepted** (#379), **signed-out landing page detected as expired auth** (#380), **stale root `auth.json` mirror writes rejected** (#381).
+- Clean merge; fixed missing `import re` in the fork's `setup.py` after merge.
+- Security scan post-merge: upgraded certifi, fastmcp, filelock, opentelemetry-api (OSV: Critical 1, High 1, Medium 3 → 0); 45 Bandit Low left by design — [`docs/security-scan-report-2026-10-26.md`](docs/security-scan-report-2026-10-26.md)
+
 ### Upstream sync (v0.15.6 — October 2026)
 - **Collection editing works again** (#377): `edit_collection` sends one rename/add/remove operation per call and raises on an unknown collection ID before writing. Collections MCP tools now documented in the MCP guide and bundled skill. Includes the v0.15.6 auth fixes (#374-#376) already synced.
 - Clean merge, no conflicts.

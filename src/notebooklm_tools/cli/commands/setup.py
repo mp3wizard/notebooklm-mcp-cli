@@ -10,6 +10,7 @@ This is different from `nlm skill` which installs skill/reference docs.
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess  # nosec B404 — subprocess used only to invoke known CLI tools (claude, codex, pbcopy); no user-controlled input
 import tomllib
