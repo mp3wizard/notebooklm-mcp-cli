@@ -1439,8 +1439,8 @@ def extract_csrf_token(html: str) -> str:
 def extract_session_id(html: str) -> str:
     """Extract session ID from page HTML."""
     patterns = [
-        r'"FdrFJe":"(\d+)"',
-        r'f\.sid["\s:=]+["\']?(\d+)',
+        r'"FdrFJe":"(-?\d+)"',
+        r'f\.sid["\s:=]+["\']?(-?\d+)',
     ]
     for pattern in patterns:
         match = re.search(pattern, html)

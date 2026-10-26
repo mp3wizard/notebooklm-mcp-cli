@@ -1311,6 +1311,13 @@ class BaseClient:
                 raise ValueError(f"Failed to fetch NotebookLM page: HTTP {response.status_code}")
 
             html = response.text
+            # Google can serve the signed-out landing page with HTTP 200.
+            # Detect it before token extraction or writing a misleading dump.
+            if "landing-header-signin" in html:
+                raise ValueError(
+                    "Authentication expired: Google session is not signed in. "
+                    "Run `nlm login` to re-authenticate."
+                )
 
             # Extract the CSRF token from SNlM0e; session IDs are not CSRF tokens.
             from .auth import extract_csrf_from_page_source

@@ -24,6 +24,24 @@ from notebooklm_tools.cli.commands.setup import (
 )
 
 
+def _msix_layout(tmp_path, package_name="Claude_pzs8sxrjxfjjc"):
+    """Create a Claude Desktop MSIX package folder and return its paths."""
+    local_app_data = tmp_path / "LocalAppData"
+    legacy_dir = local_app_data / "Packages" / package_name / "LocalCache" / "Roaming" / "Claude"
+    legacy_dir.mkdir(parents=True)
+    return local_app_data, legacy_dir
+
+
+def _windows_env(local_app_data, tmp_path):
+    return patch.dict(
+        os.environ,
+        {
+            "APPDATA": str(tmp_path / "AppData" / "Roaming"),
+            "LOCALAPPDATA": str(local_app_data),
+        },
+    )
+
+
 class TestClaudeDesktopRegistry:
     """Verify Claude Desktop is properly registered in CLIENT_REGISTRY."""
 
@@ -112,6 +130,82 @@ class TestClaudeDesktopConfigPath:
         ):
             path = _claude_desktop_config_path()
         assert path == msix_config
+
+    def test_windows_path_uses_migrated_claude_data_with_left_marker(self, tmp_path):
+        local_app_data, legacy_dir = _msix_layout(tmp_path)
+        family = "claude_pzs8sxrjxfjjc"
+        migrated_dir = local_app_data / "Claude-Data" / family
+        migrated_dir.mkdir(parents=True)
+        (legacy_dir / f".user-data-left.{family}").write_text("")
+
+        with (
+            _windows_env(local_app_data, tmp_path),
+            patch("platform.system", return_value="Windows"),
+        ):
+            path = _claude_desktop_config_path()
+        assert path == migrated_dir / "claude_desktop_config.json"
+
+    def test_windows_path_ignores_empty_claude_data_folder(self, tmp_path):
+        local_app_data, legacy_dir = _msix_layout(tmp_path)
+        legacy_config = legacy_dir / "claude_desktop_config.json"
+        legacy_config.write_text("{}")
+        (local_app_data / "Claude-Data").mkdir(parents=True)
+
+        with (
+            _windows_env(local_app_data, tmp_path),
+            patch("platform.system", return_value="Windows"),
+        ):
+            path = _claude_desktop_config_path()
+        assert path == legacy_config
+
+    def test_windows_path_returns_to_legacy_folder_on_back_marker(self, tmp_path):
+        local_app_data, legacy_dir = _msix_layout(tmp_path)
+        family = "claude_pzs8sxrjxfjjc"
+        (local_app_data / "Claude-Data" / family).mkdir(parents=True)
+        (legacy_dir / f".user-data-back.{family}").write_text("")
+
+        with (
+            _windows_env(local_app_data, tmp_path),
+            patch("platform.system", return_value="Windows"),
+        ):
+            path = _claude_desktop_config_path()
+        assert path == legacy_dir / "claude_desktop_config.json"
+
+    def test_windows_path_uses_migrated_dir_without_markers(self, tmp_path):
+        local_app_data, _ = _msix_layout(tmp_path)
+        migrated_dir = local_app_data / "Claude-Data" / "claude_pzs8sxrjxfjjc"
+        migrated_dir.mkdir(parents=True)
+
+        with (
+            _windows_env(local_app_data, tmp_path),
+            patch("platform.system", return_value="Windows"),
+        ):
+            path = _claude_desktop_config_path()
+        assert path == migrated_dir / "claude_desktop_config.json"
+
+    def test_windows_path_lowercases_mixed_case_package_folder(self, tmp_path):
+        local_app_data, _ = _msix_layout(tmp_path, package_name="Claude_PZS8SXRJXFJJC")
+        migrated_dir = local_app_data / "Claude-Data" / "claude_pzs8sxrjxfjjc"
+        migrated_dir.mkdir(parents=True)
+
+        with (
+            _windows_env(local_app_data, tmp_path),
+            patch("platform.system", return_value="Windows"),
+        ):
+            path = _claude_desktop_config_path()
+        assert path == migrated_dir / "claude_desktop_config.json"
+
+    def test_windows_detects_regular_profile_on_migrated_layout(self, tmp_path):
+        local_app_data, _ = _msix_layout(tmp_path)
+        migrated_dir = local_app_data / "Claude-Data" / "claude_pzs8sxrjxfjjc"
+        migrated_dir.mkdir(parents=True)
+
+        with (
+            _windows_env(local_app_data, tmp_path),
+            patch("platform.system", return_value="Windows"),
+        ):
+            paths = _claude_desktop_profile_paths()
+        assert paths.get("regular") == migrated_dir / "claude_desktop_config.json"
 
     def test_windows_path_uses_standard_path_when_msix_install_is_ambiguous(self, tmp_path):
         local_app_data = tmp_path / "LocalAppData"
@@ -402,6 +496,47 @@ class TestSetupClaudeDesktop:
         assert result.exit_code == 0, result.stdout
         assert third_party_path.exists()
         assert not regular_path.exists()
+
+    def test_setup_add_and_list_target_migrated_config(self, tmp_path):
+        local_app_data, legacy_dir = _msix_layout(tmp_path)
+        migrated_dir = local_app_data / "Claude-Data" / "claude_pzs8sxrjxfjjc"
+        migrated_dir.mkdir(parents=True)
+        migrated_config = migrated_dir / "claude_desktop_config.json"
+
+        def regular_row(output: str) -> str:
+            # The table wraps "(regular)" onto a second line at 80 columns;
+            # the status cell sits on the first line of the row.
+            rows = [line for line in output.splitlines() if "Claude Desktop" in line]
+            assert len(rows) == 1, output
+            return rows[0]
+
+        with (
+            _windows_env(local_app_data, tmp_path),
+            patch("platform.system", return_value="Windows"),
+            patch(
+                "notebooklm_tools.cli.commands.setup._find_mcp_server_path",
+                return_value="/usr/local/bin/notebooklm-mcp",
+            ),
+            patch(
+                "notebooklm_tools.cli.commands.setup._claude_desktop_profile_is_running",
+                return_value=False,
+            ),
+        ):
+            before = CliRunner().invoke(app, ["list"])
+            add_result = CliRunner().invoke(app, ["add", "claude-desktop"])
+            after = CliRunner().invoke(app, ["list"])
+
+        assert before.exit_code == 0, before.stdout
+        assert "✓" not in regular_row(before.stdout)
+
+        assert add_result.exit_code == 0, add_result.stdout
+        assert MCP_SERVER_NAME in json.loads(migrated_config.read_text())["mcpServers"]
+        assert not (legacy_dir / "claude_desktop_config.json").exists()
+
+        # `list` can only report ✓ by reading the migrated file; the legacy
+        # config was never written.
+        assert after.exit_code == 0, after.stdout
+        assert "✓" in regular_row(after.stdout)
 
     def test_refuses_to_write_when_selected_profile_is_running(self, tmp_path):
         config_path = tmp_path / "claude_desktop_config.json"

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.8] - 2026-10-25
+
+### Fixed
+
+- Accept negative Google session IDs in the browser-backed CDP transport and the `f.sid` page fallback, preserving the leading minus sign ([#379](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/379)).
+- Detect Google's signed-out landing page even when Google returns HTTP 200, and report expired authentication before attempting CSRF extraction or writing a misleading page-structure debug dump ([#380](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/380)).
+- Reject file-mode writes copied from a stale root `auth.json` mirror when the canonical default profile contains different cookies. Check under the profile lock, including `force=True` writes, while allowing new login credentials to update both stores ([#381](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/381)).
+
+### Changed
+
+- Added authentication regression tests and documented live verification with isolated credential storage. Live checks confirmed repeated notebook listing through HTTP and CDP, authenticated homepage refresh, signed-out error reporting, and preservation of working credentials after a rejected stale-mirror write. Negative session IDs were verified with regression fixtures because the live session supplied a positive ID.
+
+### Credits
+
+Thanks to **@alexchaifu-ship-it** for reporting the negative session ID bug in [#379](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/379), and **@bradmarshall987** for the detailed authentication reports and reproductions in [#380](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/380) and [#381](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/381).
+
+## [0.15.7] - 2026-10-23
+
+### Fixed
+
+- **`nlm setup add claude-desktop` now writes to the right file on migrated Windows Store installs.** Newer Microsoft Store builds of Claude Desktop move their user data from `%LOCALAPPDATA%\Packages\<package>\LocalCache\Roaming\Claude` to `%LOCALAPPDATA%\Claude-Data\<package>`. We only knew the old path, so `setup add` wrote a config the app never read, and `setup list` read the same file back and showed a false ✓. The resolver now follows the app's own rule: it uses the new folder only when `Claude-Data\<package name, lowercased>` exists as a directory and no `.user-data-back.<package>` marker sits in the old folder. An empty `Claude-Data` folder next to a live old folder keeps the old path, so working installs don't change. `setup list` goes through the same resolver, so it reports the file Claude Desktop actually loads ([#378](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/378)).
+
+### Notes
+
+- Unverified: when the new folder exists with neither a `left` nor a `back` marker, Claude Desktop runs an extra check we haven't read. We treat that case as migrated.
+
+### Credits
+
+Thanks to **@diogoflorencio** for the report and the manual workaround in [#378](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/378).
+
 ## [0.15.6] - 2026-10-17
 
 ### Fixed

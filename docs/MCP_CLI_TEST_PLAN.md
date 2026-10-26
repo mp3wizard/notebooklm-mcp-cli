@@ -56,6 +56,27 @@ Refresh authentication tokens for NotebookLM.
 
 ---
 
+### Authentication regressions (#379, #380, #381)
+
+Run `uv run pytest tests/test_auth_open_issues.py`.
+
+- Both page parsers must preserve the minus sign in `FdrFJe` and `f.sid` session IDs.
+- An HTTP 200 page containing `landing-header-signin` must report expired authentication
+  before attempting token extraction or writing a page-structure debug dump.
+- In isolated file-mode storage, writing tokens from a stale root `auth.json` mirror
+  must raise `StaleRevisionError` and preserve the canonical profile. A new login must
+  still update both stores. Never inject stale credentials into a real user profile.
+
+Live verification: list notebooks twice through HTTP and CDP, and verify an anonymous
+homepage request reports expired authentication. For the stale-mirror check, use a
+private temporary storage directory containing a copy of working credentials; reject
+an injected synthetic stale mirror, then verify the preserved credentials can still
+list notebooks twice. Run live checks separately from pytest's storage monitor.
+A positive live session ID verifies compatibility only; the negative-ID case requires
+its regression fixture unless Google supplies a negative ID for the current session.
+
+---
+
 ### Test 1.1b - Non-Interactive Session Refresh (unattended)
 **CLI:** `nlm auth refresh` (headless refresh; `--profile <name>` for a named profile)
 

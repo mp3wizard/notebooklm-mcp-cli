@@ -301,6 +301,21 @@ def save_tokens_to_cache(
 
         if disk_mode == "file" and target_profile == default_profile:
             root_cache = get_cache_path()
+            # The root cache is a legacy mirror, never an authority over an
+            # existing profile. Reject a stale mirror being written back even
+            # when force=True (which only bypasses account replacement checks).
+            manager = get_auth_manager(target_profile)
+            if root_cache.exists() and manager.profile_exists():
+                try:
+                    mirrored = _read_json_with_windows_retry(root_cache)
+                except (OSError, ValueError):
+                    mirrored = None
+                if isinstance(mirrored, dict) and mirrored.get("cookies") == tokens.cookies:
+                    current = manager.load_profile(force_reload=True)
+                    if current.cookies != tokens.cookies:
+                        from notebooklm_tools.core.credential_store import StaleRevisionError
+
+                        raise StaleRevisionError(target_profile, "stale-root-mirror", None)
             root_data = {
                 "cookies": tokens.cookies,
                 "csrf_token": tokens.csrf_token or "",
@@ -380,7 +395,7 @@ def extract_session_id_from_page(html: str) -> str | None:
 
     patterns = [
         r'"FdrFJe":"([^"]+)"',
-        r"f\.sid=(\d+)",
+        r"f\.sid=(-?\d+)",
     ]
 
     for pattern in patterns:

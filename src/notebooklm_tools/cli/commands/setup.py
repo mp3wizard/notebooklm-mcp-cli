@@ -445,11 +445,43 @@ def _claude_desktop_msix_package_dir() -> Path | None:
     return package_dirs[0]
 
 
+_MSIX_PACKAGE_FAMILY_NAME = re.compile(r"^[a-z0-9.-]+_[a-z0-9]+$")
+
+
+def _claude_desktop_msix_migrated_dir(package_dir: Path) -> Path | None:
+    """Return the folder Claude Desktop moved its user data to, if any.
+
+    Newer MSIX builds move user data from the package container to
+    ``%LOCALAPPDATA%\\Claude-Data\\<package family name>`` and record the move
+    with ``.user-data-<state>.<package family name>`` markers in the old
+    package folder. A ``back`` marker means the data returned, so the old
+    folder wins even when the new one exists.
+
+    Unverified: when the new folder exists with neither a ``back`` nor a
+    ``left`` marker, the app runs an extra check we have not read. We treat
+    that case as migrated.
+    """
+    family_name = package_dir.name.lower()
+    if not _MSIX_PACKAGE_FAMILY_NAME.match(family_name):
+        return None
+
+    legacy_dir = package_dir / "LocalCache" / "Roaming" / "Claude"
+    if (legacy_dir / f".user-data-back.{family_name}").exists():
+        return None
+
+    # package_dir was located as <LOCALAPPDATA>/Packages/<family name>.
+    migrated_dir = package_dir.parent.parent / "Claude-Data" / family_name
+    return migrated_dir if migrated_dir.is_dir() else None
+
+
 def _claude_desktop_msix_config_path() -> Path | None:
     """Find the config path used by a Claude Desktop MSIX installation."""
     package_dir = _claude_desktop_msix_package_dir()
     if package_dir is None:
         return None
+    migrated_dir = _claude_desktop_msix_migrated_dir(package_dir)
+    if migrated_dir is not None:
+        return migrated_dir / "claude_desktop_config.json"
     return package_dir / "LocalCache" / "Roaming" / "Claude" / "claude_desktop_config.json"
 
 
