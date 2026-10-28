@@ -10,6 +10,10 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (post-v0.15.8 CI bumps — October 2026)
+- Upstream: `setup-uv` 10.3.2 (#383), `gh-action-pypi-publish` 1.14.3 (#382) — CI/workflow only, no code change.
+- Security scan post-merge: upgraded authlib 1.8.0→1.9.1, dnspython 2.8.0→2.9.0 (OSV: Critical 1, High 3, Medium 4 → 0); 45 Bandit Low left by design — [`docs/security-scan-report-2026-10-28.md`](docs/security-scan-report-2026-10-28.md)
+
 ### Upstream sync (v0.15.8 — October 2026)
 - **Windows Store Claude Desktop config path follows migrated data folder** (#378, v0.15.7); **negative Google session IDs accepted** (#379), **signed-out landing page detected as expired auth** (#380), **stale root `auth.json` mirror writes rejected** (#381).
 - Clean merge; fixed missing `import re` in the fork's `setup.py` after merge.
