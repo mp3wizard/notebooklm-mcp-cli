@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.15.9 — November 2026)
+- **Cross-notebook queries preserve citations, cited passages and conversation ID** (#384); `setup-uv` / `gh-action-pypi-publish` CI bumps (#383, #382).
+- Clean merge, no conflicts.
+- Security scan post-merge: upgraded joserfc 1.7.5→1.7.7 (OSV: Medium 1 → 0); 45 Bandit Low left by design — [`docs/security-scan-report-2026-11-03.md`](docs/security-scan-report-2026-11-03.md)
+
 ### Upstream sync (post-v0.15.8 CI bumps — October 2026)
 - Upstream: `setup-uv` 10.3.2 (#383), `gh-action-pypi-publish` 1.14.3 (#382) — CI/workflow only, no code change.
 - Security scan post-merge: upgraded authlib 1.8.0→1.9.1, dnspython 2.8.0→2.9.0 (OSV: Critical 1, High 3, Medium 4 → 0); 45 Bandit Low left by design — [`docs/security-scan-report-2026-10-28.md`](docs/security-scan-report-2026-10-28.md)
