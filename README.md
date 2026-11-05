@@ -10,6 +10,12 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.16.0 — November 2026)
+- **Features:** experimental read-only source passage search, off by default (#391); chat-history deletion in CLI and MCP (#392, payload fix #393).
+- **Fixes:** no replay of uncertain mutating RPCs (#387); verified temp-collection cleanup (#388); reject ambiguous batch notebook names / unsafe concurrency (#389); no saving or logging of authenticated RPC payloads (#390).
+- One conflict in `core/base.py` (RPC debug logging): took upstream's payload-free logging, which is stricter than the fork's.
+- Security scan post-merge: 0 findings at Medium or above; 45 Bandit Low left by design — [`docs/security-scan-report-2026-11-05.md`](docs/security-scan-report-2026-11-05.md)
+
 ### Upstream sync (v0.15.9 — November 2026)
 - **Cross-notebook queries preserve citations, cited passages and conversation ID** (#384); `setup-uv` / `gh-action-pypi-publish` CI bumps (#383, #382).
 - Clean merge, no conflicts.
