@@ -35,16 +35,33 @@ from .retry import (
     RETRYABLE_CONNECT_ERRORS,
     is_retryable_error,
 )
-from .utils import (
-    RPC_NAMES,
-    _decode_request_body,
-    _format_debug_json,
-    _parse_url_params,
-)
+from .utils import RPC_NAMES
 
 # Configure logger (API internals only logged at DEBUG level, usually disabled)
 logger = logging.getLogger("notebooklm_mcp.api")
 logger.setLevel(logging.WARNING)  # Suppress internal API logs by default
+
+# Only these verified read-only RPCs may be replayed after an ambiguous 5xx/429
+# or RESOURCE_EXHAUSTED response. Unknown RPC IDs fail closed: the provider may
+# already have committed a write before returning an error.
+_REPLAY_SAFE_READ_RPCS = frozenset(
+    {
+        "wXbhsf",
+        "rLM1Ne",
+        "hizoJc",
+        "yR9Yof",
+        "hPTbtc",
+        "khqZz",
+        "VfAZjd",
+        "tr032e",
+        "e3bVqc",
+        "gArtLc",
+        "v9rmvd",
+        "JFMDGd",
+        "rG2vCb",
+        "EylDcb",
+    }
+)
 
 
 def _safe_int_env(name: str, default: int) -> int:
@@ -258,6 +275,7 @@ class BaseClient:
     RPC_ADD_SOURCE = "izAoDd"  # Used for URL, text, and Drive sources (legacy)
     RPC_ADD_SOURCE_V2 = "ozz5Z"  # URL source addition (new rollout, issue #121)
     RPC_ADD_SOURCE_FILE = "o4cbdc"  # Register file for resumable upload
+    RPC_SEARCH_RELEVANT_CHUNKS = "ASU5Oe"  # Read-only indexed passage retrieval
     RPC_GET_SOURCE = "hizoJc"  # Get source details
     RPC_CHECK_FRESHNESS = "yR9Yof"  # Check if Drive source is stale
     RPC_SYNC_DRIVE = "FLmJqe"  # Sync Drive source with latest content
@@ -941,6 +959,7 @@ class BaseClient:
         path: str = "/",
         timeout: float | None = None,
         _server_retry: int = 0,
+        retry_server_errors: bool = True,
     ) -> Any:
         """Execute a batchexecute RPC through the experimental CDP transport."""
         self._prepare_cdp_transport(timeout if timeout is not None else DEFAULT_TIMEOUT)
@@ -957,7 +976,7 @@ class BaseClient:
             return self._extract_rpc_result(parsed, rpc_id)
         except ResourceExhaustedError:
             max_retries = _rate_limit_max_retries()
-            if _server_retry < max_retries:
+            if retry_server_errors and _server_retry < max_retries:
                 import time as _time
 
                 delay = min(DEFAULT_BASE_DELAY * (2**_server_retry), DEFAULT_MAX_DELAY)
@@ -975,6 +994,7 @@ class BaseClient:
                     path,
                     timeout,
                     _server_retry=_server_retry + 1,
+                    retry_server_errors=retry_server_errors,
                 )
             raise
 
@@ -997,10 +1017,11 @@ class BaseClient:
         2. Reload cookies from disk (handles external re-authentication)
         3. Run headless auth (auto-refresh if Chrome profile has saved login)
 
-        retry_server_errors: False disables the HTTP 5xx/429 replay. Use for
-        non-idempotent mutations whose delivery may have succeeded (e.g. the
-        Rytqqe kickoff).
+        Ambiguous server responses are replayed only for explicitly allowlisted
+        read-only RPCs; mutation and unknown RPC IDs fail closed even when
+        retry_server_errors=True. Connection-not-established retries remain safe.
         """
+        retry_server_errors = retry_server_errors and rpc_id in _REPLAY_SAFE_READ_RPCS
         if self._cdp_rpc_transport_enabled():
             return self._call_rpc_via_cdp(
                 rpc_id,
@@ -1008,37 +1029,22 @@ class BaseClient:
                 path,
                 timeout,
                 _server_retry=_server_retry,
+                retry_server_errors=retry_server_errors,
             )
 
         client = self._get_client()
         body = self._build_request_body(rpc_id, params)
         url = self._build_url(rpc_id, path)
 
-        # Enhanced debug logging
+        # Diagnostic output must never include notebook content, URL session
+        # parameters, RPC request payloads, or authentication-related data.
         if logger.isEnabledFor(logging.DEBUG):
-            method_name = RPC_NAMES.get(rpc_id, "unknown")
-            logger.debug("=" * 70)
-            logger.debug(f"RPC Call: {rpc_id} ({method_name})")
-            logger.debug("-" * 70)
-
-            # Parse and display URL params
-            url_params = _parse_url_params(url)
-            logger.debug("URL Parameters:")
-            for key, value in url_params.items():
-                logger.debug(f"  {key}: {value}")
-
-            # Decode and display request body
-            # SEC-005: _decode_request_body() replaces the at= CSRF token value
-            # with the literal string "(csrf_token)" before logging.
-            logger.debug("-" * 70)
-            logger.debug("Request Params:")
-            decoded_body = _decode_request_body(body)
-            if "params" in decoded_body:
-                logger.debug(_format_debug_json(decoded_body["params"]))
-            elif "f.req" in decoded_body:
-                logger.debug(_format_debug_json(decoded_body["f.req"]))
-            else:
-                logger.debug(_format_debug_json(decoded_body))
+            logger.debug(
+                "RPC Call: %s (%s); request_bytes=%d",
+                rpc_id,
+                RPC_NAMES.get(rpc_id, "unknown"),
+                len(body),
+            )
 
         try:
             if timeout:
@@ -1046,15 +1052,11 @@ class BaseClient:
             else:
                 response = client.post(url, content=body)
 
-            # Log response before raise_for_status (so we can see error responses)
+            # Preserve status and size for diagnosis, never authenticated body.
             if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("-" * 70)
-                logger.debug(f"Response Status: {response.status_code}")
                 logger.debug(
-                    "Raw response (first 2000 chars): %s",
-                    response.text[:2000] if response.text else "(empty)",
+                    "RPC response: status=%d; bytes=%d", response.status_code, len(response.content)
                 )
-                logger.debug("=" * 70)
 
             response.raise_for_status()
 
@@ -1064,12 +1066,8 @@ class BaseClient:
                 logger.debug("RPC IDs in response: %s", self._extract_present_rpc_ids(parsed))
             result = self._extract_rpc_result(parsed, rpc_id)
 
-            # Enhanced debug logging for extracted result
             if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("-" * 70)
-                logger.debug("Response Data:")
-                logger.debug(_format_debug_json(result))
-                logger.debug("=" * 70)
+                logger.debug("RPC result received: type=%s", type(result).__name__)
 
             return result
 
@@ -1148,9 +1146,9 @@ class BaseClient:
             raise
 
         except ResourceExhaustedError:
-            # RPC-level rate limit (HTTP 200, error code 8). Back off and retry.
+            # RPC-level 429-equivalent error: do not replay uncertain mutations.
             max_retries = _rate_limit_max_retries()
-            if _server_retry < max_retries:
+            if retry_server_errors and _server_retry < max_retries:
                 import time as _time
 
                 delay = min(DEFAULT_BASE_DELAY * (2**_server_retry), DEFAULT_MAX_DELAY)
@@ -1324,27 +1322,11 @@ class BaseClient:
 
             csrf_token = extract_csrf_from_page_source(html)
             if not csrf_token:
-                # Save HTML for debugging
-                from notebooklm_tools.utils.config import get_storage_dir
-
-                debug_dir = get_storage_dir()
-                debug_path = debug_dir / "debug_page.html"
-                # The dump is the authenticated page: session identifiers and
-                # notebook metadata. Create it 0o600 atomically rather than
-                # writing first and narrowing after, which leaves a window in
-                # which the file is world-readable.
-                fd = os.open(str(debug_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-                try:
-                    f = os.fdopen(fd, "w", encoding="utf-8")
-                except BaseException:
-                    os.close(fd)
-                    raise
-                with f:
-                    f.write(html)
+                # The authenticated page can contain session and notebook
+                # metadata. Never persist or log its raw HTML on failure.
                 raise ValueError(
-                    f"Could not extract CSRF token from page. "
-                    f"Page saved to {debug_path} for debugging. "
-                    f"The page structure may have changed."
+                    "Could not extract CSRF token from page. "
+                    "The page structure may have changed; no HTML was saved."
                 )
 
             # Extract session ID (FdrFJe) - optional but helps
