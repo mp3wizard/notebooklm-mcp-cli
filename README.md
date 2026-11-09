@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.16.2 — November 2026)
+- **Fixes:** Drive freshness unknown vs confirmed stale (#396); source lookup failures reported instead of "empty notebook" (#397); setup tolerates empty/malformed client configs (#399, #400); consumer chat uses 9-slot `GenerateFreeFormStreamed` payload (#398).
+- Clean merge, no conflicts.
+- Security scan post-merge: 0 findings at Medium or above; 45 Bandit Low left by design; Semgrep timed out — [`docs/security-scan-report-2026-11-09.md`](docs/security-scan-report-2026-11-09.md)
+
 ### Upstream sync (v0.16.0 — November 2026)
 - **Features:** experimental read-only source passage search, off by default (#391); chat-history deletion in CLI and MCP (#392, payload fix #393).
 - **Fixes:** no replay of uncertain mutating RPCs (#387); verified temp-collection cleanup (#388); reject ambiguous batch notebook names / unsafe concurrency (#389); no saving or logging of authenticated RPC payloads (#390).
