@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.4] - 2026-11-13
+
+### Changed
+
+- `cli/` and `mcp/` now import shared primitives (error types, aliases, credential storage, notices, cookie parsing, and the API client class) through the service layer. A new test fails on any direct `core/` import, so the documented layering rule stays enforced ([#405](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/405)).
+
+### Fixed
+
+- `nlm login` no longer crashes with a bare `AssertionError` at the plain-or-protected storage question on Typer 0.29 and newer. On Typer 0.26 to 0.28 an answer other than 1 or 2 now asks again instead of aborting ([#406](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/406), [#407](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/407)).
+
+### Credits
+
+Thanks to **@renepf** for the login prompt fix and regression tests in [#407](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/407), and to **@Zir0-93** for the layering audit behind [#405](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/405).
+
+## [0.16.3] - 2026-11-11
+
+### Fixed
+
+- Manual login reads cookies from DevTools "Copy as cURL" exports that pass them with `-b`/`--cookie`, including multiline inputs. Previously the whole command became one cookie string, so login failed later with a protocol error. Unrecognized input now fails with a message naming the accepted formats ([#403](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/403), [#404](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/404)).
+
+### Credits
+
+Thanks to **@elijahmuraoka** for the precise reproduction and workaround in [#403](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/403).
+
+
 ## [0.16.2] - 2026-11-08
 
 ### Fixed
