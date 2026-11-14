@@ -10,6 +10,12 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.16.4 — November 2026)
+- **Fixes:** `nlm login` storage prompt no longer crashes on Typer 0.29+ (#406, #407); cURL `-b`/`--cookie` exports parsed in manual login (#403, #404).
+- **Changed:** `cli/` and `mcp/` import shared primitives via the service layer, enforced by a new layering test (#405). Includes v0.16.3 and a `softprops/action-gh-release` CI bump (#402).
+- Clean merge, no conflicts.
+- Security scan post-merge: upgraded dnspython 2.9.0→2.9.2, opentelemetry-api 1.45.1→1.45.2 (OSV: High 1, Medium 1 → 0); 45 Bandit Low left by design — [`docs/security-scan-report-2026-11-14.md`](docs/security-scan-report-2026-11-14.md)
+
 ### Upstream sync (v0.16.2 — November 2026)
 - **Fixes:** Drive freshness unknown vs confirmed stale (#396); source lookup failures reported instead of "empty notebook" (#397); setup tolerates empty/malformed client configs (#399, #400); consumer chat uses 9-slot `GenerateFreeFormStreamed` payload (#398).
 - Clean merge, no conflicts.
