@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.16.5 — November 2026)
+- **Fixes:** `nlm login --file` prefers the `.google.com` value when a cookie name repeats across Google domains in Netscape/JSON exports (#408, #409).
+- Clean merge, no conflicts.
+- Security scan post-merge: 0 findings at Medium or above; 45 Bandit Low left by design — [`docs/security-scan-report-2026-11-15.md`](docs/security-scan-report-2026-11-15.md)
+
 ### Upstream sync (v0.16.4 — November 2026)
 - **Fixes:** `nlm login` storage prompt no longer crashes on Typer 0.29+ (#406, #407); cURL `-b`/`--cookie` exports parsed in manual login (#403, #404).
 - **Changed:** `cli/` and `mcp/` import shared primitives via the service layer, enforced by a new layering test (#405). Includes v0.16.3 and a `softprops/action-gh-release` CI bump (#402).
