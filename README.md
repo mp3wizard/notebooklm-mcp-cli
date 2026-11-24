@@ -10,6 +10,11 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.16.7 — November 2026)
+- **Fixes:** `nlm login --file` skips `#` comment lines and reads cookies spread across multiple lines; cURL imports keep cookie names starting with `#` (#411, #412, thanks @goranai).
+- Clean merge, no conflicts.
+- Security scan post-merge: 0 findings at Medium or above; 45 Bandit Low left by design — [`docs/security-scan-report-2026-11-24.md`](docs/security-scan-report-2026-11-24.md)
+
 ### Upstream sync (v0.16.6 — November 2026)
 - **Changed:** `nlm setup` wizard lists regular Claude Desktop and Relay AI / 3P as separate rows; asks to quit a running Claude Desktop instead of aborting.
 - **Fixes:** setup detects a running Relay session before writing its config; `check_firewall_rule()` returns a real `bool` (#410).
