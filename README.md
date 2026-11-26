@@ -10,6 +10,12 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.16.8 — November 2026)
+- **Fixes:** artifact downloads that hit a Google sign-in page now ask you to run `nlm login`, and synchronous downloads no longer overwrite existing files with sign-in HTML (#414, thanks @FFXFF1).
+- **Fork hardening:** removed the `codex exec --sandbox danger-full-access` suggestion from the bundled skill's troubleshooting guide.
+- Clean merge, no conflicts.
+- Security scan post-merge: no dependency or code findings at Medium or above; 45 Bandit Low left by design; skill-scanner heuristic hits triaged in [`docs/security-scan-report-2026-11-26.md`](docs/security-scan-report-2026-11-26.md)
+
 ### Upstream sync (v0.16.7 — November 2026)
 - **Fixes:** `nlm login --file` skips `#` comment lines and reads cookies spread across multiple lines; cURL imports keep cookie names starting with `#` (#411, #412, thanks @goranai).
 - Clean merge, no conflicts.

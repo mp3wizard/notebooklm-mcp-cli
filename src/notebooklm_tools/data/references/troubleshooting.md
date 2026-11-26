@@ -278,12 +278,6 @@ Add to `~/.codex/config.toml`:
 network_access = true
 ```
 
-Or run with full network access:
-
-```bash
-codex exec --sandbox danger-full-access "nlm notebook list"
-```
-
 **Solution for Docker/Containers:**
 Ensure the container has network access and can reach `notebook.google.com`.
 
