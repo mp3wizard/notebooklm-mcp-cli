@@ -158,7 +158,7 @@ class TestDownloadSync:
             "Download failed: Redirected to login page."
         )
         with pytest.raises(ServiceError) as exc_info:
-            download_sync(mock_client, "nb-1", "file", "/tmp/out.bin")
+            download_sync(mock_client, "nb-1", "file", "/tmp/out.bin")  # nosec B108  # mocked path string; no file is created
         assert exc_info.value.debug_code == "auth_required"
         assert "nlm login" in exc_info.value.user_message
         assert "nlm login" in (exc_info.value.hint or "")
@@ -247,7 +247,7 @@ class TestDownloadAsync:
                 mock_client,
                 "nb-1",
                 "audio",
-                "/tmp/out.m4a",
+                "/tmp/out.m4a",  # nosec B108  # mocked path string; no file is created
                 wait=True,
                 wait_timeout=10.0,
                 poll_interval=0.01,

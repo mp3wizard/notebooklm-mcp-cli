@@ -10,6 +10,14 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.16.9 — November 2026)
+- **Features:** notebook details include original source URLs (#417); query citations carry an optional `chunk_id` (#418, thanks @insane66613).
+- **Fixes:** automatic research import runs at most once and reports unconfirmed results (#419); incremental downloads keep files another download already published (#420); Windows "Copy as cURL (cmd)" cookie import (#416, thanks @goranai); Firefox login closes cookie databases and avoids blocking on browser output (#423, thanks @FFXFF1).
+- **Other:** isolated offline tests (#422); `astral-sh/setup-uv` 10.4.0 in CI (#413).
+- Merge conflicts in the two research modules resolved with upstream.
+- Security scan post-merge: 20 Bandit Medium false positives in tests suppressed with justification; no dependency vulnerabilities or verified secrets — [`docs/security-scan-report-2026-11-27.md`](docs/security-scan-report-2026-11-27.md)
+- Codex review: 1 High, 4 Medium, 1 Low open in upstream's new research-import guard and download code (not fixed; see the report).
+
 ### Upstream sync (v0.16.8 — November 2026)
 - **Fixes:** artifact downloads that hit a Google sign-in page now ask you to run `nlm login`, and synchronous downloads no longer overwrite existing files with sign-in HTML (#414, thanks @FFXFF1).
 - **Fork hardening:** removed the `codex exec --sandbox danger-full-access` suggestion from the bundled skill's troubleshooting guide.

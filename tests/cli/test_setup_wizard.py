@@ -43,10 +43,20 @@ def test_scan_mcp_targets_combines_codex_and_excludes_alef():
 
 def test_run_add_continues_after_one_failure(monkeypatch):
     target_cursor = setup_wizard.SetupTarget(
-        "cursor", "Cursor", True, False, Path("/tmp/cursor.json"), "cursor"
+        "cursor",
+        "Cursor",
+        True,
+        False,
+        Path("/tmp/cursor.json"),  # nosec B108  # mocked path string; no file is created
+        "cursor",
     )
     target_codex = setup_wizard.SetupTarget(
-        "codex", "Codex / ChatGPT", True, False, Path("/tmp/config.toml"), "agents"
+        "codex",
+        "Codex / ChatGPT",
+        True,
+        False,
+        Path("/tmp/config.toml"),  # nosec B108  # mocked path string; no file is created
+        "agents",
     )
     monkeypatch.setattr(setup_wizard, "scan_mcp_targets", lambda: [target_cursor, target_codex])
 
@@ -71,7 +81,12 @@ def test_run_add_records_backups(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: fake_home)
 
     target_gemini = setup_wizard.SetupTarget(
-        "gemini", "Gemini CLI", True, False, Path("/tmp/gemini.json"), "agents"
+        "gemini",
+        "Gemini CLI",
+        True,
+        False,
+        Path("/tmp/gemini.json"),  # nosec B108  # mocked path string; no file is created
+        "agents",
     )
     monkeypatch.setattr(setup_wizard, "scan_mcp_targets", lambda: [target_gemini])
 
@@ -102,9 +117,14 @@ def test_add_one_mcp_routes_copilot_to_user_scope(monkeypatch):
 def test_flow_add_passes_selected_targets_and_has_no_select_all_pseudo(monkeypatch):
     targets = [
         setup_wizard.SetupTarget(
-            "cursor", "Cursor", True, False, Path("/tmp/cursor.json"), "cursor"
+            "cursor",
+            "Cursor",
+            True,
+            False,
+            Path("/tmp/cursor.json"),  # nosec B108  # mocked path string; no file is created
+            "cursor",
         ),
-        setup_wizard.SetupTarget("codex", "Codex", True, False, Path("/tmp/codex.toml"), "agents"),
+        setup_wizard.SetupTarget("codex", "Codex", True, False, Path("/tmp/codex.toml"), "agents"),  # nosec B108  # mocked path string; no file is created
     ]
     monkeypatch.setattr(setup_wizard, "scan_mcp_targets", lambda: targets)
     captured_choices = []

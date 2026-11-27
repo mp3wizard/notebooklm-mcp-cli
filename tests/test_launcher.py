@@ -30,7 +30,7 @@ cs._detect_os_backend = _fail_detect
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "-c":
-        exec(sys.argv[2])
+        exec(sys.argv[2])  # nosec B102  # test stub emulating `python -c`; argv is set by the test
     elif len(sys.argv) > 1 and sys.argv[1] == "nlm":
         from notebooklm_tools.cli.main import cli_main
 

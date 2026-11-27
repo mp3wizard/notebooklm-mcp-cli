@@ -618,15 +618,15 @@ class TestDownloadMixinMethods:
                 [self._video_artifact(second_url)],
             ]
         )
-        mixin._download_url = AsyncMock(side_effect=[retryable_error, "/tmp/video.mp4"])
+        mixin._download_url = AsyncMock(side_effect=[retryable_error, "/tmp/video.mp4"])  # nosec B108  # mocked path string; no file is created
         mixin._VIDEO_DOWNLOAD_RETRY_DELAYS = (0,)
 
-        result = await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")
+        result = await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")  # nosec B108  # mocked path string; no file is created
 
-        assert result == "/tmp/video.mp4"
+        assert result == "/tmp/video.mp4"  # nosec B108  # mocked path string; no file is created
         assert mixin._list_raw.call_count == 2
-        mixin._download_url.assert_any_await(first_url, "/tmp/video.mp4", None)
-        mixin._download_url.assert_any_await(second_url, "/tmp/video.mp4", None)
+        mixin._download_url.assert_any_await(first_url, "/tmp/video.mp4", None)  # nosec B108  # mocked path string; no file is created
+        mixin._download_url.assert_any_await(second_url, "/tmp/video.mp4", None)  # nosec B108  # mocked path string; no file is created
 
     @pytest.mark.asyncio
     async def test_download_video_ignores_malformed_secondary_media_entries(self):
@@ -635,12 +635,12 @@ class TestDownloadMixinMethods:
         artifact = self._video_artifact(url)
         artifact[8][0].append(42)
         mixin._list_raw = Mock(return_value=[artifact])
-        mixin._download_url = AsyncMock(return_value="/tmp/video.mp4")
+        mixin._download_url = AsyncMock(return_value="/tmp/video.mp4")  # nosec B108  # mocked path string; no file is created
 
-        result = await mixin.download_video("nb-1", "/tmp/video.mp4")
+        result = await mixin.download_video("nb-1", "/tmp/video.mp4")  # nosec B108  # mocked path string; no file is created
 
-        assert result == "/tmp/video.mp4"
-        mixin._download_url.assert_awaited_once_with(url, "/tmp/video.mp4", None)
+        assert result == "/tmp/video.mp4"  # nosec B108  # mocked path string; no file is created
+        mixin._download_url.assert_awaited_once_with(url, "/tmp/video.mp4", None)  # nosec B108  # mocked path string; no file is created
 
     @pytest.mark.asyncio
     async def test_download_video_does_not_retry_unrelated_404(self):
@@ -652,10 +652,10 @@ class TestDownloadMixinMethods:
         mixin._VIDEO_DOWNLOAD_RETRY_DELAYS = (0,)
 
         with pytest.raises(ArtifactDownloadError) as exc_info:
-            await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")
+            await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")  # nosec B108  # mocked path string; no file is created
 
         assert exc_info.value is unrelated_error
-        mixin._download_url.assert_awaited_once_with(url, "/tmp/video.mp4", None)
+        mixin._download_url.assert_awaited_once_with(url, "/tmp/video.mp4", None)  # nosec B108  # mocked path string; no file is created
 
     @pytest.mark.asyncio
     async def test_download_video_reports_propagation_after_retry_exhaustion(self):
@@ -667,7 +667,7 @@ class TestDownloadMixinMethods:
         mixin._VIDEO_DOWNLOAD_RETRY_DELAYS = (0,)
 
         with pytest.raises(ArtifactDownloadError) as exc_info:
-            await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")
+            await mixin.download_video("nb-1", "/tmp/video.mp4", artifact_id="video-1")  # nosec B108  # mocked path string; no file is created
 
         assert "still propagating" in exc_info.value.details
         assert mixin._download_url.await_count == 2
