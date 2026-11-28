@@ -67,3 +67,9 @@ anonymous.
 
 There is no bug bounty program and no payment. Reports are welcome anyway, and
 they get taken seriously.
+
+## Fork scan log (mp3wizard fork)
+
+| Date | Version | Tools | Fixes | Report |
+|---|---|---|---|---|
+| 2026-11-28 | 0.16.10 | Gitleaks, Bandit, Semgrep, Trivy, TruffleHog, OSV-Scanner, config-audit, mcp-exfil-scan, skill-audit, skillspector, mcps-audit | None applied. Scanners: no code, dependency or secret finding at Medium or above. Codex review: 1 High, 3 Medium open, plus 6 open from 2026-11-27 | [report](docs/security-scan-report-2026-11-28.md) |

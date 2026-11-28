@@ -10,6 +10,13 @@
 
 ## What's New (mp3wizard fork)
 
+### Upstream sync (v0.16.10 — November 2026)
+- **Fixes:** Drive viewer downloads ask you to sign in again on a Google sign-in page or HTTP 401, and each viewer redirect is checked against trusted HTTPS Google hosts before it is sent (#425, thanks @FFXFF1).
+- **Other:** CLI/MCP parity tests work with Typer 0.29+ (#426, #427, thanks @goranai).
+- Clean merge, no conflicts.
+- Security scan post-merge: no code, dependency or secret findings at Medium or above; skill and MCP scanner heuristic counts unchanged — [`docs/security-scan-report-2026-11-28.md`](docs/security-scan-report-2026-11-28.md)
+- Codex review: 1 High (final download redirects are unchecked; predates this sync) and 3 Medium (viewer sign-in detection and test coverage) open, not fixed; see the report.
+
 ### Upstream sync (v0.16.9 — November 2026)
 - **Features:** notebook details include original source URLs (#417); query citations carry an optional `chunk_id` (#418, thanks @insane66613).
 - **Fixes:** automatic research import runs at most once and reports unconfirmed results (#419); incremental downloads keep files another download already published (#420); Windows "Copy as cURL (cmd)" cookie import (#416, thanks @goranai); Firefox login closes cookie databases and avoids blocking on browser output (#423, thanks @FFXFF1).
